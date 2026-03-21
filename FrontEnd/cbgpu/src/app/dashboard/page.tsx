@@ -16,12 +16,11 @@ export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedRes, setSelectedRes] = useState<any>(null);
 
-  // TODO: fill in username and url for each GPU
   const gpus = [
-    { id: 1, name: "RTX5000", username: "gpu1", url: "" },
-    { id: 2, name: "RTX5000", username: "gpu2", url: "" },
-    { id: 3, name: "RTX5000", username: "gpu3", url: "" },
-    { id: 4, name: "RTX5000", username: "gpu4", url: "" },
+    { id: 1, name: "RTX5000", username: "gpu1", host: "10.138.26.144", port: 8001, jupyterhubUrl: "http://10.138.26.144:8001" },
+    { id: 2, name: "RTX5000", username: "gpu2", host: "10.138.26.144", port: 8002, jupyterhubUrl: "http://10.138.26.144:8002" },
+    { id: 3, name: "RTX5000", username: "gpu3", host: "10.138.26.144", port: 8003, jupyterhubUrl: "http://10.138.26.144:8003" },
+    { id: 4, name: "RTX5000", username: "gpu4", host: "10.138.26.144", port: 8004, jupyterhubUrl: "http://10.138.26.144:8004" },
   ];
 
   useEffect(() => {
@@ -59,12 +58,13 @@ export default function Dashboard() {
     if (!confirm(message)) return;
 
     try {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from('reservations')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('id', id);
 
       if (error) throw error;
+      if (!count || count === 0) throw new Error("삭제 권한이 없거나 이미 삭제된 예약입니다.");
       toast.success("Reservation cancelled.");
       fetchMyReservations();
     } catch (err: any) {
@@ -199,55 +199,43 @@ export default function Dashboard() {
                     <div className="mt-6 p-6 bg-muted/30 border-2 border-dashed border-primary/20 rounded-2xl animate-in slide-in-from-top-4 duration-500">
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div className="space-y-6">
+                          {/* Credentials */}
                           <div className="space-y-4">
                             <h3 className="flex items-center gap-2 font-black uppercase tracking-tighter italic text-primary">
                               <Key className="size-4" /> Access Credentials
                             </h3>
                             <div className="space-y-3">
                               <div className="flex flex-col gap-1.5 p-4 bg-background border rounded-xl shadow-inner">
-                                <span className="text-[10px] font-black uppercase opacity-50 tracking-widest">
-                                  Username
-                                </span>
+                                <span className="text-[10px] font-black uppercase opacity-50 tracking-widest">Username</span>
                                 <div className="flex items-center justify-between">
                                   <code className="text-lg font-black text-blue-500 tracking-wider">
                                     {gpuInfo?.username ?? `gpu${res.gpu_id}`}
                                   </code>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => copyToClipboard(gpuInfo?.username ?? `gpu${res.gpu_id}`)}
-                                    className="h-8 w-8 hover:bg-primary/10"
-                                  >
+                                  <Button variant="ghost" size="icon" onClick={() => copyToClipboard(gpuInfo?.username ?? `gpu${res.gpu_id}`)} className="h-8 w-8 hover:bg-primary/10">
                                     <Copy className="size-3.5" />
                                   </Button>
                                 </div>
                               </div>
                               <div className="flex flex-col gap-1.5 p-4 bg-background border rounded-xl shadow-inner">
-                                <span className="text-[10px] font-black uppercase opacity-50 tracking-widest">
-                                  Password
-                                </span>
+                                <span className="text-[10px] font-black uppercase opacity-50 tracking-widest">Password</span>
                                 <div className="flex items-center justify-between">
                                   <code className={password ? "text-lg font-black text-blue-500 tracking-wider" : "text-sm font-bold text-muted-foreground animate-pulse"}>
                                     {password || "비밀번호 준비 중..."}
                                   </code>
                                   {password && (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => copyToClipboard(password)}
-                                      className="h-8 w-8 hover:bg-primary/10"
-                                    >
+                                    <Button variant="ghost" size="icon" onClick={() => copyToClipboard(password)} className="h-8 w-8 hover:bg-primary/10">
                                       <Copy className="size-3.5" />
                                     </Button>
                                   )}
                                 </div>
                               </div>
                               <p className="text-[10px] text-muted-foreground font-bold leading-tight px-1 italic">
-                                ※ 이 비밀번호는 예약된 시간에만 유효하며, 세션 종료 후에는 자동으로 무효화됩니다.
+                                ※ 이 비밀번호는 예약된 시간에만 유효하며, 세션 종료 후 자동 무효화됩니다.
                               </p>
                             </div>
                           </div>
 
+                          {/* VS Code Remote SSH */}
                           <div className="space-y-4 pt-2">
                             <h3 className="flex items-center gap-2 font-black uppercase tracking-tighter italic text-primary">
                               <Monitor className="size-4" /> VS Code Remote - SSH
@@ -255,25 +243,25 @@ export default function Dashboard() {
                             <div className="space-y-3 bg-background border p-4 rounded-xl shadow-inner">
                               <ol className="text-[11px] font-bold space-y-2 list-decimal list-inside">
                                 <li>VS Code에서 <span className="text-primary">Remote - SSH</span> 확장을 설치합니다.</li>
-                                <li><span className="text-primary">F1</span>을 누르고 <span className="bg-muted px-1 rounded">Connect to Host...</span>를 선택합니다.</li>
-                                <li>주소창에 아래의 정보를 입력합니다:</li>
-                                <div className="flex items-center justify-between bg-muted/50 p-2 rounded-lg mt-1 group">
-                                  <code className="text-[10px] font-black">{gpuInfo?.username ?? `gpu${res.gpu_id}`}@{gpuInfo?.url || "서버주소"}</code>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => copyToClipboard(`${gpuInfo?.username ?? `gpu${res.gpu_id}`}@${gpuInfo?.url || "서버주소"}`)}
-                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  >
-                                    <Copy className="size-3" />
-                                  </Button>
-                                </div>
-                                <li>비밀번호 입력창이 뜨면 위의 패스워드를 입력하세요.</li>
+                                <li><span className="text-primary">F1</span> → <span className="bg-muted px-1 rounded">Connect to Host...</span> 선택</li>
+                                <li>아래 주소를 입력합니다 <span className="opacity-50">(포트 포함)</span>:</li>
                               </ol>
+                              <div className="flex items-center justify-between bg-muted/50 p-2.5 rounded-lg group mt-1">
+                                <code className="text-[11px] font-black">
+                                  {gpuInfo?.username ?? `gpu${res.gpu_id}`}@{gpuInfo?.host || "서버IP"} -p {gpuInfo?.port ?? 22}
+                                </code>
+                                <Button variant="ghost" size="icon" onClick={() => copyToClipboard(`${gpuInfo?.username ?? `gpu${res.gpu_id}`}@${gpuInfo?.host || "서버IP"} -p ${gpuInfo?.port ?? 22}`)} className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Copy className="size-3" />
+                                </Button>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground font-bold px-1">
+                                비밀번호 입력창이 뜨면 위의 Password를 입력하세요.
+                              </p>
                             </div>
                           </div>
                         </div>
 
+                        {/* CLI Guide */}
                         <div className="space-y-4">
                           <h3 className="flex items-center gap-2 font-black uppercase tracking-tighter italic text-primary">
                             <BookOpen className="size-4" /> CLI Terminal Guide
@@ -282,39 +270,44 @@ export default function Dashboard() {
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
                                 <Terminal className="size-3.5 text-primary" />
-                                <p className="text-[11px] font-black uppercase tracking-widest">Connect via SSH</p>
+                                <p className="text-[11px] font-black uppercase tracking-widest">SSH 명령어</p>
                               </div>
                               <div className="flex items-center justify-between bg-muted/50 p-2.5 rounded-lg group">
-                                <code className="text-[10px] font-black truncate">ssh {gpuInfo?.username ?? `gpu${res.gpu_id}`}@{gpuInfo?.url || "서버주소"}</code>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => copyToClipboard(`ssh ${gpuInfo?.username ?? `gpu${res.gpu_id}`}@${gpuInfo?.url || "서버주소"}`)}
-                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
+                                <code className="text-[10px] font-black truncate">
+                                  ssh -p {gpuInfo?.port ?? 22} {gpuInfo?.username ?? `gpu${res.gpu_id}`}@{gpuInfo?.host || "서버IP"}
+                                </code>
+                                <Button variant="ghost" size="icon" onClick={() => copyToClipboard(`ssh -p ${gpuInfo?.port ?? 22} ${gpuInfo?.username ?? `gpu${res.gpu_id}`}@${gpuInfo?.host || "서버IP"}`)} className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <Copy className="size-3" />
                                 </Button>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1 pt-1 border-t border-dashed">
+                              <p className="text-[10px] font-black uppercase opacity-50 tracking-widest">서버 정보</p>
+                              <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
+                                <div className="bg-primary/5 px-2 py-1.5 rounded">IP: <span className="text-primary">{gpuInfo?.host || "서버IP"}</span></div>
+                                <div className="bg-primary/5 px-2 py-1.5 rounded">PORT: <span className="text-primary">{gpuInfo?.port ?? 22}</span></div>
                               </div>
                             </div>
 
                             <div className="bg-primary/10 p-3 rounded-lg border border-primary/20">
                               <p className="text-[10px] font-medium leading-relaxed">
                                 <span className="font-black text-primary mr-1">NOTE:</span>
-                                터미널에서 위 명령어를 입력한 뒤, 왼쪽의 비밀번호를 복사하여 입력하세요. (입력 시 문자가 보이지 않는 것이 정상입니다)
+                                비밀번호 입력 시 화면에 문자가 보이지 않는 것이 정상입니다.
                               </p>
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      {gpuInfo?.url && (
-                        <div className="mt-8 flex justify-center gap-4">
+                      {gpuInfo?.jupyterhubUrl && (
+                        <div className="mt-8 flex justify-center">
                           <Button
                             variant="outline"
                             className="font-black text-[10px] uppercase tracking-widest h-11 px-8 border-2 hover:bg-foreground hover:text-background transition-all"
-                            onClick={() => window.open(gpuInfo.url, '_blank', 'noopener,noreferrer')}
+                            onClick={() => window.open(gpuInfo.jupyterhubUrl, '_blank', 'noopener,noreferrer')}
                           >
-                            Open JupyterHub
+                            Open JupyterHub — {gpuInfo.jupyterhubUrl}
                           </Button>
                         </div>
                       )}
