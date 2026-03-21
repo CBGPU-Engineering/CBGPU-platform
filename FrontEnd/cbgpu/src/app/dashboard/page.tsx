@@ -6,7 +6,8 @@ import GPUCard from '@/components/GPUCard';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/useAuth';
 import { toast } from 'sonner';
-import { RefreshCw, Trash2, Copy, BookOpen, Key, Terminal, Monitor } from 'lucide-react';
+import { RefreshCw, Trash2, Copy, BookOpen, Key, Terminal, Monitor, AlertTriangle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -15,6 +16,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedRes, setSelectedRes] = useState<any>(null);
+  const [cancelTarget, setCancelTarget] = useState<{ id: string; status: string } | null>(null);
 
   const gpus = [
     { id: 1, name: "RTX5000", username: "gpu1", host: "10.138.26.144", port: 8001, jupyterhubUrl: "http://10.138.26.144:8001" },
@@ -50,22 +52,18 @@ export default function Dashboard() {
     setLoading(false);
   };
 
-  const handleCancel = async (id: string, status: string) => {
-    const message = status === 'approved'
-      ? "This reservation is already approved. Are you sure you want to cancel it?"
-      : "Are you sure you want to cancel this reservation?";
-
-    if (!confirm(message)) return;
-
+  const handleCancel = async () => {
+    if (!cancelTarget) return;
     try {
       const { error, count } = await supabase
         .from('reservations')
         .delete({ count: 'exact' })
-        .eq('id', id);
+        .eq('id', cancelTarget.id);
 
       if (error) throw error;
       if (!count || count === 0) throw new Error("삭제 권한이 없거나 이미 삭제된 예약입니다.");
       toast.success("Reservation cancelled.");
+      setCancelTarget(null);
       fetchMyReservations();
     } catch (err: any) {
       toast.error("Failed to cancel: " + err.message);
@@ -176,7 +174,7 @@ export default function Dashboard() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleCancel(res.id, res.status)}
+                          onClick={() => setCancelTarget({ id: res.id, status: res.status })}
                           className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                         >
                           <Trash2 className="size-4" />
@@ -319,5 +317,30 @@ export default function Dashboard() {
         )}
       </section>
     </div>
+
+    {/* 예약 취소 확인 다이얼로그 */}
+    <Dialog open={!!cancelTarget} onOpenChange={(open) => { if (!open) setCancelTarget(null); }}>
+      <DialogContent className="max-w-sm rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 font-black uppercase tracking-tighter italic">
+            <AlertTriangle className="size-5 text-destructive" />
+            Cancel Reservation
+          </DialogTitle>
+          <DialogDescription className="text-sm font-bold pt-1">
+            {cancelTarget?.status === 'approved'
+              ? "이 예약은 이미 승인된 상태입니다. 정말 취소하시겠습니까?"
+              : "예약을 취소하시겠습니까?"}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" className="font-black uppercase text-[10px]" onClick={() => setCancelTarget(null)}>
+            돌아가기
+          </Button>
+          <Button variant="destructive" className="font-black uppercase text-[10px]" onClick={handleCancel}>
+            취소하기
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
