@@ -109,26 +109,44 @@ class TestRandomPassword:
 
 class TestApplyPassword:
     def test_success(self):
-        mock_result = MagicMock(returncode=0)
-        with patch("daemon.subprocess.run", return_value=mock_result) as mock_run:
-            apply_password("jupiterhub_gpu1", "gpu1", "testpass123")
+        # hash 생성 → config 저장 → restart 순으로 3번 호출
+        hash_ok = MagicMock(returncode=0, stdout="argon2:abc123\n")
+        config_ok = MagicMock(returncode=0)
+        restart_ok = MagicMock(returncode=0)
+        with patch("daemon.subprocess.run", side_effect=[hash_ok, config_ok, restart_ok]) as mock_run:
+            apply_password("jupiterhub_gpu1", "testpass123")
 
-        mock_run.assert_called_once()
-        args = mock_run.call_args
-        # sudo docker exec -i {container} chpasswd 명령 확인
-        cmd = args[0][0]
-        assert "docker" in cmd
-        assert "exec" in cmd
-        assert "jupiterhub_gpu1" in cmd
-        assert "chpasswd" in cmd
-        # 입력값에 username:password 형식 확인
-        assert args[1]["input"] == "gpu1:testpass123\n"
+        assert mock_run.call_count == 3
+        # 첫 번째 호출: python3 passwd 해시 생성
+        hash_cmd = mock_run.call_args_list[0][0][0]
+        assert "docker" in hash_cmd
+        assert "jupiterhub_gpu1" in hash_cmd
+        assert "python3" in hash_cmd
+        assert "passwd" in hash_cmd[hash_cmd.index("python3") + 2]
+        # 세 번째 호출: docker restart
+        restart_cmd = mock_run.call_args_list[2][0][0]
+        assert "restart" in restart_cmd
+        assert "jupiterhub_gpu1" in restart_cmd
 
-    def test_failure_raises(self):
-        mock_result = MagicMock(returncode=1, stderr="Permission denied")
-        with patch("daemon.subprocess.run", return_value=mock_result):
-            with pytest.raises(RuntimeError, match="chpasswd 실패"):
-                apply_password("jupiterhub_gpu1", "gpu1", "testpass123")
+    def test_hash_failure_raises(self):
+        hash_fail = MagicMock(returncode=1, stderr="ModuleNotFoundError", stdout="")
+        with patch("daemon.subprocess.run", return_value=hash_fail):
+            with pytest.raises(RuntimeError, match="해시 생성 실패"):
+                apply_password("jupiterhub_gpu1", "testpass123")
+
+    def test_empty_hash_raises(self):
+        hash_empty = MagicMock(returncode=0, stdout="")
+        with patch("daemon.subprocess.run", return_value=hash_empty):
+            with pytest.raises(RuntimeError, match="비어 있습니다"):
+                apply_password("jupiterhub_gpu1", "testpass123")
+
+    def test_restart_failure_raises(self):
+        hash_ok = MagicMock(returncode=0, stdout="argon2:abc123\n")
+        config_ok = MagicMock(returncode=0)
+        restart_fail = MagicMock(returncode=1, stderr="No such container")
+        with patch("daemon.subprocess.run", side_effect=[hash_ok, config_ok, restart_fail]):
+            with pytest.raises(RuntimeError, match="재시작 실패"):
+                apply_password("jupiterhub_gpu1", "testpass123")
 
 
 # ── reset_container 테스트 ────────────────────────────────

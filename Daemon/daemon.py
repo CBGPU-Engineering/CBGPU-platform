@@ -76,16 +76,45 @@ def random_password(length: int = 20) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
-def apply_password(container: str, username: str, password: str):
-    """컨테이너 안 시스템 계정 비밀번호 변경 (chpasswd 사용)"""
-    proc = subprocess.run(
-        ["docker","exec", "-i", container, "chpasswd"],
-        input=f"{username}:{password}\n",
+def apply_password(container: str, password: str):
+    """Jupyter Notebook Simple Password Mode 방식으로 비밀번호 변경"""
+    # 1. 컨테이너 안에서 비밀번호 해시 생성
+    hash_proc = subprocess.run(
+        [
+            "docker", "exec", container,
+            "python3", "-c",
+            f"from notebook.auth import passwd; print(passwd('{password}'))",
+        ],
         capture_output=True,
         text=True,
     )
-    if proc.returncode != 0:
-        raise RuntimeError(f"chpasswd 실패: {proc.stderr.strip()}")
+    if hash_proc.returncode != 0:
+        raise RuntimeError(f"해시 생성 실패: {hash_proc.stderr.strip()}")
+    hashed = hash_proc.stdout.strip()
+    if not hashed:
+        raise RuntimeError("해시 생성 결과가 비어 있습니다")
+
+    # 2. jupyter_notebook_config.py에 저장
+    config_proc = subprocess.run(
+        [
+            "docker", "exec", container,
+            "sh", "-c",
+            f"echo \"c.NotebookApp.password = '{hashed}'\" > /root/.jupyter/jupyter_notebook_config.py",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if config_proc.returncode != 0:
+        raise RuntimeError(f"config 저장 실패: {config_proc.stderr.strip()}")
+
+    # 3. 컨테이너 재시작하여 설정 적용
+    restart_proc = subprocess.run(
+        ["docker", "restart", container],
+        capture_output=True,
+        text=True,
+    )
+    if restart_proc.returncode != 0:
+        raise RuntimeError(f"컨테이너 재시작 실패: {restart_proc.stderr.strip()}")
 
 
 def reset_container(cfg: dict, gpu_id: int):
@@ -175,7 +204,7 @@ def main():
             log.info("GPU #%d: 비밀번호 변경 감지 → 컨테이너 '%s'에 적용 중...",
                      gpu_id, gpu_cfg["container"])
             try:
-                apply_password(gpu_cfg["container"], gpu_cfg["username"], password)
+                apply_password(gpu_cfg["container"], password)
                 log.info("GPU #%d: 비밀번호 적용 완료", gpu_id)
                 known_passwords[gpu_id] = password
             except Exception as e:
