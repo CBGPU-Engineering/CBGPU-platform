@@ -316,31 +316,31 @@ export default function Dashboard() {
           </div>
         )}
       </section>
-    </div>
 
-    {/* 예약 취소 확인 다이얼로그 */}
-    <Dialog open={!!cancelTarget} onOpenChange={(open) => { if (!open) setCancelTarget(null); }}>
-      <DialogContent className="max-w-sm rounded-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 font-black uppercase tracking-tighter italic">
-            <AlertTriangle className="size-5 text-destructive" />
-            Cancel Reservation
-          </DialogTitle>
-          <DialogDescription className="text-sm font-bold pt-1">
-            {cancelTarget?.status === 'approved'
-              ? "이 예약은 이미 승인된 상태입니다. 정말 취소하시겠습니까?"
-              : "예약을 취소하시겠습니까?"}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="gap-2">
-          <Button variant="outline" className="font-black uppercase text-[10px]" onClick={() => setCancelTarget(null)}>
-            돌아가기
-          </Button>
-          <Button variant="destructive" className="font-black uppercase text-[10px]" onClick={handleCancel}>
-            취소하기
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {/* 예약 취소 확인 다이얼로그 */}
+      <Dialog open={!!cancelTarget} onOpenChange={(open) => { if (!open) setCancelTarget(null); }}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-black uppercase tracking-tighter italic">
+              <AlertTriangle className="size-5 text-destructive" />
+              Cancel Reservation
+            </DialogTitle>
+            <DialogDescription className="text-sm font-bold pt-1">
+              {cancelTarget?.status === 'approved'
+                ? "이 예약은 이미 승인된 상태입니다. 정말 취소하시겠습니까?"
+                : "예약을 취소하시겠습니까?"}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="font-black uppercase text-[10px]" onClick={() => setCancelTarget(null)}>
+              돌아가기
+            </Button>
+            <Button variant="destructive" className="font-black uppercase text-[10px]" onClick={handleCancel}>
+              취소하기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
