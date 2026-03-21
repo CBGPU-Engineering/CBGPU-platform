@@ -78,13 +78,16 @@ def random_password(length: int = 20) -> str:
 
 def apply_password(container: str, password: str):
     """Jupyter Notebook Simple Password Mode 방식으로 비밀번호 변경"""
-    # 1. 컨테이너 안에서 비밀번호 해시 생성
+    # 1. 컨테이너 안에서 비밀번호 해시 생성 (notebook v7 이전/이후 모두 지원)
+    hash_script = (
+        "try:\n"
+        "    from jupyter_server.auth.security import passwd\n"
+        "except ImportError:\n"
+        "    from notebook.auth import passwd\n"
+        f"print(passwd('{password}'))"
+    )
     hash_proc = subprocess.run(
-        [
-            "docker", "exec", container,
-            "python3", "-c",
-            f"from notebook.auth import passwd; print(passwd('{password}'))",
-        ],
+        ["docker", "exec", container, "python3", "-c", hash_script],
         capture_output=True,
         text=True,
     )

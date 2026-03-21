@@ -122,7 +122,7 @@ class TestApplyPassword:
         assert "docker" in hash_cmd
         assert "jupiterhub_gpu1" in hash_cmd
         assert "python3" in hash_cmd
-        assert "passwd" in hash_cmd[hash_cmd.index("python3") + 2]
+        assert "passwd" in hash_cmd[-1]  # 마지막 인자가 python 스크립트
         # 세 번째 호출: docker restart
         restart_cmd = mock_run.call_args_list[2][0][0]
         assert "restart" in restart_cmd
