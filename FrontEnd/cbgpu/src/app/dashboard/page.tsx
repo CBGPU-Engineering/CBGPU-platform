@@ -149,16 +149,15 @@ export default function Dashboard() {
               const isPending = res.status === 'pending';
               const canStart = isApproved && isStarted && !isEnded;
 
-              const displayId = res.gpu_id === 0 ? 1 : res.gpu_id;
-              const gpuInfo = gpus.find(g => g.id === displayId);
-              const password = gpuPasswords[displayId];
+              const gpuInfo = gpus.find(g => g.id === res.gpu_id);
+              const password = gpuPasswords[res.gpu_id];
 
               return (
                 <div key={res.id} className="group flex flex-col p-5 md:p-6 border rounded-2xl bg-card shadow-sm hover:shadow-xl hover:border-primary/50 transition-all duration-500">
                   <div className="flex flex-col md:flex-row items-start md:items-center justify-between w-full">
                     <div className="space-y-2 mb-4 md:mb-0 w-full md:w-auto">
                       <div className="flex flex-wrap items-center gap-3">
-                        <span className="text-lg md:text-xl font-black text-primary italic tracking-tighter">GPU #{displayId}</span>
+                        <span className="text-lg md:text-xl font-black text-primary italic tracking-tighter">GPU #{res.gpu_id}</span>
                         {isPending && <span className="bg-amber-500/10 text-amber-600 text-[9px] font-black uppercase px-2 py-0.5 rounded border border-amber-500/20">Pending</span>}
                         {isRejected && <span className="bg-destructive/10 text-destructive text-[9px] font-black uppercase px-2 py-0.5 rounded border border-destructive/20">Rejected</span>}
                         {isApproved && !isStarted && <span className="bg-blue-500/10 text-blue-600 text-[9px] font-black uppercase px-2 py-0.5 rounded border border-blue-500/20">Upcoming</span>}

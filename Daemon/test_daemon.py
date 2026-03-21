@@ -32,6 +32,7 @@ VALID_CONFIG = {
         "image": "tensorflow/tensorflow:latest-gpu-jupyter",
         "container_port": 8888,
     },
+    # gpu_id는 DB와 동일하게 1,2,3,4 (1-indexed)
     "gpus": {
         1: {"username": "gpu1", "container": "jupiterhub_gpu1", "device": "0", "host_port": 8001},
         2: {"username": "gpu2", "container": "jupiterhub_gpu2", "device": "1", "host_port": 8002},

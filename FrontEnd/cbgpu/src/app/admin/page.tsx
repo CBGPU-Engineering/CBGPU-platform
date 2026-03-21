@@ -133,7 +133,6 @@ export default function AdminPage() {
                     const start = new Date(res.start_time);
                     const end = new Date(res.end_time);
                     const isEnded = new Date() > end;
-                    const displayGpuId = res.gpu_id === 0 ? 1 : res.gpu_id;
                     const dateOptions: Intl.DateTimeFormatOptions = {
                       month: 'short',
                       day: 'numeric',
@@ -149,7 +148,7 @@ export default function AdminPage() {
                             <span className="text-[10px] text-muted-foreground font-bold opacity-70">{res.profiles?.student_id || res.user_email}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-black italic text-primary">GPU #{displayGpuId}</TableCell>
+                        <TableCell className="font-black italic text-primary">GPU #{res.gpu_id}</TableCell>
                         <TableCell className="text-[11px] font-bold leading-tight py-5">
                           <div className="bg-muted/50 px-3 py-2 rounded-xl inline-block border border-border/50">
                             {start.toLocaleString('ko-KR', dateOptions)} <br/>
@@ -179,7 +178,7 @@ export default function AdminPage() {
                               <span className="text-[10px] font-black uppercase opacity-30 px-4">Session Finished</span>
                             ) : res.status === 'pending' ? (
                               <>
-                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'approved', displayGpuId)}>Approve</Button>
+                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'approved', res.gpu_id)}>Approve</Button>
                                 <Button size="sm" variant="destructive" className="font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-destructive/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'rejected')}>Reject</Button>
                               </>
                             ) : (
