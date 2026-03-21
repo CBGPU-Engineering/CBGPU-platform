@@ -317,7 +317,6 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* 예약 취소 확인 다이얼로그 */}
       <Dialog open={!!cancelTarget} onOpenChange={(open) => { if (!open) setCancelTarget(null); }}>
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
