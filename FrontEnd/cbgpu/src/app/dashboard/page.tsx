@@ -150,8 +150,8 @@ export default function Dashboard() {
               const canStart = isApproved && isStarted && !isEnded;
 
               const displayId = res.gpu_id === 0 ? 1 : res.gpu_id;
-              const gpuInfo = gpus.find(g => g.id === res.gpu_id);
-              const password = gpuPasswords[res.gpu_id];
+              const gpuInfo = gpus.find(g => g.id === displayId);
+              const password = gpuPasswords[displayId];
 
               return (
                 <div key={res.id} className="group flex flex-col p-5 md:p-6 border rounded-2xl bg-card shadow-sm hover:shadow-xl hover:border-primary/50 transition-all duration-500">
