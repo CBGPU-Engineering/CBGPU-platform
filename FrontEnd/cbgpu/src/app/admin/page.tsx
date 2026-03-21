@@ -25,7 +25,7 @@ export default function AdminPage() {
         )
       `)
       .order('created_at', { ascending: false });
-    
+
     if (error) {
         console.error("Data Load Error:", error);
         toast.error("Failed to load data.");
@@ -41,7 +41,25 @@ export default function AdminPage() {
     }
   }, [authLoading, isAdmin]);
 
-  async function updateStatus(id: string, newStatus: 'approved' | 'rejected' | 'pending') {
+  function generatePassword(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    return Array.from(array).map(x => chars[x % chars.length]).join('');
+  }
+
+  async function updateStatus(id: string, newStatus: 'approved' | 'rejected' | 'pending', gpuId?: number) {
+    if (newStatus === 'approved' && gpuId !== undefined) {
+      const password = generatePassword();
+      const { error: gpuError } = await supabase
+        .from('gpus')
+        .upsert({ id: gpuId, password }, { onConflict: 'id' });
+      if (gpuError) {
+        toast.error("Failed to generate credentials: " + gpuError.message);
+        return;
+      }
+    }
+
     const { error } = await supabase
       .from('reservations')
       .update({ status: newStatus })
@@ -115,11 +133,11 @@ export default function AdminPage() {
                     const start = new Date(res.start_time);
                     const end = new Date(res.end_time);
                     const isEnded = new Date() > end;
-                    const dateOptions: Intl.DateTimeFormatOptions = { 
-                      month: 'short', 
-                      day: 'numeric', 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
+                    const dateOptions: Intl.DateTimeFormatOptions = {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
                     };
 
                     return (
@@ -160,7 +178,7 @@ export default function AdminPage() {
                               <span className="text-[10px] font-black uppercase opacity-30 px-4">Session Finished</span>
                             ) : res.status === 'pending' ? (
                               <>
-                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'approved')}>Approve</Button>
+                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'approved', res.gpu_id)}>Approve</Button>
                                 <Button size="sm" variant="destructive" className="font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-destructive/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'rejected')}>Reject</Button>
                               </>
                             ) : (

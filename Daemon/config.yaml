@@ -1,0 +1,33 @@
+supabase_url: "https://fclbzjlcepoaifvcoxdw.supabase.co/"
+supabase_anon_key: "sb_publishable_fgrXxcwq2FC-G4YWzB7Y2A_M93BlQ4X"
+
+# Supabase 폴링 주기 (초)
+poll_interval_seconds: 30
+
+# Docker 설정 (컨테이너 리셋 시 사용)
+docker:
+  image: "tensorflow/tensorflow:latest-gpu-jupyter"
+  container_port: 8888  # 컨테이너 내부 포트 (보통 8888 고정)
+
+# GPU ID → 컨테이너 설정 매핑
+gpus:
+  1:
+    username: "gpu1"
+    container: "jupiterhub_gpu1"
+    device: "0"
+    host_port: 8001
+  2:
+    username: "gpu2"
+    container: "jupiterhub_gpu2"
+    device: "1"
+    host_port: 8002
+  3:
+    username: "gpu3"
+    container: "jupiterhub_gpu3"
+    device: "2"
+    host_port: 8003
+  4:
+    username: "gpu4"
+    container: "jupiterhub_gpu4"
+    device: "3"
+    host_port: 8004

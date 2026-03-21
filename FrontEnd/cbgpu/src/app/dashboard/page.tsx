@@ -11,21 +11,32 @@ import { RefreshCw, Trash2, Copy, BookOpen, Key, Terminal, Monitor } from 'lucid
 export default function Dashboard() {
   const { user } = useAuth();
   const [myReservations, setMyReservations] = useState<any[]>([]);
+  const [gpuPasswords, setGpuPasswords] = useState<{[key: number]: string}>({});
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedRes, setSelectedRes] = useState<any>(null);
 
+  // TODO: fill in username and url for each GPU
   const gpus = [
-    { id: 1, name: "RTX5000" },
-    { id: 2, name: "RTX5000" },
-    { id: 3, name: "RTX5000" },
-    { id: 4, name: "RTX5000" },
+    { id: 1, name: "RTX5000", username: "gpu1", url: "" },
+    { id: 2, name: "RTX5000", username: "gpu2", url: "" },
+    { id: 3, name: "RTX5000", username: "gpu3", url: "" },
+    { id: 4, name: "RTX5000", username: "gpu4", url: "" },
   ];
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  const fetchGpuPasswords = async () => {
+    const { data } = await supabase.from('gpus').select('id, password');
+    if (data) {
+      const map: {[key: number]: string} = {};
+      data.forEach((gpu: any) => { map[gpu.id] = gpu.password; });
+      setGpuPasswords(map);
+    }
+  };
 
   const fetchMyReservations = async () => {
     if (!user) return;
@@ -41,10 +52,10 @@ export default function Dashboard() {
   };
 
   const handleCancel = async (id: string, status: string) => {
-    const message = status === 'approved' 
-      ? "This reservation is already approved. Are you sure you want to cancel it?" 
+    const message = status === 'approved'
+      ? "This reservation is already approved. Are you sure you want to cancel it?"
       : "Are you sure you want to cancel this reservation?";
-      
+
     if (!confirm(message)) return;
 
     try {
@@ -69,9 +80,11 @@ export default function Dashboard() {
   useEffect(() => {
     if (user) {
       fetchMyReservations();
+      fetchGpuPasswords();
       const subscription = supabase
         .channel('schema-db-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => fetchMyReservations())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'gpus' }, () => fetchGpuPasswords())
         .subscribe();
       return () => { supabase.removeChannel(subscription); };
     }
@@ -137,6 +150,8 @@ export default function Dashboard() {
               const canStart = isApproved && isStarted && !isEnded;
 
               const displayId = res.gpu_id === 0 ? 1 : res.gpu_id;
+              const gpuInfo = gpus.find(g => g.id === res.gpu_id);
+              const password = gpuPasswords[res.gpu_id];
 
               return (
                 <div key={res.id} className="group flex flex-col p-5 md:p-6 border rounded-2xl bg-card shadow-sm hover:shadow-xl hover:border-primary/50 transition-all duration-500">
@@ -151,7 +166,7 @@ export default function Dashboard() {
                         {isApproved && isEnded && <span className="bg-slate-500/10 text-slate-600 text-[9px] font-black uppercase px-2 py-0.5 rounded border border-slate-500/20">Finished</span>}
                       </div>
                       <p className="text-xs md:text-sm text-muted-foreground font-bold bg-muted/50 inline-block px-2 py-1 rounded-md">
-                        {start.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 
+                        {start.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         <span className="mx-2 opacity-30">→</span>
                         {end.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </p>
@@ -159,16 +174,16 @@ export default function Dashboard() {
 
                     <div className="flex items-center gap-3 w-full md:w-auto">
                       {(isPending || (isApproved && !isEnded)) && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleCancel(res.id, res.status)}
                           className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                         >
                           <Trash2 className="size-4" />
                         </Button>
                       )}
-                      <Button 
+                      <Button
                         className="flex-grow md:flex-grow-0 min-w-[140px] md:min-w-[180px] font-black px-8 transition-all duration-300 uppercase italic text-[11px] h-11 gap-2"
                         variant={canStart ? "default" : "secondary"}
                         disabled={!canStart}
@@ -179,8 +194,8 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Usage Guide & Credentials Panel */}
-                  {selectedRes?.id === res.id && isApproved && (
+                  {/* Credentials & Guide Panel */}
+                  {selectedRes?.id === res.id && canStart && (
                     <div className="mt-6 p-6 bg-muted/30 border-2 border-dashed border-primary/20 rounded-2xl animate-in slide-in-from-top-4 duration-500">
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div className="space-y-6">
@@ -190,22 +205,42 @@ export default function Dashboard() {
                             </h3>
                             <div className="space-y-3">
                               <div className="flex flex-col gap-1.5 p-4 bg-background border rounded-xl shadow-inner">
-                                <span className="text-[10px] font-black uppercase opacity-50 tracking-widest">SSH Password</span>
-                              <div className="flex items-center justify-between">
-                                <code className={res.ssh_password ? "text-lg font-black text-blue-500 tracking-wider" : "text-sm font-bold text-muted-foreground animate-pulse"}>
-                                  {res.ssh_password || "서버 가동 중 (잠시만 기다려주세요)"}
-                                </code>
-                                {res.ssh_password && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={() => copyToClipboard(res.ssh_password)}
+                                <span className="text-[10px] font-black uppercase opacity-50 tracking-widest">
+                                  Username
+                                </span>
+                                <div className="flex items-center justify-between">
+                                  <code className="text-lg font-black text-blue-500 tracking-wider">
+                                    {gpuInfo?.username ?? `gpu${res.gpu_id}`}
+                                  </code>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => copyToClipboard(gpuInfo?.username ?? `gpu${res.gpu_id}`)}
                                     className="h-8 w-8 hover:bg-primary/10"
                                   >
                                     <Copy className="size-3.5" />
                                   </Button>
-                                )}
+                                </div>
                               </div>
+                              <div className="flex flex-col gap-1.5 p-4 bg-background border rounded-xl shadow-inner">
+                                <span className="text-[10px] font-black uppercase opacity-50 tracking-widest">
+                                  Password
+                                </span>
+                                <div className="flex items-center justify-between">
+                                  <code className={password ? "text-lg font-black text-blue-500 tracking-wider" : "text-sm font-bold text-muted-foreground animate-pulse"}>
+                                    {password || "비밀번호 준비 중..."}
+                                  </code>
+                                  {password && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => copyToClipboard(password)}
+                                      className="h-8 w-8 hover:bg-primary/10"
+                                    >
+                                      <Copy className="size-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                               <p className="text-[10px] text-muted-foreground font-bold leading-tight px-1 italic">
                                 ※ 이 비밀번호는 예약된 시간에만 유효하며, 세션 종료 후에는 자동으로 무효화됩니다.
@@ -223,17 +258,17 @@ export default function Dashboard() {
                                 <li><span className="text-primary">F1</span>을 누르고 <span className="bg-muted px-1 rounded">Connect to Host...</span>를 선택합니다.</li>
                                 <li>주소창에 아래의 정보를 입력합니다:</li>
                                 <div className="flex items-center justify-between bg-muted/50 p-2 rounded-lg mt-1 group">
-                                  <code className="text-[10px] font-black">user@192.168.0.50</code>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={() => copyToClipboard("user@192.168.0.50")}
+                                  <code className="text-[10px] font-black">{gpuInfo?.username ?? `gpu${res.gpu_id}`}@{gpuInfo?.url || "서버주소"}</code>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => copyToClipboard(`${gpuInfo?.username ?? `gpu${res.gpu_id}`}@${gpuInfo?.url || "서버주소"}`)}
                                     className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                                   >
                                     <Copy className="size-3" />
                                   </Button>
                                 </div>
-                                <li>비밀번호 입력창이 뜨면 왼쪽의 패스워드를 입력하세요.</li>
+                                <li>비밀번호 입력창이 뜨면 위의 패스워드를 입력하세요.</li>
                               </ol>
                             </div>
                           </div>
@@ -247,26 +282,18 @@ export default function Dashboard() {
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
                                 <Terminal className="size-3.5 text-primary" />
-                                <p className="text-[11px] font-black uppercase tracking-widest">Connect via IP</p>
+                                <p className="text-[11px] font-black uppercase tracking-widest">Connect via SSH</p>
                               </div>
                               <div className="flex items-center justify-between bg-muted/50 p-2.5 rounded-lg group">
-                                <code className="text-[10px] font-black truncate">ssh user@192.168.0.50</code>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={() => copyToClipboard("ssh user@192.168.0.50")}
+                                <code className="text-[10px] font-black truncate">ssh {gpuInfo?.username ?? `gpu${res.gpu_id}`}@{gpuInfo?.url || "서버주소"}</code>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => copyToClipboard(`ssh ${gpuInfo?.username ?? `gpu${res.gpu_id}`}@${gpuInfo?.url || "서버주소"}`)}
                                   className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                   <Copy className="size-3" />
                                 </Button>
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-2 pt-2 border-t border-dashed">
-                              <p className="text-[10px] font-black uppercase tracking-widest opacity-50">Network Interface Details</p>
-                              <div className="flex items-center gap-4 text-[10px] font-bold">
-                                <div className="bg-primary/5 px-2 py-1 rounded">INTERFACE: <span className="text-primary">enp5s0</span></div>
-                                <div className="bg-primary/5 px-2 py-1 rounded">SUBNET: <span className="text-primary">/24</span></div>
                               </div>
                             </div>
 
@@ -279,16 +306,18 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </div>
-                      
-                      <div className="mt-8 flex justify-center gap-4">
-                        <Button 
-                          variant="outline" 
-                          className="font-black text-[10px] uppercase tracking-widest h-11 px-8 border-2 hover:bg-foreground hover:text-background transition-all"
-                          onClick={() => window.open(`ssh://user@192.168.0.50`, '_blank', 'noopener,noreferrer')}
-                        >
-                          Open in External Client
-                        </Button>
-                      </div>
+
+                      {gpuInfo?.url && (
+                        <div className="mt-8 flex justify-center gap-4">
+                          <Button
+                            variant="outline"
+                            className="font-black text-[10px] uppercase tracking-widest h-11 px-8 border-2 hover:bg-foreground hover:text-background transition-all"
+                            onClick={() => window.open(gpuInfo.url, '_blank', 'noopener,noreferrer')}
+                          >
+                            Open JupyterHub
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
