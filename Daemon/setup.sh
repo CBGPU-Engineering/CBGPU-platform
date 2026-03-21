@@ -48,6 +48,7 @@ After=network.target docker.service
 
 [Service]
 Type=simple
+User=root
 ExecStart=python3 ${SCRIPT_DIR}/daemon.py ${SCRIPT_DIR}/config.yaml
 WorkingDirectory=${SCRIPT_DIR}
 Restart=always

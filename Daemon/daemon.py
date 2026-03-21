@@ -79,7 +79,7 @@ def random_password(length: int = 20) -> str:
 def apply_password(container: str, username: str, password: str):
     """컨테이너 안 시스템 계정 비밀번호 변경 (chpasswd 사용)"""
     proc = subprocess.run(
-        ["sudo", "docker", "exec", "-i", container, "chpasswd"],
+        ["docker","exec", "-i", container, "chpasswd"],
         input=f"{username}:{password}\n",
         capture_output=True,
         text=True,
@@ -101,7 +101,7 @@ def reset_container(cfg: dict, gpu_id: int):
 
     # 기존 컨테이너 삭제
     subprocess.run(
-        ["sudo", "docker", "rm", "-f", container],
+        ["docker","rm", "-f", container],
         capture_output=True,
         text=True,
     )
@@ -109,7 +109,7 @@ def reset_container(cfg: dict, gpu_id: int):
     # 새 컨테이너 생성
     proc = subprocess.run(
         [
-            "sudo", "docker", "run", "-d",
+            "docker","run", "-d",
             "--name", container,
             "--gpus", f"device={device}",
             "-p", f"{host_port}:{container_port}",
