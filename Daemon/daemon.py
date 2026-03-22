@@ -77,11 +77,11 @@ def random_password(length: int = 20) -> str:
 
 
 def apply_password(container: str, password: str):
-    """Jupyter Notebook Simple Password Mode 방식으로 비밀번호 변경"""
-    # 1. 컨테이너 안에서 비밀번호 해시 생성 (notebook v7 이전/이후 모두 지원)
+    """Jupyter Server/Notebook 환경에 맞게 비밀번호 변경"""
+    # 1. 컨테이너 안에서 비밀번호 해시 생성
     hash_script = (
         "try:\n"
-        "    from jupyter_server.auth.security import passwd\n"
+        "    from jupyter_server.auth import passwd\n"
         "except ImportError:\n"
         "    from notebook.auth import passwd\n"
         f"print(passwd('{password}'))"
@@ -97,20 +97,37 @@ def apply_password(container: str, password: str):
     if not hashed:
         raise RuntimeError("해시 생성 결과가 비어 있습니다")
 
-    # 2. jupyter_notebook_config.py에 저장
+    # 2. 설정 파일 내용 생성 (ServerApp과 NotebookApp 둘 다 대응)
+    # 토큰 로그인을 끄고 비밀번호 로그인을 활성화합니다.
+    config_content = (
+        f"c.ServerApp.password = '{hashed}'\n"
+        f"c.NotebookApp.password = '{hashed}'\n"
+        "c.ServerApp.token = ''\n"
+        "c.NotebookApp.token = ''"
+    )
+
+    # 3. jupyter_server_config.py와 jupyter_notebook_config.py 모두에 저장
+    # 쉘의 $ 해석 오류를 막기 위해 파이썬 코드로 안전하게 기록합니다.
+    write_script = (
+        "import os\n"
+        "content = \"\"\"" + config_content + "\"\"\"\n"
+        "for cfg_file in ['jupyter_server_config.py', 'jupyter_notebook_config.py']:\n"
+        "    path = os.path.join('/root/.jupyter', cfg_file)\n"
+        "    os.makedirs('/root/.jupyter', exist_ok=True)\n"
+        "    with open(path, 'w') as f:\n"
+        "        f.write(content)"
+    )
+    
     config_proc = subprocess.run(
-        [
-            "docker", "exec", container,
-            "sh", "-c",
-            f"echo \"c.NotebookApp.password = '{hashed}'\" > /root/.jupyter/jupyter_notebook_config.py",
-        ],
+        ["docker", "exec", container, "python3", "-c", write_script],
         capture_output=True,
         text=True,
     )
+    
     if config_proc.returncode != 0:
-        raise RuntimeError(f"config 저장 실패: {config_proc.stderr.strip()}")
+        raise RuntimeError(f"Config 저장 실패: {config_proc.stderr.strip()}")
 
-    # 3. 컨테이너 재시작하여 설정 적용
+    # 4. 컨테이너 재시작하여 설정 적용
     restart_proc = subprocess.run(
         ["docker", "restart", container],
         capture_output=True,
@@ -169,81 +186,72 @@ def main():
     log.info("CBGPU Daemon 시작 | poll_interval=%ds", cfg["poll_interval_seconds"])
 
     # 변경 감지용 in-memory 상태
-    known_passwords: dict[int, str] = {}   # gpu_id → 마지막으로 적용한 비밀번호
-    reset_done: set[str] = set()           # 이미 리셋 처리한 reservation id
-
-    # 초기 GPU 비밀번호 로드
-    try:
-        for gpu in fetch_gpus(cfg):
-            known_passwords[gpu["id"]] = gpu.get("password") or ""
-        log.info("Supabase에서 GPU %d개 로드 완료", len(known_passwords))
-    except Exception as e:
-        log.warning("초기 로드 실패: %s", e)
+    applied_session_pass: dict[int, str] = {}   # gpu_id → 현재 예약 세션에서 적용된 마지막 비밀번호
+    reset_done: set[str] = set()                # 이미 리셋 처리한 reservation id
 
     while True:
         time.sleep(cfg["poll_interval_seconds"])
         now = datetime.now(timezone.utc)
 
-        # ── 1. 비밀번호 변경 감지 ──────────────────────────────
+        # 1. 데이터 가져오기 (Fail-Safe 적용)
         try:
-            gpus = fetch_gpus(cfg)
-        except Exception as e:
-            log.warning("gpus 폴링 오류: %s", e)
-            gpus = []
-
-        for gpu in gpus:
-            gpu_id: int = gpu["id"]
-            password: str = gpu.get("password") or ""
-
-            if not password or known_passwords.get(gpu_id) == password:
-                continue
-
-            gpu_cfg = cfg["gpus"].get(gpu_id)
-            if not gpu_cfg:
-                log.warning("GPU #%d: config에 설정이 없어 건너뜀", gpu_id)
-                known_passwords[gpu_id] = password
-                continue
-
-            log.info("GPU #%d: 비밀번호 변경 감지 → 컨테이너 '%s'에 적용 중...",
-                     gpu_id, gpu_cfg["container"])
-            try:
-                apply_password(gpu_cfg["container"], password)
-                log.info("GPU #%d: 비밀번호 적용 완료", gpu_id)
-                known_passwords[gpu_id] = password
-            except Exception as e:
-                log.error("GPU #%d: 비밀번호 적용 실패: %s", gpu_id, e)
-
-        # ── 2. 예약 종료 감지 → 컨테이너 리셋 ────────────────────
-        try:
+            gpus_data = {g["id"]: g for g in fetch_gpus(cfg)}
             reservations = fetch_active_reservations(cfg)
         except Exception as e:
-            log.warning("reservations 폴링 오류: %s", e)
-            reservations = []
+            # [중요] 네트워크 오류 시 절대 리셋하거나 비밀번호를 건드리지 않습니다.
+            log.warning("Supabase 연결 실패 (네트워크 단절 가능성): %s. 현재 상태를 유지하며 재시도합니다.", e)
+            continue
 
+        # 2. 데이터가 텅 비었을 때의 안전 장치
+        # 만약 fetch는 성공했으나 예약 목록이 아예 없는 경우(삭제된 경우)에만 리셋 로직을 수행합니다.
+        # (Exception이 발생하지 않고 빈 리스트 []가 온 경우에만 아래 로직으로 진행)
+
+        # 현재 활성화된 예약 찾기 (start_time <= now <= end_time)
+        active_gpu_ids = set()
         for res in reservations:
-            res_id: str = res["id"]
-            if res_id in reset_done:
-                continue
-
-            end_time = datetime.fromisoformat(res["end_time"].replace("Z", "+00:00"))
-            if now <= end_time:
-                continue
-
-            # 예약 종료됨
-            gpu_id: int = res["gpu_id"]
-            gpu_cfg = cfg["gpus"].get(gpu_id)
-            if not gpu_cfg:
-                reset_done.add(res_id)
-                continue
-
-            log.info("GPU #%d: 예약 종료 감지 (reservation %s) → 컨테이너 리셋 시작", gpu_id, res_id)
+            res_id = res["id"]
+            gpu_id = res["gpu_id"]
+            
             try:
-                reset_container(cfg, gpu_id)
-                reset_done.add(res_id)
-                # known_passwords 초기화 (새 컨테이너는 비밀번호 없음)
-                known_passwords.pop(gpu_id, None)
-            except Exception as e:
-                log.error("GPU #%d: 컨테이너 리셋 실패: %s", gpu_id, e)
+                st = datetime.fromisoformat(res["start_time"].replace("Z", "+00:00"))
+                et = datetime.fromisoformat(res["end_time"].replace("Z", "+00:00"))
+            except ValueError:
+                continue
+
+            # Case A: 현재 사용 중인 예약
+            if st <= now <= et:
+                active_gpu_ids.add(gpu_id)
+                gpu_db = gpus_data.get(gpu_id)
+                if not gpu_db: continue
+                
+                new_password = gpu_db.get("password") or ""
+                
+                # 비밀번호가 아직 적용되지 않았거나, 중간에 바뀐 경우에만 적용
+                if new_password and applied_session_pass.get(gpu_id) != new_password:
+                    gpu_cfg = cfg["gpus"].get(gpu_id)
+                    if gpu_cfg:
+                        log.info("GPU #%d: 예약 시간 내 비밀번호 적용 시도 (Container: %s)", gpu_id, gpu_cfg["container"])
+                        try:
+                            apply_password(gpu_cfg["container"], new_password)
+                            applied_session_pass[gpu_id] = new_password
+                            log.info("GPU #%d: 비밀번호 적용 성공", gpu_id)
+                        except Exception as e:
+                            log.error("GPU #%d: 비밀번호 적용 실패: %s", gpu_id, e)
+
+            # Case B: 예약 종료됨 → 리셋 처리
+            elif now > et and res_id not in reset_done:
+                gpu_cfg = cfg["gpus"].get(gpu_id)
+                if gpu_cfg:
+                    log.info("GPU #%d: 예약 종료 감지 (Session: %s) → 리셋 시작", gpu_id, res_id)
+                    try:
+                        reset_container(cfg, gpu_id)
+                        reset_done.add(res_id)
+                        applied_session_pass.pop(gpu_id, None) # 해당 GPU 세션 정보 초기화
+                    except Exception as e:
+                        log.error("GPU #%d: 리셋 실패: %s", gpu_id, e)
+
+        # 3. (선택사항) 예약 시간이 아닌데 비밀번호가 적용되어 있는 경우 클리어링 로직 등을 추가할 수 있습니다.
+        # 현재는 예약 종료 시점에만 리셋을 수행합니다.
 
 
 if __name__ == "__main__":
