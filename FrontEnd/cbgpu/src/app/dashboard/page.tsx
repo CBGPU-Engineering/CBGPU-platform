@@ -187,7 +187,7 @@ export default function Dashboard() {
                     </div>
 
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                      {(isPending || (isApproved && !isEnded)) && (
+                      {(isPending || (isApproved && !isStarted)) && (
                         <Button
                           variant="ghost"
                           size="icon"
