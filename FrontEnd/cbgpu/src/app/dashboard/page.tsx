@@ -6,7 +6,7 @@ import GPUCard from '@/components/GPUCard';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/useAuth';
 import { toast } from 'sonner';
-import { RefreshCw, Trash2, Copy, Key, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Trash2, Copy, Key, AlertTriangle, StopCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 export default function Dashboard() {
@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedRes, setSelectedRes] = useState<any>(null);
   const [cancelTarget, setCancelTarget] = useState<{ id: string; status: string } | null>(null);
+  const [endTarget, setEndTarget] = useState<string | null>(null);
 
   const gpus = [
     { id: 1, name: "RTX5000", username: "gpu1", host: "10.138.26.144", port: 8001, jupyterhubUrl: "http://10.138.26.144:8001" },
@@ -67,6 +68,22 @@ export default function Dashboard() {
       fetchMyReservations();
     } catch (err: any) {
       toast.error("Failed to cancel: " + err.message);
+    }
+  };
+
+  const handleEndSession = async () => {
+    if (!endTarget) return;
+    const { error } = await supabase
+      .from('reservations')
+      .update({ end_time: new Date().toISOString() })
+      .eq('id', endTarget);
+    if (error) {
+      toast.error("Failed to end session: " + error.message);
+    } else {
+      toast.success("Session ended.");
+      setEndTarget(null);
+      setSelectedRes(null);
+      fetchMyReservations();
     }
   };
 
@@ -223,6 +240,13 @@ export default function Dashboard() {
                             Open Jupyter Notebook — {gpuInfo.jupyterhubUrl}
                           </Button>
                         )}
+                        <Button
+                          className="w-full font-black text-[10px] uppercase tracking-widest h-11 gap-2"
+                          variant="destructive"
+                          onClick={() => setEndTarget(res.id)}
+                        >
+                          <StopCircle className="size-4" /> 사용 중단
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -232,6 +256,28 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+
+      <Dialog open={!!endTarget} onOpenChange={(open) => { if (!open) setEndTarget(null); }}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-black uppercase tracking-tighter italic">
+              <StopCircle className="size-5 text-destructive" />
+              사용 중단
+            </DialogTitle>
+            <DialogDescription className="text-sm font-bold pt-1">
+              지금 세션을 종료하시겠습니까? 컨테이너가 초기화되며 작업 내용이 삭제됩니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="font-black uppercase text-[10px]" onClick={() => setEndTarget(null)}>
+              돌아가기
+            </Button>
+            <Button variant="destructive" className="font-black uppercase text-[10px]" onClick={handleEndSession}>
+              종료하기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!cancelTarget} onOpenChange={(open) => { if (!open) setCancelTarget(null); }}>
         <DialogContent className="max-w-sm rounded-2xl">
