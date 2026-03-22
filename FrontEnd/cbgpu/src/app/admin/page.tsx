@@ -50,6 +50,23 @@ export default function AdminPage() {
 
   async function updateStatus(id: string, newStatus: 'approved' | 'rejected' | 'pending', gpuId?: number) {
     if (newStatus === 'approved' && gpuId !== undefined) {
+      // 승인하려는 예약의 시간 정보 가져오기
+      const target = reservations.find(r => r.id === id);
+      if (target) {
+        // 같은 GPU의 이미 승인된 예약과 시간 겹침 검사
+        const conflict = reservations.find(r =>
+          r.id !== id &&
+          r.gpu_id === gpuId &&
+          r.status === 'approved' &&
+          new Date(r.start_time) < new Date(target.end_time) &&
+          new Date(r.end_time) > new Date(target.start_time)
+        );
+        if (conflict) {
+          toast.error("Cannot approve: time conflict with an already approved reservation.");
+          return;
+        }
+      }
+
       const password = generatePassword();
       const { error: gpuError } = await supabase
         .from('gpus')
