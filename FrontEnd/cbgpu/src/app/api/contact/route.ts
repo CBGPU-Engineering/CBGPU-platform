@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error } = await resend.emails.send({
-    from: 'CBGPU <noreply-cbgpu@airhood.dev>',
+    from: 'CBGPU <cbgpu@airhood.dev>',
     to: RECIPIENTS,
     replyTo: email,
     subject: `[CBGPU 문의] ${category ? `[${category}] ` : ''}${name}`,
