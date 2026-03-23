@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import GPUCard from '@/components/GPUCard';
+import WeeklyGPUCard from '@/components/WeeklyGPUCard';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/useAuth';
 import { toast } from 'sonner';
@@ -123,7 +124,9 @@ export default function Dashboard() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
           {gpus.map((gpu) => (
-            <GPUCard key={gpu.id} id={gpu.id} name={gpu.name} />
+            gpu.id === 1
+              ? <GPUCard key={gpu.id} id={gpu.id} name={gpu.name} />
+              : <WeeklyGPUCard key={gpu.id} id={gpu.id} name={gpu.name} />
           ))}
         </div>
       </section>
