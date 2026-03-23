@@ -1,34 +1,15 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import GPUCard from '@/components/GPUCard';
 import WeeklyGPUCard from '@/components/WeeklyGPUCard';
-import { useAuth } from '@/lib/useAuth';
+
+const GPUS = [
+  { id: 1, name: "RTX5000" },
+  { id: 2, name: "RTX5000" },
+  { id: 3, name: "RTX5000" },
+  { id: 4, name: "RTX5000" },
+];
 
 export default function Home() {
-  const { user, isLoading } = useAuth();
-  const [gpus, setGpus] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchGPUs = async () => {
-      const { data } = await supabase.from('gpus').select('*').order('id');
-      if (data && data.length > 0) {
-        const formattedData = data.map((gpu, index) => ({
-          ...gpu,
-          displayId: index + 1
-        }));
-        setGpus(formattedData);
-      } else {
-        setGpus([
-          { id: 1, displayId: 1, name: "RTX5000" },
-          { id: 2, displayId: 2, name: "RTX5000" },
-          { id: 3, displayId: 3, name: "RTX5000" },
-          { id: 4, displayId: 4, name: "RTX5000" },
-        ]);
-      }
-    };
-    fetchGPUs();
-  }, []);
 
   return (
     <div className="container mx-auto py-8 md:py-16 px-4 md:px-6">
@@ -51,11 +32,11 @@ export default function Home() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10">
-        {gpus.map((gpu) => (
-          <div key={gpu.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both" style={{ animationDelay: `${gpu.displayId * 100}ms` }}>
-            {(gpu.displayId || gpu.id) === 1
-              ? <GPUCard id={gpu.displayId || gpu.id} name={gpu.name} />
-              : <WeeklyGPUCard id={gpu.displayId || gpu.id} name={gpu.name} />
+        {GPUS.map((gpu) => (
+          <div key={gpu.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both" style={{ animationDelay: `${gpu.id * 100}ms` }}>
+            {gpu.id === 1
+              ? <GPUCard id={gpu.id} name={gpu.name} />
+              : <WeeklyGPUCard id={gpu.id} name={gpu.name} />
             }
           </div>
         ))}
