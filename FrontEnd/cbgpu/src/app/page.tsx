@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import GPUCard from '@/components/GPUCard';
+import WeeklyGPUCard from '@/components/WeeklyGPUCard';
 import { useAuth } from '@/lib/useAuth';
 
 export default function Home() {
@@ -52,7 +53,10 @@ export default function Home() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10">
         {gpus.map((gpu) => (
           <div key={gpu.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both" style={{ animationDelay: `${gpu.displayId * 100}ms` }}>
-            <GPUCard id={gpu.displayId || gpu.id} name={gpu.name} />
+            {(gpu.displayId || gpu.id) === 1
+              ? <GPUCard id={gpu.displayId || gpu.id} name={gpu.name} />
+              : <WeeklyGPUCard id={gpu.displayId || gpu.id} name={gpu.name} />
+            }
           </div>
         ))}
       </div>
