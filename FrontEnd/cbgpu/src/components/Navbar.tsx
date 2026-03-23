@@ -43,18 +43,23 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {user && !isLoading && (
-          <div className="hidden md:flex gap-1">
-            <Link href="/dashboard" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/dashboard' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
-              Dashboard
-            </Link>
-            {isAdmin && (
-              <Link href="/admin" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/admin' ? 'bg-orange-500 text-white shadow-lg' : 'text-orange-500 hover:bg-orange-500/10'}`}>
-                Admin
+        <div className="hidden md:flex gap-1">
+          <Link href="/contact" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/contact' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+            Contact
+          </Link>
+          {user && !isLoading && (
+            <>
+              <Link href="/dashboard" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/dashboard' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+                Dashboard
               </Link>
-            )}
-          </div>
-        )}
+              {isAdmin && (
+                <Link href="/admin" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/admin' ? 'bg-orange-500 text-white shadow-lg' : 'text-orange-500 hover:bg-orange-500/10'}`}>
+                  Admin
+                </Link>
+              )}
+            </>
+          )}
+        </div>
       </div>
       
       <div className="flex gap-2 md:gap-4 items-center">
@@ -120,6 +125,9 @@ export default function Navbar() {
               <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
                 Dashboard
               </Link>
+              <Link href="/contact" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/contact' ? 'text-primary' : 'text-muted-foreground'}`}>
+                Contact
+              </Link>
               {isAdmin && (
                 <Link href="/admin" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/admin' ? 'text-orange-500' : 'text-orange-400'}`}>
                   Admin Panel
@@ -128,6 +136,9 @@ export default function Navbar() {
             </>
           ) : (
             <div className="flex flex-col gap-3">
+              <Link href="/contact" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/contact' ? 'text-primary' : 'text-muted-foreground'}`}>
+                Contact
+              </Link>
               <Link href="/auth/login" onClick={() => setIsMenuOpen(false)}>
                 <Button variant="outline" className="w-full font-black uppercase tracking-widest">Login</Button>
               </Link>
