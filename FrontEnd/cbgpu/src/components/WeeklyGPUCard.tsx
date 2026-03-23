@@ -11,7 +11,7 @@ import { CalendarDays, Lock, CheckCircle2, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function WeeklyGPUCard({ id, name }: { id: number; name: string }) {
-  const [selectedWeekStart, setSelectedWeekStart] = useState<Date | null>(null);
+  const [selectedWeeks, setSelectedWeeks] = useState<Date[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [approvedReservations, setApprovedReservations] = useState<any[]>([]);
   const [showSchedule, setShowSchedule] = useState(false);
@@ -44,13 +44,15 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
       return s < sun && e > mon;
     });
 
-  const handleSubmit = async () => {
-    if (!selectedWeekStart) return toast.error('주차를 선택해 주세요.');
+  const toggleWeek = (mon: Date) => {
+    setSelectedWeeks(prev => {
+      const exists = prev.some(d => d.getTime() === mon.getTime());
+      return exists ? prev.filter(d => d.getTime() !== mon.getTime()) : [...prev, mon];
+    });
+  };
 
-    const mon = startOfWeek(selectedWeekStart, { weekStartsOn: 1 });
-    mon.setHours(0, 0, 0, 0);
-    const sun = endOfWeek(selectedWeekStart, { weekStartsOn: 1 });
-    sun.setHours(23, 59, 59, 999);
+  const handleSubmit = async () => {
+    if (selectedWeeks.length === 0) return toast.error('주차를 선택해 주세요.');
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return toast.error('로그인이 필요합니다.');
@@ -65,29 +67,38 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
 
       if (checkError) throw checkError;
 
-      const hasConflict = existing?.some(res => {
-        const s = new Date(res.start_time);
-        const e = new Date(res.end_time);
-        return mon < e && sun > s;
-      });
+      const records = [];
+      for (const weekStart of selectedWeeks) {
+        const mon = startOfWeek(weekStart, { weekStartsOn: 1 });
+        mon.setHours(0, 0, 0, 0);
+        const sun = endOfWeek(weekStart, { weekStartsOn: 1 });
+        sun.setHours(23, 59, 59, 999);
 
-      if (hasConflict) {
-        setIsSubmitting(false);
-        return toast.error('해당 주에는 이미 확정된 예약이 있습니다.');
+        const hasConflict = existing?.some(res => {
+          const s = new Date(res.start_time);
+          const e = new Date(res.end_time);
+          return mon < e && sun > s;
+        });
+
+        if (hasConflict) {
+          setIsSubmitting(false);
+          return toast.error(`${format(mon, 'M월 d일', { locale: ko })} 주에는 이미 확정된 예약이 있습니다.`);
+        }
+
+        records.push({
+          gpu_id: id,
+          user_id: user.id,
+          user_email: user.email,
+          start_time: mon.toISOString(),
+          end_time: sun.toISOString(),
+          status: 'pending',
+        });
       }
 
-      const { error } = await supabase.from('reservations').insert({
-        gpu_id: id,
-        user_id: user.id,
-        user_email: user.email,
-        start_time: mon.toISOString(),
-        end_time: sun.toISOString(),
-        status: 'pending',
-      });
-
+      const { error } = await supabase.from('reservations').insert(records);
       if (error) throw error;
-      toast.success(`GPU #${id} 주간 예약 신청이 완료되었습니다!`);
-      setSelectedWeekStart(null);
+      toast.success(`GPU #${id} ${records.length}주 예약 신청이 완료되었습니다!`);
+      setSelectedWeeks([]);
       fetchApprovedReservations();
     } catch (err: any) {
       toast.error('예약 실패: ' + err.message);
@@ -164,15 +175,13 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
             <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
               {weeks.map(({ mon, sun }, i) => {
                 const taken = isWeekTaken(mon, sun);
-                const isSelected =
-                  selectedWeekStart !== null &&
-                  startOfWeek(selectedWeekStart, { weekStartsOn: 1 }).getTime() === mon.getTime();
+                const isSelected = selectedWeeks.some(d => d.getTime() === mon.getTime());
 
                 return (
                   <button
                     key={i}
                     disabled={taken}
-                    onClick={() => setSelectedWeekStart(taken ? null : mon)}
+                    onClick={() => !taken && toggleWeek(mon)}
                     className={cn(
                       'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-all duration-200',
                       taken
@@ -210,13 +219,13 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
       <CardFooter className="p-4 pt-0">
         <Button
           onClick={handleSubmit}
-          disabled={isSubmitting || !selectedWeekStart || showSchedule}
+          disabled={isSubmitting || selectedWeeks.length === 0 || showSchedule}
           className="w-full font-bold py-5 transition-all active:scale-95 text-xs"
         >
           {isSubmitting
             ? '신청 중...'
-            : selectedWeekStart
-            ? `${format(selectedWeekStart, 'M월 d일', { locale: ko })} 주 예약 신청`
+            : selectedWeeks.length > 0
+            ? `${selectedWeeks.length}주 예약 신청하기`
             : '주차를 선택하세요'}
         </Button>
       </CardFooter>
