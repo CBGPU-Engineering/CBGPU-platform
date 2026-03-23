@@ -43,27 +43,25 @@ export default function Navbar() {
           </span>
         </Link>
 
-        <div className="hidden md:flex gap-1">
-          <Link href="/contact" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/contact' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
-            Contact
-          </Link>
-          {user && !isLoading && (
-            <>
-              <Link href="/dashboard" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/dashboard' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
-                Dashboard
+        {user && !isLoading && (
+          <div className="hidden md:flex gap-1">
+            <Link href="/dashboard" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/dashboard' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              Dashboard
+            </Link>
+            {isAdmin && (
+              <Link href="/admin" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/admin' ? 'bg-orange-500 text-white shadow-lg' : 'text-orange-500 hover:bg-orange-500/10'}`}>
+                Admin
               </Link>
-              {isAdmin && (
-                <Link href="/admin" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/admin' ? 'bg-orange-500 text-white shadow-lg' : 'text-orange-500 hover:bg-orange-500/10'}`}>
-                  Admin
-                </Link>
-              )}
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
       
       <div className="flex gap-2 md:gap-4 items-center">
         <div className="hidden md:flex items-center gap-4">
+          <Link href="/contact" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/contact' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+            Contact
+          </Link>
           <ThemeToggle />
           
           {!isLoading && (
