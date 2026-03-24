@@ -86,75 +86,72 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* Calendar + Detail */}
+      {/* Calendar + Detail side by side */}
       <div className="flex gap-4 items-start">
-      <div className="flex-1 min-w-0 border-2 rounded-3xl overflow-hidden bg-card shadow-xl">
-        {/* Month Nav */}
-        <div className="flex items-center justify-between px-6 py-4 border-b-2">
-          <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
-            <ChevronLeft className="size-4" />
-          </Button>
-          <h2 className="text-lg font-black uppercase tracking-tighter">
-            {format(currentMonth, 'yyyy년 M월', { locale: ko })}
-          </h2>
-          <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
-            <ChevronRight className="size-4" />
-          </Button>
+
+        {/* Calendar */}
+        <div className="flex-1 min-w-0 border-2 rounded-3xl overflow-hidden bg-card shadow-xl">
+          <div className="flex items-center justify-between px-6 py-4 border-b-2">
+            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <h2 className="text-lg font-black uppercase tracking-tighter">
+              {format(currentMonth, 'yyyy년 M월', { locale: ko })}
+            </h2>
+            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-7 border-b">
+            {WEEKDAYS.map(d => (
+              <div key={d} className="py-2 text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7">
+            {days.map((day, i) => {
+              const dayRes = getReservationsForDay(day);
+              const isCurrentMonth = isSameMonth(day, currentMonth);
+              const isSelected = selected?.toDateString() === day.toDateString();
+              const isTodayDate = isToday(day);
+
+              return (
+                <button
+                  key={i}
+                  onClick={() => setSelected(isSelected ? null : day)}
+                  className={cn(
+                    'min-h-[80px] p-2 text-left border-b border-r transition-all',
+                    !isCurrentMonth && 'opacity-25',
+                    isSelected && 'bg-primary/5 ring-2 ring-inset ring-primary/30',
+                    !isSelected && 'hover:bg-muted/30',
+                    (i + 1) % 7 === 0 && 'border-r-0',
+                  )}
+                >
+                  <span className={cn(
+                    'text-xs font-black inline-flex items-center justify-center w-6 h-6 rounded-full mb-1',
+                    isTodayDate && 'bg-primary text-primary-foreground',
+                    !isTodayDate && isCurrentMonth && 'text-foreground',
+                  )}>
+                    {format(day, 'd')}
+                  </span>
+                  <div className="flex flex-wrap gap-0.5">
+                    {dayRes.map((res, j) => {
+                      const c = GPU_COLORS[res.gpu_id];
+                      return (
+                        <span key={j} className={cn('text-[9px] font-black px-1.5 py-0.5 rounded-md border', c.bg, c.text, c.border)}>
+                          #{res.gpu_id}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-
-        {/* Weekday headers */}
-        <div className="grid grid-cols-7 border-b">
-          {WEEKDAYS.map(d => (
-            <div key={d} className="py-2 text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              {d}
-            </div>
-          ))}
-        </div>
-
-        {/* Day cells */}
-        <div className="grid grid-cols-7">
-          {days.map((day, i) => {
-            const dayRes = getReservationsForDay(day);
-            const isCurrentMonth = isSameMonth(day, currentMonth);
-            const isSelected = selected?.toDateString() === day.toDateString();
-            const isTodayDate = isToday(day);
-
-            return (
-              <button
-                key={i}
-                onClick={() => setSelected(isSelected ? null : day)}
-                className={cn(
-                  'min-h-[80px] p-2 text-left border-b border-r transition-all',
-                  !isCurrentMonth && 'opacity-25',
-                  isSelected && 'bg-primary/5 ring-2 ring-inset ring-primary/30',
-                  !isSelected && 'hover:bg-muted/30',
-                  (i + 1) % 7 === 0 && 'border-r-0',
-                )}
-              >
-                <span className={cn(
-                  'text-xs font-black inline-flex items-center justify-center w-6 h-6 rounded-full mb-1',
-                  isTodayDate && 'bg-primary text-primary-foreground',
-                  !isTodayDate && isCurrentMonth && 'text-foreground',
-                )}>
-                  {format(day, 'd')}
-                </span>
-                <div className="flex flex-wrap gap-0.5">
-                  {dayRes.map((res, j) => {
-                    const c = GPU_COLORS[res.gpu_id];
-                    return (
-                      <span key={j} className={cn('text-[9px] font-black px-1.5 py-0.5 rounded-md border', c.bg, c.text, c.border)}>
-                        #{res.gpu_id}
-                      </span>
-                    );
-                  })}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      </div>{/* end calendar */}
 
         {/* Detail panel */}
         <div className={cn(
@@ -193,6 +190,7 @@ export default function SchedulePage() {
             </>
           )}
         </div>
+
       </div>
     </div>
   );
