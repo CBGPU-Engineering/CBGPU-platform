@@ -86,8 +86,9 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* Calendar */}
-      <div className="border-2 rounded-3xl overflow-hidden bg-card shadow-xl">
+      {/* Calendar + Detail */}
+      <div className="flex gap-4 items-start">
+      <div className="flex-1 min-w-0 border-2 rounded-3xl overflow-hidden bg-card shadow-xl">
         {/* Month Nav */}
         <div className="flex items-center justify-between px-6 py-4 border-b-2">
           <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
@@ -153,35 +154,46 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* Detail panel */}
-      {selected && (
-        <div className="border-2 rounded-3xl p-6 bg-card shadow-lg animate-in slide-in-from-bottom-2 duration-300">
-          <h3 className="font-black uppercase tracking-tighter text-lg mb-4">
-            {format(selected, 'M월 d일 (eee)', { locale: ko })} 예약 현황
-          </h3>
-          {selectedDayReservations.length === 0 ? (
-            <p className="text-muted-foreground font-bold text-sm opacity-50">예약 없음</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {selectedDayReservations.map((res) => {
-                const c = GPU_COLORS[res.gpu_id];
-                return (
-                  <div key={res.id} className={cn('p-4 rounded-2xl border-2', c.bg, c.border)}>
-                    <div className={cn('text-sm font-black mb-2', c.text)}>GPU #{res.gpu_id}</div>
-                    <div className="text-[11px] font-bold space-y-1 text-foreground">
-                      <p>{res.profiles?.full_name || '—'}</p>
-                      <p className="opacity-60">{res.profiles?.student_id || '—'}</p>
-                      <p className="opacity-50 text-[10px]">
-                        {format(parseISO(res.start_time), 'M/d HH:mm')} – {format(parseISO(res.end_time), 'M/d HH:mm')}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+      </div>{/* end calendar */}
+
+        {/* Detail panel */}
+        <div className={cn(
+          'w-64 shrink-0 border-2 rounded-3xl bg-card shadow-xl transition-all duration-300 overflow-hidden',
+          selected ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        )}>
+          {selected && (
+            <>
+              <div className="px-5 py-4 border-b-2">
+                <p className="font-black uppercase tracking-tighter text-sm">
+                  {format(selected, 'M월 d일 (eee)', { locale: ko })}
+                </p>
+                <p className="text-[10px] text-muted-foreground font-bold opacity-60 uppercase tracking-widest">예약 현황</p>
+              </div>
+              <div className="p-4 space-y-3">
+                {selectedDayReservations.length === 0 ? (
+                  <p className="text-muted-foreground font-bold text-xs opacity-50 py-4 text-center">예약 없음</p>
+                ) : (
+                  selectedDayReservations.map((res) => {
+                    const c = GPU_COLORS[res.gpu_id];
+                    return (
+                      <div key={res.id} className={cn('p-3 rounded-2xl border-2', c.bg, c.border)}>
+                        <div className={cn('text-xs font-black mb-1.5', c.text)}>GPU #{res.gpu_id}</div>
+                        <div className="text-[11px] font-bold space-y-0.5 text-foreground">
+                          <p>{res.profiles?.full_name || '—'}</p>
+                          <p className="opacity-60">{res.profiles?.student_id || '—'}</p>
+                          <p className="opacity-40 text-[10px]">
+                            {format(parseISO(res.start_time), 'M/d')} – {format(parseISO(res.end_time), 'M/d')}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </>
           )}
         </div>
-      )}
+      </div>{/* end flex wrapper */}
     </div>
   );
 }
