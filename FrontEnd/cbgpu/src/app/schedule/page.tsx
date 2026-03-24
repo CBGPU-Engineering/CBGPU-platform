@@ -193,7 +193,7 @@ export default function SchedulePage() {
             </>
           )}
         </div>
-      </div>{/* end flex wrapper */}
+      </div>
     </div>
   );
 }
