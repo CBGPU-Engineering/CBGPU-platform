@@ -87,11 +87,11 @@ export default function SchedulePage() {
       </div>
 
       {/* Calendar + Detail side by side */}
-      <div className="flex gap-4 items-start">
+      <div className="flex flex-col md:flex-row gap-4 items-start">
 
         {/* Calendar */}
-        <div className="flex-1 min-w-0 border-2 rounded-3xl overflow-hidden bg-card shadow-xl">
-          <div className="flex items-center justify-between px-6 py-4 border-b-2">
+        <div className="w-full md:flex-1 md:min-w-0 border-2 rounded-3xl overflow-hidden bg-card shadow-xl">
+          <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b-2">
             <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
               <ChevronLeft className="size-4" />
             </Button>
@@ -123,7 +123,7 @@ export default function SchedulePage() {
                   key={i}
                   onClick={() => setSelected(isSelected ? null : day)}
                   className={cn(
-                    'min-h-[80px] p-2 text-left border-b border-r transition-all',
+                    'min-h-[56px] md:min-h-[80px] p-1 md:p-2 text-left border-b border-r transition-all',
                     !isCurrentMonth && 'opacity-25',
                     isSelected && 'bg-primary/5 ring-2 ring-inset ring-primary/30',
                     !isSelected && 'hover:bg-muted/30',
@@ -131,19 +131,23 @@ export default function SchedulePage() {
                   )}
                 >
                   <span className={cn(
-                    'text-xs font-black inline-flex items-center justify-center w-6 h-6 rounded-full mb-1',
+                    'text-[10px] md:text-xs font-black inline-flex items-center justify-center w-5 h-5 md:w-6 md:h-6 rounded-full mb-1',
                     isTodayDate && 'bg-primary text-primary-foreground',
                     !isTodayDate && isCurrentMonth && 'text-foreground',
                   )}>
                     {format(day, 'd')}
                   </span>
+                  {/* 모바일: 색상 점, 태블릿+: 배지 */}
                   <div className="flex flex-wrap gap-0.5">
                     {dayRes.map((res, j) => {
                       const c = GPU_COLORS[res.gpu_id];
                       return (
-                        <span key={j} className={cn('text-[9px] font-black px-1.5 py-0.5 rounded-md border', c.bg, c.text, c.border)}>
-                          #{res.gpu_id}
-                        </span>
+                        <>
+                          <span key={`dot-${j}`} className={cn('md:hidden size-1.5 rounded-full mt-0.5', c.dot)} />
+                          <span key={`badge-${j}`} className={cn('hidden md:inline text-[9px] font-black px-1.5 py-0.5 rounded-md border', c.bg, c.text, c.border)}>
+                            #{res.gpu_id}
+                          </span>
+                        </>
                       );
                     })}
                   </div>
@@ -155,7 +159,7 @@ export default function SchedulePage() {
 
         {/* Detail panel */}
         <div className={cn(
-          'w-64 shrink-0 border-2 rounded-3xl bg-card shadow-xl transition-all duration-300 overflow-hidden',
+          'w-full md:w-64 md:shrink-0 border-2 rounded-3xl bg-card shadow-xl transition-all duration-300 overflow-hidden',
           selected ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}>
           {selected && (
