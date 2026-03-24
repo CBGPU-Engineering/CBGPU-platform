@@ -151,6 +151,7 @@ export default function AdminPage() {
                     const end = new Date(res.end_time);
                     const isEnded = new Date() > end;
                     const dateOptions: Intl.DateTimeFormatOptions = {
+                      year: 'numeric',
                       month: 'short',
                       day: 'numeric',
                       hour: '2-digit',
