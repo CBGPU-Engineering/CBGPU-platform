@@ -47,6 +47,42 @@ sudo systemctl restart cbgpu-daemon
 sudo systemctl stop cbgpu-daemon
 ```
 
+## 트러블슈팅
+
+### Supabase 연결 실패 (`failed to establish a new connection`)
+
+Supabase key 문제가 아니라 **DNS 설정 누락**이 원인일 수 있습니다.
+ping은 되는데 curl이 안 되면 `/etc/resolv.conf`를 확인하세요.
+
+```bash
+cat /etc/resolv.conf
+```
+
+파일이 비어있으면 DNS 서버가 없는 상태입니다. 아래와 같이 복구하세요:
+
+```bash
+# DNS 설정
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+
+# 재부팅 후에도 유지되도록 immutable 설정
+sudo chattr +i /etc/resolv.conf
+```
+
+나중에 DNS를 변경해야 할 경우:
+
+```bash
+# immutable 해제
+sudo chattr -i /etc/resolv.conf
+
+# DNS 변경
+echo "nameserver <새 DNS IP>" | sudo tee /etc/resolv.conf
+
+# 다시 고정
+sudo chattr +i /etc/resolv.conf
+```
+
+---
+
 ## 동작 방식
 
 1. **예약 승인 시**: 관리자가 승인하면 프론트엔드에서 랜덤 비밀번호 생성 → Supabase `gpus` 테이블 업데이트
