@@ -9,6 +9,9 @@ import { Analytics } from "@vercel/analytics/next"
 export const metadata: Metadata = {
   title: 'CBGPU | GPU Rental System',
   description: 'Chungbuk Science High School GPU Rental System',
+  verification: {
+    google: 'xAyYkYGezYlzmSkzhCwwrTl-nCGv6ewScASAFt9AnQc',
+  },
   icons: {
     icon: [
       {
