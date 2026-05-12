@@ -63,41 +63,69 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
         .from('reservations')
         .select('id, start_time, end_time')
         .eq('gpu_id', id)
-        .eq('status', 'approved');
+        .eq('status', 'approved')
+        .gte('end_time', new Date().toISOString());
 
       if (checkError) throw checkError;
 
-      const records = [];
-      for (const weekStart of selectedWeeks) {
-        const mon = startOfWeek(weekStart, { weekStartsOn: 1 });
-        mon.setHours(0, 0, 0, 0);
-        const sun = endOfWeek(weekStart, { weekStartsOn: 1 });
-        sun.setHours(23, 59, 59, 999);
+      // 선택된 주를 날짜 순으로 정렬
+      const sorted = [...selectedWeeks].sort((a, b) => a.getTime() - b.getTime());
 
+      // 연속된 주끼리 하나의 그룹으로 병합
+      const groups: { start: Date; end: Date }[] = [];
+      let groupStart = startOfWeek(sorted[0], { weekStartsOn: 1 });
+      groupStart.setHours(0, 0, 0, 0);
+      let groupEnd = endOfWeek(sorted[0], { weekStartsOn: 1 });
+      groupEnd.setHours(23, 59, 59, 999);
+
+      for (let i = 1; i < sorted.length; i++) {
+        const prevMon = startOfWeek(sorted[i - 1], { weekStartsOn: 1 });
+        const curMon = startOfWeek(sorted[i], { weekStartsOn: 1 });
+        const daysDiff = Math.round((curMon.getTime() - prevMon.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysDiff === 7) {
+          // 연속 — 현재 그룹 끝을 연장
+          groupEnd = endOfWeek(sorted[i], { weekStartsOn: 1 });
+          groupEnd.setHours(23, 59, 59, 999);
+        } else {
+          // 비연속 — 현재 그룹 저장 후 새 그룹 시작
+          groups.push({ start: new Date(groupStart), end: new Date(groupEnd) });
+          groupStart = startOfWeek(sorted[i], { weekStartsOn: 1 });
+          groupStart.setHours(0, 0, 0, 0);
+          groupEnd = endOfWeek(sorted[i], { weekStartsOn: 1 });
+          groupEnd.setHours(23, 59, 59, 999);
+        }
+      }
+      groups.push({ start: new Date(groupStart), end: new Date(groupEnd) });
+
+      // 충돌 체크 및 레코드 생성
+      const records = [];
+      for (const { start, end } of groups) {
         const hasConflict = existing?.some(res => {
           const s = new Date(res.start_time);
           const e = new Date(res.end_time);
-          return mon < e && sun > s;
+          return start < e && end > s;
         });
 
         if (hasConflict) {
           setIsSubmitting(false);
-          return toast.error(`${format(mon, 'M월 d일', { locale: ko })} 주에는 이미 확정된 예약이 있습니다.`);
+          return toast.error(`${format(start, 'M월 d일', { locale: ko })} 주에는 이미 확정된 예약이 있습니다.`);
         }
 
         records.push({
           gpu_id: id,
           user_id: user.id,
           user_email: user.email,
-          start_time: mon.toISOString(),
-          end_time: sun.toISOString(),
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
           status: 'pending',
         });
       }
 
       const { error } = await supabase.from('reservations').insert(records);
       if (error) throw error;
-      toast.success(`GPU #${id} ${records.length}주 예약 신청이 완료되었습니다!`);
+      const totalWeeks = selectedWeeks.length;
+      toast.success(`GPU #${id} ${totalWeeks}주(${records.length}건) 예약 신청이 완료되었습니다!`);
       setSelectedWeeks([]);
       fetchApprovedReservations();
     } catch (err: any) {

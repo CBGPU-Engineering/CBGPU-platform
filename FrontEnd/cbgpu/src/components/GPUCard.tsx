@@ -52,6 +52,11 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
       return toast.error('종료 시간은 시작 시간보다 늦어야 합니다.');
     }
 
+    const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays > 7) {
+      return toast.error('GPU #1은 최대 7일까지만 예약 가능합니다. 장기 사용은 GPU #2~4의 주 단위 예약을 이용해 주세요.');
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return toast.error('로그인이 필요합니다.');
 
@@ -62,7 +67,8 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
         .from('reservations')
         .select('id, start_time, end_time')
         .eq('gpu_id', id)
-        .eq('status', 'approved');
+        .eq('status', 'approved')
+        .gte('end_time', new Date().toISOString());
 
       if (checkError) throw checkError;
 
@@ -199,10 +205,12 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">사용 종료</label>
-              <Input 
-                type="datetime-local" 
+              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">사용 종료 <span className="text-primary/60 normal-case">(최대 7일)</span></label>
+              <Input
+                type="datetime-local"
                 value={endTime}
+                min={startTime || undefined}
+                max={startTime ? new Date(new Date(startTime).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16) : undefined}
                 onChange={(e) => setEndTime(e.target.value)}
                 className="bg-background cursor-pointer h-9 text-xs"
               />
