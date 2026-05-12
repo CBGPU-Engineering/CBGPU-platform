@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  addDays, addMonths, subMonths, isSameMonth, isToday,
+  addDays, addMonths, subMonths, isSameMonth, isSameDay,
   format, parseISO,
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -23,6 +23,13 @@ export default function SchedulePage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [reservations, setReservations] = useState<any[]>([]);
   const [selected, setSelected] = useState<Date | null>(null);
+  const [clientToday, setClientToday] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const now = new Date();
+    setClientToday(now);
+    setCurrentMonth(now);
+  }, []);
 
   useEffect(() => {
     const fetchReservations = async () => {
@@ -116,7 +123,7 @@ export default function SchedulePage() {
               const dayRes = getReservationsForDay(day);
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const isSelected = selected?.toDateString() === day.toDateString();
-              const isTodayDate = isToday(day);
+              const isTodayDate = clientToday ? isSameDay(day, clientToday) : false;
 
               return (
                 <button
