@@ -81,13 +81,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           disableTransitionOnChange
         >
           <AuthProvider>
-            <div className="w-full bg-yellow-400 dark:bg-yellow-500 text-yellow-900 dark:text-yellow-950 text-xs sm:text-sm px-4 py-2 text-center leading-relaxed">
-              <span className="font-bold">⚠️ 서비스 안내:</span>{' '}
-              현재 캐시 미정리로 인해 다운로드 과정에서 오류가 발생할 수 있습니다. 5월 12일 이내 해결 예정이며, 늦어도 5월 15일까지 정상화됩니다.{' '}
-              <span className="font-bold">긴급 시</span> 37기 이무원(
-              <a href="kakaotalk://user?uuid=" className="underline font-bold">010-9091-6420</a>
-              )에게 카카오톡으로 실행할 파일·설치 라이브러리 등을 보내주시면 직접 실행해 드립니다.
-            </div>
             <Navbar />
             <main className="flex-grow container mx-auto px-4 md:px-6 py-10">
               {children}
