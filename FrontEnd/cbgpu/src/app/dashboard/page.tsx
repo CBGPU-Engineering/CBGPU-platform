@@ -18,12 +18,19 @@ export default function Dashboard() {
   const [selectedRes, setSelectedRes] = useState<any>(null);
   const [cancelTarget, setCancelTarget] = useState<{ id: string; status: string } | null>(null);
   const [endTarget, setEndTarget] = useState<string | null>(null);
+  const [currentHost, setCurrentHost] = useState<string>('10.138.26.144');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentHost(window.location.hostname);
+    }
+  }, []);
 
   const gpus = [
-    { id: 1, name: "RTX5000", username: "gpu1", host: "10.138.26.144", port: 8001, jupyterhubUrl: "http://10.138.26.144:8001" },
-    { id: 2, name: "RTX5000", username: "gpu2", host: "10.138.26.144", port: 8002, jupyterhubUrl: "http://10.138.26.144:8002" },
-    { id: 3, name: "RTX5000", username: "gpu3", host: "10.138.26.144", port: 8003, jupyterhubUrl: "http://10.138.26.144:8003" },
-    { id: 4, name: "RTX5000", username: "gpu4", host: "10.138.26.144", port: 8004, jupyterhubUrl: "http://10.138.26.144:8004" },
+    { id: 1, name: "RTX5000", username: "gpu1", host: currentHost, port: 8001, jupyterhubUrl: `http://${currentHost}:8001` },
+    { id: 2, name: "RTX5000", username: "gpu2", host: currentHost, port: 8002, jupyterhubUrl: `http://${currentHost}:8002` },
+    { id: 3, name: "RTX5000", username: "gpu3", host: currentHost, port: 8003, jupyterhubUrl: `http://${currentHost}:8003` },
+    { id: 4, name: "RTX5000", username: "gpu4", host: currentHost, port: 8004, jupyterhubUrl: `http://${currentHost}:8004` },
   ];
 
   useEffect(() => {
