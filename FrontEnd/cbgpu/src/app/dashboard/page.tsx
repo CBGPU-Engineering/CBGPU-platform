@@ -19,7 +19,7 @@ export default function Dashboard() {
   const [selectedRes, setSelectedRes] = useState<any>(null);
   const [cancelTarget, setCancelTarget] = useState<{ id: string; status: string } | null>(null);
   const [endTarget, setEndTarget] = useState<string | null>(null);
-  const [currentHost, setCurrentHost] = useState<string>('10.138.26.144');
+  const [currentHost, setCurrentHost] = useState<string>('100.89.196.43');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
