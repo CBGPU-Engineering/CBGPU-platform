@@ -43,9 +43,9 @@ export default function Dashboard() {
       id: 1, 
       name: "RTX5000", 
       username: "gpu1", 
-      host: connectionMode === 'public' ? 'assessing-characterized-involved-brush.trycloudflare.com' : effectiveHost, 
+      host: connectionMode === 'public' ? 'aerospace-exploring-tub-intelligent.trycloudflare.com' : effectiveHost, 
       port: 8001, 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://assessing-characterized-involved-brush.trycloudflare.com' : `http://${effectiveHost}:8001` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://aerospace-exploring-tub-intelligent.trycloudflare.com' : `http://${effectiveHost}:8001` 
     },
     { 
       id: 2, 
@@ -307,7 +307,7 @@ export default function Dashboard() {
                             variant="outline"
                             onClick={() => window.open(gpuInfo.jupyterhubUrl, '_blank', 'noopener,noreferrer')}
                           >
-                            Open Jupyter Notebook — {gpuInfo.jupyterhubUrl}
+                            Open Jupyter Notebook
                           </Button>
                         )}
                         <Button
