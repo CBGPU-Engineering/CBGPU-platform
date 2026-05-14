@@ -302,22 +302,28 @@ export default function Dashboard() {
                           ※ 이 비밀번호는 예약된 시간에만 유효하며, 세션 종료 후 자동 무효화됩니다.
                         </p>
                         {gpuInfo?.jupyterhubUrl && (
-                          <div className="space-y-2">
+                          <div className="space-y-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                            <h4 className="text-[10px] font-black text-amber-600 uppercase flex items-center gap-1">
+                              <AlertTriangle className="size-3" /> Connection Guide
+                            </h4>
+                            <div className="space-y-1.5 text-[9px] font-bold text-muted-foreground leading-relaxed">
+                              <p className="text-foreground">접속되지 않을 경우 아래 설정을 변경해 주세요:</p>
+                              <ol className="list-decimal list-inside space-y-1 ml-1">
+                                <li>주소창 왼쪽 <span className="text-foreground">자물쇠(🔐)</span> 아이콘 클릭</li>
+                                <li><span className="text-foreground">"사이트 설정 (Site Settings)"</span> 클릭</li>
+                                <li>하단 <span className="text-foreground">"안전하지 않은 콘텐츠 (Insecure content)"</span> 항목 찾기</li>
+                                <li>값인 "차단(기본값)"을 <span className="text-blue-500">"허용 (Allow)"</span>으로 변경</li>
+                                <li>대시보드로 돌아와 <span className="text-foreground">새로고침(F5)</span> 후 다시 접속</li>
+                              </ol>
+                            </div>
                             <Button
-                              className="w-full font-black text-[10px] uppercase tracking-widest h-11 border-2 hover:bg-foreground hover:text-background transition-all"
-                              variant="outline"
-                              onClick={() => {
-                                const win = window.open(gpuInfo.jupyterhubUrl, '_blank', 'noopener,noreferrer');
-                                if (!win) {
-                                  toast.error("팝업이 차단되었습니다. 팝업 허용이 필요합니다.");
-                                }
-                              }}
+                              asChild
+                              className="w-full font-black text-[11px] uppercase tracking-widest h-12 shadow-lg hover:scale-[1.02] transition-all bg-blue-600 hover:bg-blue-700 text-white"
                             >
-                              Open Jupyter Notebook
+                              <a href={gpuInfo.jupyterhubUrl} target="_blank" rel="noopener noreferrer">
+                                Launch Jupyter Notebook
+                              </a>
                             </Button>
-                            <p className="text-[9px] text-center text-muted-foreground opacity-70">
-                              ※ 접속이 안 될 경우 브라우저의 "안전하지 않은 콘텐츠 허용" 설정이 필요할 수 있습니다.
-                            </p>
                           </div>
                         )}
                         <Button
