@@ -302,13 +302,23 @@ export default function Dashboard() {
                           ※ 이 비밀번호는 예약된 시간에만 유효하며, 세션 종료 후 자동 무효화됩니다.
                         </p>
                         {gpuInfo?.jupyterhubUrl && (
-                          <Button
-                            className="w-full font-black text-[10px] uppercase tracking-widest h-11 border-2 hover:bg-foreground hover:text-background transition-all"
-                            variant="outline"
-                            onClick={() => window.open(gpuInfo.jupyterhubUrl, '_blank', 'noopener,noreferrer')}
-                          >
-                            Open Jupyter Notebook
-                          </Button>
+                          <div className="space-y-2">
+                            <Button
+                              className="w-full font-black text-[10px] uppercase tracking-widest h-11 border-2 hover:bg-foreground hover:text-background transition-all"
+                              variant="outline"
+                              onClick={() => {
+                                const win = window.open(gpuInfo.jupyterhubUrl, '_blank', 'noopener,noreferrer');
+                                if (!win) {
+                                  toast.error("팝업이 차단되었습니다. 팝업 허용이 필요합니다.");
+                                }
+                              }}
+                            >
+                              Open Jupyter Notebook
+                            </Button>
+                            <p className="text-[9px] text-center text-muted-foreground opacity-70">
+                              ※ 접속이 안 될 경우 브라우저의 "안전하지 않은 콘텐츠 허용" 설정이 필요할 수 있습니다.
+                            </p>
+                          </div>
                         )}
                         <Button
                           className="w-full font-black text-[10px] uppercase tracking-widest h-11 gap-2"
