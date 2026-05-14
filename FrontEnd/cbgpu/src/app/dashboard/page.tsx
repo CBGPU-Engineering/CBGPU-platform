@@ -39,30 +39,32 @@ export default function Dashboard() {
 
   const effectiveHost = '10.138.26.144';
 
+  const stableHost = 'cbshoj.tail77f52.ts.net'; // Tailscale Funnel 기본 주소
+
   const gpus = [
     { 
       id: 1, 
       name: "RTX5000", 
       username: "gpu1", 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://introduces-compaq-fascinating-anime.trycloudflare.com' : `http://${effectiveHost}:8001` 
+      jupyterhubUrl: connectionMode === 'public' ? `https://${stableHost}/gpu1/` : `http://${effectiveHost}:8001` 
     },
     { 
       id: 2, 
       name: "RTX5000", 
       username: "gpu2", 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://filename-resist-arc-biography.trycloudflare.com' : `http://${effectiveHost}:8002` 
+      jupyterhubUrl: connectionMode === 'public' ? `https://${stableHost}/gpu2/` : `http://${effectiveHost}:8002` 
     },
     { 
       id: 3, 
       name: "RTX5000", 
       username: "gpu3", 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://greetings-serious-month-webmaster.trycloudflare.com' : `http://${effectiveHost}:8003` 
+      jupyterhubUrl: connectionMode === 'public' ? `https://${stableHost}/gpu3/` : `http://${effectiveHost}:8003` 
     },
     { 
       id: 4, 
       name: "RTX5000", 
       username: "gpu4", 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://develop-bytes-references-dry.trycloudflare.com' : `http://${effectiveHost}:8004` 
+      jupyterhubUrl: connectionMode === 'public' ? `https://${stableHost}/gpu4/` : `http://${effectiveHost}:8004` 
     },
   ];
 
