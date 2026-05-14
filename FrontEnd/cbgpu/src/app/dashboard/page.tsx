@@ -39,7 +39,7 @@ export default function Dashboard() {
 
   const effectiveHost = '10.138.26.144';
 
-  const stableHost = 'cbshoj.tail77f52.ts.net'; // Tailscale Funnel 기본 주소
+  const stableHost = 'cbshoj.tail0701ea.ts.net'; // 변경된 실제 Tailscale 도메인 주소
 
   const gpus = [
     { 
