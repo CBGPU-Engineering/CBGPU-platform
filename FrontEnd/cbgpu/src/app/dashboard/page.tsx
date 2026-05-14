@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import GPUCard from '@/components/GPUCard';
+import WeeklyGPUCard from '@/components/WeeklyGPUCard';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/useAuth';
 import { toast } from 'sonner';
@@ -130,7 +131,9 @@ export default function Dashboard() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
           {gpus.map((gpu) => (
-            <GPUCard key={gpu.id} id={gpu.id} name={gpu.name} />
+            gpu.id === 1
+              ? <GPUCard key={gpu.id} id={gpu.id} name={gpu.name} />
+              : <WeeklyGPUCard key={gpu.id} id={gpu.id} name={gpu.name} />
           ))}
         </div>
       </section>
@@ -187,9 +190,9 @@ export default function Dashboard() {
                         {isApproved && isEnded && <span className="bg-slate-500/10 text-slate-600 text-[9px] font-black uppercase px-2 py-0.5 rounded border border-slate-500/20">Finished</span>}
                       </div>
                       <p className="text-xs md:text-sm text-muted-foreground font-bold bg-muted/50 inline-block px-2 py-1 rounded-md">
-                        {start.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {start.toLocaleString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         <span className="mx-2 opacity-30">→</span>
-                        {end.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {end.toLocaleString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
 
