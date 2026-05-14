@@ -155,13 +155,14 @@ def reset_container(cfg: dict, gpu_id: int):
         text=True,
     )
 
-    # 새 컨테이너 생성 (공유 메모리 8GB 추가)
+    # 새 컨테이너 생성 (공유 메모리 32GB 상향)
     proc = subprocess.run(
         [
             "docker","run", "-d",
             "--name", container,
             "--gpus", f"device={device}",
-            "--shm-size", "8g",
+            "--shm-size", "32g",
+            "-e", "JUPYTER_SKIP_TRASH=yes",
             "-p", f"{host_port}:{container_port}",
             "--restart", "always",
             image,
