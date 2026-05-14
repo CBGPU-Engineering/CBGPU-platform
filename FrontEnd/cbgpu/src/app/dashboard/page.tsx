@@ -43,33 +43,33 @@ export default function Dashboard() {
       id: 1, 
       name: "RTX5000", 
       username: "gpu1", 
-      host: connectionMode === 'public' ? 'aerospace-exploring-tub-intelligent.trycloudflare.com' : effectiveHost, 
+      host: connectionMode === 'public' ? 'productions-caribbean-coordination-article.trycloudflare.com' : effectiveHost, 
       port: 8001, 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://aerospace-exploring-tub-intelligent.trycloudflare.com' : `http://${effectiveHost}:8001` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://productions-caribbean-coordination-article.trycloudflare.com' : `http://${effectiveHost}:8001` 
     },
     { 
       id: 2, 
       name: "RTX5000", 
       username: "gpu2", 
-      host: connectionMode === 'public' ? 'external-spiritual-mayor-membership.trycloudflare.com' : effectiveHost, 
+      host: connectionMode === 'public' ? 'cap-battery-tip-completed.trycloudflare.com' : effectiveHost, 
       port: 8002, 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://external-spiritual-mayor-membership.trycloudflare.com' : `http://${effectiveHost}:8002` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://cap-battery-tip-completed.trycloudflare.com' : `http://${effectiveHost}:8002` 
     },
     { 
       id: 3, 
       name: "RTX5000", 
       username: "gpu3", 
-      host: connectionMode === 'public' ? 'june-valuable-lan-embedded.trycloudflare.com' : effectiveHost, 
+      host: connectionMode === 'public' ? 'tobago-coral-below-nominations.trycloudflare.com' : effectiveHost, 
       port: 8003, 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://june-valuable-lan-embedded.trycloudflare.com' : `http://${effectiveHost}:8003` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://tobago-coral-below-nominations.trycloudflare.com' : `http://${effectiveHost}:8003` 
     },
     { 
       id: 4, 
       name: "RTX5000", 
       username: "gpu4", 
-      host: connectionMode === 'public' ? 'vat-knowledge-ppm-epinions.trycloudflare.com' : effectiveHost, 
+      host: connectionMode === 'public' ? 'broke-restaurants-johnny-acceptable.trycloudflare.com' : effectiveHost, 
       port: 8004, 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://vat-knowledge-ppm-epinions.trycloudflare.com' : `http://${effectiveHost}:8004` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://broke-restaurants-johnny-acceptable.trycloudflare.com' : `http://${effectiveHost}:8004` 
     },
   ];
 
