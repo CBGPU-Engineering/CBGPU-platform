@@ -21,10 +21,7 @@ export default function Login() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ 
         email, 
-        password,
-        options: {
-          redirectTo: getURL() + 'auth/callback',
-        }
+        password
       });
       if (error) {
         toast.error("로그인 실패: " + error.message);
