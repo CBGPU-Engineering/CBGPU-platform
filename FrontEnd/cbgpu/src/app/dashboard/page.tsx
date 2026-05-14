@@ -38,40 +38,38 @@ export default function Dashboard() {
 
   const effectiveHost = '10.138.26.144';
 
-  const unifiedHost = 'ruled-fresh-garmin-christina.trycloudflare.com';
-
   const gpus = [
     { 
       id: 1, 
       name: "RTX5000", 
       username: "gpu1", 
-      host: connectionMode === 'public' ? unifiedHost : effectiveHost, 
+      host: connectionMode === 'public' ? 'pathology-phenomenon-equilibrium-html.trycloudflare.com' : effectiveHost, 
       port: 8001, 
-      jupyterhubUrl: connectionMode === 'public' ? `https://${unifiedHost}/gpu1/` : `http://${effectiveHost}:8001` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://pathology-phenomenon-equilibrium-html.trycloudflare.com' : `http://${effectiveHost}:8001` 
     },
     { 
       id: 2, 
       name: "RTX5000", 
       username: "gpu2", 
-      host: connectionMode === 'public' ? unifiedHost : effectiveHost, 
+      host: connectionMode === 'public' ? 'families-rec-indirect-universal.trycloudflare.com' : effectiveHost, 
       port: 8002, 
-      jupyterhubUrl: connectionMode === 'public' ? `https://${unifiedHost}/gpu2/` : `http://${effectiveHost}:8002` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://families-rec-indirect-universal.trycloudflare.com' : `http://${effectiveHost}:8002` 
     },
     { 
       id: 3, 
       name: "RTX5000", 
       username: "gpu3", 
-      host: connectionMode === 'public' ? unifiedHost : effectiveHost, 
+      host: connectionMode === 'public' ? 'interfaces-circular-applicants-reason.trycloudflare.com' : effectiveHost, 
       port: 8003, 
-      jupyterhubUrl: connectionMode === 'public' ? `https://${unifiedHost}/gpu3/` : `http://${effectiveHost}:8003` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://interfaces-circular-applicants-reason.trycloudflare.com' : `http://${effectiveHost}:8003` 
     },
     { 
       id: 4, 
       name: "RTX5000", 
       username: "gpu4", 
-      host: connectionMode === 'public' ? unifiedHost : effectiveHost, 
+      host: connectionMode === 'public' ? 'networking-components-indicated-usually.trycloudflare.com' : effectiveHost, 
       port: 8004, 
-      jupyterhubUrl: connectionMode === 'public' ? `https://${unifiedHost}/gpu4/` : `http://${effectiveHost}:8004` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://networking-components-indicated-usually.trycloudflare.com' : `http://${effectiveHost}:8004` 
     },
   ];
 
