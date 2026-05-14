@@ -20,7 +20,7 @@ export default function Dashboard() {
   const [cancelTarget, setCancelTarget] = useState<{ id: string; status: string } | null>(null);
   const [endTarget, setEndTarget] = useState<string | null>(null);
   const [currentHost, setCurrentHost] = useState<string>('100.89.196.43');
-  const [connectionMode, setConnectionMode] = useState<'internal' | 'tailscale' | 'public'>('public');
+  const [connectionMode, setConnectionMode] = useState<'internal' | 'public'>('public');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -29,14 +29,14 @@ export default function Dashboard() {
       
       if (isIP) {
         setCurrentHost(hostname);
-        setConnectionMode(hostname.startsWith('100.') ? 'tailscale' : 'internal');
+        setConnectionMode('internal');
       } else if (hostname.includes('trycloudflare.com')) {
         setConnectionMode('public');
       }
     }
   }, []);
 
-  const effectiveHost = connectionMode === 'internal' ? '10.138.26.144' : '100.89.196.43';
+  const effectiveHost = '10.138.26.144';
 
   const gpus = [
     { 
@@ -185,23 +185,15 @@ export default function Dashboard() {
             <Button 
               variant={connectionMode === 'internal' ? 'default' : 'ghost'} 
               size="sm" 
-              className={`text-[10px] h-8 font-black transition-all ${connectionMode === 'internal' ? 'shadow-sm' : 'opacity-60'}`}
+              className={`text-[10px] h-8 font-black transition-all px-4 ${connectionMode === 'internal' ? 'shadow-sm' : 'opacity-60'}`}
               onClick={() => setConnectionMode('internal')}
             >
-              INTERNAL (10.138...)
-            </Button>
-            <Button 
-              variant={connectionMode === 'tailscale' ? 'default' : 'ghost'} 
-              size="sm" 
-              className={`text-[10px] h-8 font-black transition-all ${connectionMode === 'tailscale' ? 'shadow-sm' : 'opacity-60'}`}
-              onClick={() => setConnectionMode('tailscale')}
-            >
-              TAILSCALE (100.89...)
+              INTERNAL (Local)
             </Button>
             <Button 
               variant={connectionMode === 'public' ? 'default' : 'ghost'} 
               size="sm" 
-              className={`text-[10px] h-8 font-black transition-all ${connectionMode === 'public' ? 'shadow-sm' : 'opacity-60'}`}
+              className={`text-[10px] h-8 font-black transition-all px-4 ${connectionMode === 'public' ? 'shadow-sm' : 'opacity-60'}`}
               onClick={() => setConnectionMode('public')}
             >
               PUBLIC (Global)
