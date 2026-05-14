@@ -44,33 +44,25 @@ export default function Dashboard() {
       id: 1, 
       name: "RTX5000", 
       username: "gpu1", 
-      host: connectionMode === 'public' ? 'e069f2a805f1cdb8-211-60-191-194.serveousercontent.com' : effectiveHost, 
-      port: 8001, 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://e069f2a805f1cdb8-211-60-191-194.serveousercontent.com' : `http://${effectiveHost}:8001` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://introduces-compaq-fascinating-anime.trycloudflare.com' : `http://${effectiveHost}:8001` 
     },
     { 
       id: 2, 
       name: "RTX5000", 
       username: "gpu2", 
-      host: connectionMode === 'public' ? 'dfce1e61e55d7718-211-60-191-194.serveousercontent.com' : effectiveHost, 
-      port: 8002, 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://dfce1e61e55d7718-211-60-191-194.serveousercontent.com' : `http://${effectiveHost}:8002` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://filename-resist-arc-biography.trycloudflare.com' : `http://${effectiveHost}:8002` 
     },
     { 
       id: 3, 
       name: "RTX5000", 
       username: "gpu3", 
-      host: connectionMode === 'public' ? '9e9d21df6bc9a959-211-60-191-194.serveousercontent.com' : effectiveHost, 
-      port: 8003, 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://9e9d21df6bc9a959-211-60-191-194.serveousercontent.com' : `http://${effectiveHost}:8003` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://greetings-serious-month-webmaster.trycloudflare.com' : `http://${effectiveHost}:8003` 
     },
     { 
       id: 4, 
       name: "RTX5000", 
       username: "gpu4", 
-      host: connectionMode === 'public' ? '01a98a450220275d-211-60-191-194.serveousercontent.com' : effectiveHost, 
-      port: 8004, 
-      jupyterhubUrl: connectionMode === 'public' ? 'https://01a98a450220275d-211-60-191-194.serveousercontent.com' : `http://${effectiveHost}:8004` 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://develop-bytes-references-dry.trycloudflare.com' : `http://${effectiveHost}:8004` 
     },
   ];
 
