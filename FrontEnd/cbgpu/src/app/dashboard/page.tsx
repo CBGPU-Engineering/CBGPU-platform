@@ -20,7 +20,7 @@ export default function Dashboard() {
   const [cancelTarget, setCancelTarget] = useState<{ id: string; status: string } | null>(null);
   const [endTarget, setEndTarget] = useState<string | null>(null);
   const [currentHost, setCurrentHost] = useState<string>('100.89.196.43');
-  const [connectionMode, setConnectionMode] = useState<'internal' | 'tailscale'>('tailscale');
+  const [connectionMode, setConnectionMode] = useState<'internal' | 'tailscale' | 'public'>('public');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -30,6 +30,8 @@ export default function Dashboard() {
       if (isIP) {
         setCurrentHost(hostname);
         setConnectionMode(hostname.startsWith('100.') ? 'tailscale' : 'internal');
+      } else if (hostname.includes('trycloudflare.com')) {
+        setConnectionMode('public');
       }
     }
   }, []);
@@ -37,10 +39,38 @@ export default function Dashboard() {
   const effectiveHost = connectionMode === 'internal' ? '10.138.26.144' : '100.89.196.43';
 
   const gpus = [
-    { id: 1, name: "RTX5000", username: "gpu1", host: effectiveHost, port: 8001, jupyterhubUrl: `http://${effectiveHost}:8001` },
-    { id: 2, name: "RTX5000", username: "gpu2", host: effectiveHost, port: 8002, jupyterhubUrl: `http://${effectiveHost}:8002` },
-    { id: 3, name: "RTX5000", username: "gpu3", host: effectiveHost, port: 8003, jupyterhubUrl: `http://${effectiveHost}:8003` },
-    { id: 4, name: "RTX5000", username: "gpu4", host: effectiveHost, port: 8004, jupyterhubUrl: `http://${effectiveHost}:8004` },
+    { 
+      id: 1, 
+      name: "RTX5000", 
+      username: "gpu1", 
+      host: connectionMode === 'public' ? 'assessing-characterized-involved-brush.trycloudflare.com' : effectiveHost, 
+      port: 8001, 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://assessing-characterized-involved-brush.trycloudflare.com' : `http://${effectiveHost}:8001` 
+    },
+    { 
+      id: 2, 
+      name: "RTX5000", 
+      username: "gpu2", 
+      host: connectionMode === 'public' ? 'external-spiritual-mayor-membership.trycloudflare.com' : effectiveHost, 
+      port: 8002, 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://external-spiritual-mayor-membership.trycloudflare.com' : `http://${effectiveHost}:8002` 
+    },
+    { 
+      id: 3, 
+      name: "RTX5000", 
+      username: "gpu3", 
+      host: connectionMode === 'public' ? 'june-valuable-lan-embedded.trycloudflare.com' : effectiveHost, 
+      port: 8003, 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://june-valuable-lan-embedded.trycloudflare.com' : `http://${effectiveHost}:8003` 
+    },
+    { 
+      id: 4, 
+      name: "RTX5000", 
+      username: "gpu4", 
+      host: connectionMode === 'public' ? 'vat-knowledge-ppm-epinions.trycloudflare.com' : effectiveHost, 
+      port: 8004, 
+      jupyterhubUrl: connectionMode === 'public' ? 'https://vat-knowledge-ppm-epinions.trycloudflare.com' : `http://${effectiveHost}:8004` 
+    },
   ];
 
   useEffect(() => {
@@ -167,6 +197,14 @@ export default function Dashboard() {
               onClick={() => setConnectionMode('tailscale')}
             >
               TAILSCALE (100.89...)
+            </Button>
+            <Button 
+              variant={connectionMode === 'public' ? 'default' : 'ghost'} 
+              size="sm" 
+              className={`text-[10px] h-8 font-black transition-all ${connectionMode === 'public' ? 'shadow-sm' : 'opacity-60'}`}
+              onClick={() => setConnectionMode('public')}
+            >
+              PUBLIC (Global)
             </Button>
           </div>
         </div>
