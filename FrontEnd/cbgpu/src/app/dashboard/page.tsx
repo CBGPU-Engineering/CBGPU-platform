@@ -302,28 +302,45 @@ export default function Dashboard() {
                           ※ 이 비밀번호는 예약된 시간에만 유효하며, 세션 종료 후 자동 무효화됩니다.
                         </p>
                         {gpuInfo?.jupyterhubUrl && (
-                          <div className="space-y-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                            <h4 className="text-[10px] font-black text-amber-600 uppercase flex items-center gap-1">
-                              <AlertTriangle className="size-3" /> Connection Guide
+                          <div className="space-y-4 p-5 bg-amber-500/5 border-2 border-amber-500/20 rounded-2xl">
+                            <h4 className="text-[11px] font-black text-amber-600 uppercase flex items-center gap-1.5">
+                              <AlertTriangle className="size-4" /> Security Bypass Guide
                             </h4>
-                            <div className="space-y-1.5 text-[9px] font-bold text-muted-foreground leading-relaxed">
-                              <p className="text-foreground">접속되지 않을 경우 아래 설정을 변경해 주세요:</p>
-                              <ol className="list-decimal list-inside space-y-1 ml-1">
-                                <li>주소창 왼쪽 <span className="text-foreground">자물쇠(🔐)</span> 아이콘 클릭</li>
-                                <li><span className="text-foreground">"사이트 설정 (Site Settings)"</span> 클릭</li>
-                                <li>하단 <span className="text-foreground">"안전하지 않은 콘텐츠 (Insecure content)"</span> 항목 찾기</li>
-                                <li>값인 "차단(기본값)"을 <span className="text-blue-500">"허용 (Allow)"</span>으로 변경</li>
-                                <li>대시보드로 돌아와 <span className="text-foreground">새로고침(F5)</span> 후 다시 접속</li>
+                            <div className="space-y-2 text-[10px] font-bold text-muted-foreground leading-relaxed bg-background/50 p-3 rounded-lg border border-amber-500/10">
+                              <p className="text-foreground border-b border-amber-500/10 pb-1 mb-2">접속이 차단될 경우 다음 순서대로 시도해 주세요:</p>
+                              <ol className="list-decimal list-inside space-y-2 ml-1">
+                                <li>아래 <span className="text-blue-500">"주소 복사"</span> 버튼 클릭</li>
+                                <li>새 탭을 열고 주소창에 <span className="text-blue-500">붙여넣기(Ctrl+V)</span> 후 이동</li>
+                                <li>보안 경고 발생 시 <span className="text-foreground">"고급" -&gt; "사이트 계속 접속"</span> 클릭</li>
                               </ol>
                             </div>
-                            <Button
-                              asChild
-                              className="w-full font-black text-[11px] uppercase tracking-widest h-12 shadow-lg hover:scale-[1.02] transition-all bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                              <a href={gpuInfo.jupyterhubUrl} target="_blank" rel="noopener noreferrer">
-                                Launch Jupyter Notebook
-                              </a>
-                            </Button>
+                            
+                            <div className="flex flex-col gap-2">
+                              <Button
+                                asChild
+                                className="w-full font-black text-[11px] uppercase tracking-widest h-12 shadow-md bg-blue-600 hover:bg-blue-700 text-white"
+                              >
+                                <a href={gpuInfo.jupyterhubUrl} target="_blank" rel="noopener noreferrer">
+                                  Direct Launch
+                                </a>
+                              </Button>
+                              
+                              <div className="flex gap-2">
+                                <Input 
+                                  readOnly 
+                                  value={gpuInfo.jupyterhubUrl} 
+                                  className="h-9 text-[9px] font-mono bg-muted/50 border-dashed"
+                                />
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="h-9 px-3 font-black text-[10px] whitespace-nowrap"
+                                  onClick={() => copyToClipboard(gpuInfo.jupyterhubUrl)}
+                                >
+                                  주소 복사
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         )}
                         <Button
