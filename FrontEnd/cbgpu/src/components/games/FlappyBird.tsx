@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 const W = 360, H = 480;
 const GRAVITY = 0.45, JUMP = -8.5, PIPE_W = 52, GAP = 140, PIPE_SPEED = 2.8, BIRD_X = 70;
 
-interface Pipe { x: number; top: number; scored?: boolean }
+interface Pipe { x: number; top: number; id: number }
 
+let _pipeId = 0;
 function randTop() { return 60 + Math.random() * (H - GAP - 120); }
 
 export default function FlappyBird() {
@@ -14,6 +15,7 @@ export default function FlappyBird() {
   const s = useRef({
     bird: { y: H / 2, vy: 0 },
     pipes: [] as Pipe[],
+    scored: new Set<number>(),
     score: 0,
     frame: 0,
     running: false,
@@ -95,14 +97,14 @@ export default function FlappyBird() {
     st.frame++;
 
     // spawn pipe
-    if (st.frame % 90 === 0) st.pipes.push({ x: W + 10, top: randTop() });
+    if (st.frame % 90 === 0) st.pipes.push({ x: W + 10, top: randTop(), id: _pipeId++ });
     st.pipes.forEach(p => { p.x -= PIPE_SPEED; });
     st.pipes = st.pipes.filter(p => p.x > -PIPE_W - 10);
 
-    // score: 파이프 오른쪽 끝이 새를 지나쳤을 때 한 번만 카운트
+    // score: pipe ID Set으로 중복 없이 카운트
     st.pipes.forEach(p => {
-      if (!p.scored && p.x + PIPE_W < BIRD_X) {
-        p.scored = true;
+      if (!st.scored.has(p.id) && p.x + PIPE_W < BIRD_X) {
+        st.scored.add(p.id);
         st.score++;
         setScore(st.score);
       }
@@ -131,7 +133,7 @@ export default function FlappyBird() {
 
   const reset = useCallback(() => {
     cancelAnimationFrame(rafRef.current);
-    s.current = { bird: { y: H / 2, vy: 0 }, pipes: [], score: 0, frame: 0, running: false, over: false, started: true };
+    s.current = { bird: { y: H / 2, vy: 0 }, pipes: [], scored: new Set(), score: 0, frame: 0, running: false, over: false, started: true };
     setScore(0); setPhase('idle');
     rafRef.current = requestAnimationFrame(tick);
   }, [tick]);
