@@ -57,6 +57,9 @@ export default function Navbar() {
             <Link href="/timetable" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/timetable' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
               시간표
             </Link>
+            <Link href="/meal" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/meal' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              급식
+            </Link>
             <Link href="/polls" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/polls' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
               투표
             </Link>
@@ -158,6 +161,9 @@ export default function Navbar() {
               </Link>
               <Link href="/timetable" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/timetable' ? 'text-primary' : 'text-muted-foreground'}`}>
                 시간표
+              </Link>
+              <Link href="/meal" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/meal' ? 'text-primary' : 'text-muted-foreground'}`}>
+                급식
               </Link>
               <Link href="/polls" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/polls' ? 'text-primary' : 'text-muted-foreground'}`}>
                 투표
