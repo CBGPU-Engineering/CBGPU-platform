@@ -1,42 +1,73 @@
 -- ============================================================
--- CBGPU 투표 시스템 마이그레이션
+-- CBGPU 투표 시스템 v2 마이그레이션
 -- Supabase SQL Editor에서 실행하세요
 -- ============================================================
 
-create table if not exists polls (
+drop table if exists poll_votes    cascade;
+drop table if exists poll_answers  cascade;
+drop table if exists poll_responses cascade;
+drop table if exists poll_questions cascade;
+drop table if exists polls         cascade;
+
+-- 투표 헤더
+create table polls (
   id          uuid primary key default gen_random_uuid(),
   created_at  timestamptz default now(),
   title       text not null,
   description text default '',
-  options     jsonb not null default '[]', -- [{id: uuid, text: string}]
   ends_at     timestamptz,
   is_active   boolean default true,
-  created_by  uuid references auth.users(id),
-  allow_multiple boolean default false
+  show_results boolean default true,
+  created_by  uuid references auth.users(id)
 );
 
-create table if not exists poll_votes (
+-- 질문 목록 (질문 유형: choice, checkbox, text, paragraph, scale, dropdown)
+create table poll_questions (
+  id          uuid primary key default gen_random_uuid(),
+  poll_id     uuid references polls(id) on delete cascade not null,
+  order_num   int not null default 0,
+  type        text not null,
+  title       text not null,
+  description text default '',
+  required    boolean default false,
+  options     jsonb default '[]',  -- [{id,text}]
+  config      jsonb default '{}'   -- {min,max,minLabel,maxLabel,showIf:{questionId,value}}
+);
+
+-- 응답 헤더 (사용자당 1개)
+create table poll_responses (
   id         uuid primary key default gen_random_uuid(),
   created_at timestamptz default now(),
   poll_id    uuid references polls(id) on delete cascade not null,
   user_id    uuid references auth.users(id) not null,
-  option_ids jsonb not null default '[]',
   unique(poll_id, user_id)
 );
 
--- RLS 활성화
-alter table polls      enable row level security;
-alter table poll_votes enable row level security;
+-- 개별 답변
+create table poll_answers (
+  id          uuid primary key default gen_random_uuid(),
+  response_id uuid references poll_responses(id) on delete cascade not null,
+  question_id uuid references poll_questions(id) on delete cascade not null,
+  value       jsonb not null default 'null'
+);
 
--- polls: 로그인 여부와 무관하게 읽기 가능
-create policy "polls_read"        on polls for select using (true);
--- polls: 어드민만 생성/수정/삭제
-create policy "polls_admin_write" on polls for all
+-- RLS
+alter table polls          enable row level security;
+alter table poll_questions enable row level security;
+alter table poll_responses enable row level security;
+alter table poll_answers   enable row level security;
+
+create policy "polls_read"       on polls for select using (true);
+create policy "polls_admin"      on polls for all
   using (exists (select 1 from profiles where id = auth.uid() and is_admin = true));
 
--- votes: 로그인한 사용자 읽기
-create policy "votes_read"   on poll_votes for select using (auth.uid() is not null);
--- votes: 본인 투표 삽입
-create policy "votes_insert" on poll_votes for insert with check (user_id = auth.uid());
--- votes: 본인 투표 삭제 (철회)
-create policy "votes_delete" on poll_votes for delete using (user_id = auth.uid());
+create policy "questions_read"   on poll_questions for select using (true);
+create policy "questions_admin"  on poll_questions for all
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin = true));
+
+create policy "responses_read"   on poll_responses for select using (auth.uid() is not null);
+create policy "responses_insert" on poll_responses for insert with check (user_id = auth.uid());
+
+create policy "answers_read"     on poll_answers for select using (auth.uid() is not null);
+create policy "answers_insert"   on poll_answers for insert
+  with check (exists (select 1 from poll_responses where id = response_id and user_id = auth.uid()));
