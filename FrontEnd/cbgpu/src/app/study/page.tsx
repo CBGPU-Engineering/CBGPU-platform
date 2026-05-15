@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef } from 'react';
+import { useTheme } from 'next-themes';
 import { ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -9,6 +10,8 @@ export default function StudyPage() {
   const [blocked, setBlocked] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   const reload = () => {
     if (iframeRef.current) {
@@ -47,7 +50,8 @@ export default function StudyPage() {
         <iframe
           ref={iframeRef}
           src={SITE_URL}
-          className="flex-1 w-full rounded-2xl border border-border/40 shadow-lg bg-background"
+          className="flex-1 w-full rounded-2xl border border-border/40 shadow-lg bg-background transition-all duration-300"
+          style={isDark ? { filter: 'invert(1) hue-rotate(180deg)' } : undefined}
           onLoad={() => setLoaded(true)}
           onError={() => setBlocked(true)}
           sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
