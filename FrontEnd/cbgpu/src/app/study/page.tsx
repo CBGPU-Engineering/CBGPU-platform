@@ -51,7 +51,7 @@ export default function StudyPage() {
           ref={iframeRef}
           src={SITE_URL}
           className="flex-1 w-full rounded-2xl border border-border/40 shadow-lg bg-background transition-all duration-300"
-          style={isDark ? { filter: 'invert(1) hue-rotate(180deg)' } : undefined}
+          style={!isDark ? { filter: 'invert(1) hue-rotate(180deg)' } : undefined}
           onLoad={() => setLoaded(true)}
           onError={() => setBlocked(true)}
           sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
