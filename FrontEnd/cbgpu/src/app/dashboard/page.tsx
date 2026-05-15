@@ -5,10 +5,9 @@ import { supabase } from '@/lib/supabase';
 import GPUCard from '@/components/GPUCard';
 import WeeklyGPUCard from '@/components/WeeklyGPUCard';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/useAuth';
 import { toast } from 'sonner';
-import { RefreshCw, Trash2, Copy, Key, AlertTriangle, StopCircle } from 'lucide-react';
+import { RefreshCw, Trash2, Copy, Key, StopCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 export default function Dashboard() {
@@ -297,58 +296,15 @@ export default function Dashboard() {
                           ※ 이 비밀번호는 예약된 시간에만 유효하며, 세션 종료 후 자동 무효화됩니다.
                         </p>
                         {gpuInfo?.jupyterhubUrl && (
-                          connectionMode === 'public' ? (
-                            <div className="space-y-4 p-5 bg-amber-500/5 border-2 border-amber-500/20 rounded-2xl">
-                              <h4 className="text-[11px] font-black text-amber-600 uppercase flex items-center gap-1.5">
-                                <AlertTriangle className="size-4" /> Security Bypass Guide
-                              </h4>
-                              <div className="space-y-2 text-[10px] font-bold text-muted-foreground leading-relaxed bg-background/50 p-3 rounded-lg border border-amber-500/10">
-                                <p className="text-foreground border-b border-amber-500/10 pb-1 mb-2">접속이 차단될 경우 다음 순서대로 시도해 주세요:</p>
-                                <ol className="list-decimal list-inside space-y-2 ml-1">
-                                  <li>아래 <span className="text-blue-500">"주소 복사"</span> 버튼 클릭</li>
-                                  <li>새 탭을 열고 주소창에 <span className="text-blue-500">붙여넣기(Ctrl+V)</span> 후 이동</li>
-                                  <li>보안 경고 발생 시 <span className="text-foreground">"고급" -&gt; "사이트 계속 접속"</span> 클릭</li>
-                                </ol>
-                              </div>
-                              
-                              <div className="flex flex-col gap-2">
-                                <Button
-                                  asChild
-                                  className="w-full font-black text-[11px] uppercase tracking-widest h-12 shadow-md bg-blue-600 hover:bg-blue-700 text-white"
-                                >
-                                  <a href={gpuInfo.jupyterhubUrl} target="_blank" rel="noopener noreferrer">
-                                    Direct Launch
-                                  </a>
-                                </Button>
-                                
-                                <div className="flex gap-2">
-                                  <Input 
-                                    readOnly 
-                                    value={gpuInfo.jupyterhubUrl} 
-                                    className="h-9 text-[9px] font-mono bg-muted/50 border-dashed"
-                                  />
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="h-9 px-3 font-black text-[10px] whitespace-nowrap"
-                                    onClick={() => copyToClipboard(gpuInfo.jupyterhubUrl)}
-                                  >
-                                    주소 복사
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <Button
-                              asChild
-                              className="w-full font-black text-[10px] uppercase tracking-widest h-11 border-2 hover:bg-foreground hover:text-background transition-all"
-                              variant="outline"
-                            >
-                              <a href={gpuInfo.jupyterhubUrl} target="_blank" rel="noopener noreferrer">
-                                Open Jupyter Notebook
-                              </a>
-                            </Button>
-                          )
+                          <Button
+                            asChild
+                            className="w-full font-black text-[10px] uppercase tracking-widest h-11 border-2 hover:bg-foreground hover:text-background transition-all"
+                            variant="outline"
+                          >
+                            <a href={gpuInfo.jupyterhubUrl} target="_blank" rel="noopener noreferrer">
+                              Open Jupyter Notebook
+                            </a>
+                          </Button>
                         )}
                         <Button
                           className="w-full font-black text-[10px] uppercase tracking-widest h-11 gap-2"
