@@ -7,7 +7,7 @@ import WeeklyGPUCard from '@/components/WeeklyGPUCard';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/useAuth';
 import { toast } from 'sonner';
-import { RefreshCw, Trash2, Copy, Key, StopCircle } from 'lucide-react';
+import { RefreshCw, Trash2, Copy, Key, AlertTriangle, StopCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 export default function Dashboard() {
