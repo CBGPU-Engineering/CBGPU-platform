@@ -107,7 +107,7 @@ export default function TechNews() {
         const data = await fetchHN(cfg.hn);
         setHnStories(data);
       } else {
-        const data = await fetchGoogle(cfg.google, cfg.googleLang);
+        const data = await fetchGoogle(cfg.google, 'googleLang' in cfg ? (cfg as { googleLang: string }).googleLang : undefined);
         setGnItems(data);
       }
       setRefreshed(new Date());
