@@ -3,10 +3,10 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 const GPUS = [
-  { id: 1, url: 'https://9742905062627d.lhr.life' },
-  { id: 2, url: 'https://9d1383bf1b937c.lhr.life' },
-  { id: 3, url: 'https://e82966052c9da3.lhr.life' },
-  { id: 4, url: 'https://5144016024ce2b.lhr.life' },
+  { id: 1, url: 'https://bbb1f73aa6bd31.lhr.life' },
+  { id: 2, url: 'https://109a33522c2e35.lhr.life' },
+  { id: 3, url: 'https://ccb4e81a1e065b.lhr.life' },
+  { id: 4, url: 'https://d145edf2d1b8f1.lhr.life' },
 ];
 
 async function ping(url: string): Promise<'online' | 'offline'> {
