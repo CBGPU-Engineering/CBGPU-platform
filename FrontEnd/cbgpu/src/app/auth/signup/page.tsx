@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { getURL } from '@/lib/utils';
 
 export default function Signup() {
   const [email, setEmail] = useState('');
@@ -23,6 +24,9 @@ export default function Signup() {
       const { data, error } = await supabase.auth.signUp({ 
         email, 
         password,
+        options: {
+          emailRedirectTo: getURL() + 'auth/callback',
+        }
       });
 
       if (error) {
