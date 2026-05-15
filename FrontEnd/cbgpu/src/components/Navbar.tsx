@@ -54,6 +54,9 @@ export default function Navbar() {
             <Link href="/games" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/games' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
               Arcade
             </Link>
+            <Link href="/feed" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/feed' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              Feed
+            </Link>
             {isAdmin && (
               <Link href="/admin" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/admin' ? 'bg-orange-500 text-white shadow-lg' : 'text-orange-500 hover:bg-orange-500/10'}`}>
                 Admin
@@ -134,6 +137,9 @@ export default function Navbar() {
               </Link>
               <Link href="/games" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/games' ? 'text-primary' : 'text-muted-foreground'}`}>
                 Arcade
+              </Link>
+              <Link href="/feed" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/feed' ? 'text-primary' : 'text-muted-foreground'}`}>
+                Feed
               </Link>
               <Link href="/contact" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/contact' ? 'text-primary' : 'text-muted-foreground'}`}>
                 Contact
