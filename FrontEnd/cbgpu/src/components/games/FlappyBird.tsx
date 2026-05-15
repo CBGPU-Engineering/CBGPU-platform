@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 const W = 360, H = 480;
 const GRAVITY = 0.45, JUMP = -8.5, PIPE_W = 52, GAP = 140, PIPE_SPEED = 2.8, BIRD_X = 70;
 
-interface Pipe { x: number; top: number }
+interface Pipe { x: number; top: number; scored?: boolean }
 
 function randTop() { return 60 + Math.random() * (H - GAP - 120); }
 
@@ -99,9 +99,10 @@ export default function FlappyBird() {
     st.pipes.forEach(p => { p.x -= PIPE_SPEED; });
     st.pipes = st.pipes.filter(p => p.x > -PIPE_W - 10);
 
-    // score
+    // score: 파이프 오른쪽 끝이 새를 지나쳤을 때 한 번만 카운트
     st.pipes.forEach(p => {
-      if (Math.round(p.x + PIPE_W) === BIRD_X) {
+      if (!p.scored && p.x + PIPE_W < BIRD_X) {
+        p.scored = true;
         st.score++;
         setScore(st.score);
       }
