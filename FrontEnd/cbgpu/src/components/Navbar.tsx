@@ -54,6 +54,12 @@ export default function Navbar() {
             <Link href="/study" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/study' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
               자습신청
             </Link>
+            <Link href="/timetable" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/timetable' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              시간표
+            </Link>
+            <Link href="/polls" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/polls' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              투표
+            </Link>
             <Link href="/games" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/games' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
               Arcade
             </Link>
@@ -140,6 +146,12 @@ export default function Navbar() {
               </Link>
               <Link href="/study" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/study' ? 'text-primary' : 'text-muted-foreground'}`}>
                 자습신청
+              </Link>
+              <Link href="/timetable" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/timetable' ? 'text-primary' : 'text-muted-foreground'}`}>
+                시간표
+              </Link>
+              <Link href="/polls" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/polls' ? 'text-primary' : 'text-muted-foreground'}`}>
+                투표
               </Link>
               <Link href="/games" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/games' ? 'text-primary' : 'text-muted-foreground'}`}>
                 Arcade
