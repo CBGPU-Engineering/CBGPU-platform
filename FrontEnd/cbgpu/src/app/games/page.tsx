@@ -7,11 +7,13 @@ import Game2048 from '@/components/games/Game2048';
 import FlappyBird from '@/components/games/FlappyBird';
 import MemoryMatch from '@/components/games/MemoryMatch';
 import Minesweeper from '@/components/games/Minesweeper';
+import WordleKR from '@/components/games/WordleKR';
 
 const GAMES = [
   { id: 'flappy',  label: 'Flappy',  emoji: '🐦', desc: 'Tap to fly — touch friendly',  tag: 'touch' },
   { id: 'memory',  label: 'Memory',  emoji: '🧠', desc: 'Flip & match cards',            tag: 'touch' },
   { id: 'mines',   label: 'Mines',   emoji: '💣', desc: 'Classic minesweeper',           tag: 'touch' },
+  { id: 'wordle',  label: 'Wordle',  emoji: '🇰🇷', desc: '5글자 한국어 단어 맞추기',        tag: 'touch' },
   { id: 'snake',   label: 'Snake',   emoji: '🐍', desc: 'Eat, grow, survive',            tag: 'keys'  },
   { id: 'tetris',  label: 'Tetris',  emoji: '🟦', desc: 'Stack blocks, clear lines',     tag: 'keys'  },
   { id: '2048',    label: '2048',    emoji: '🔢', desc: 'Slide tiles, reach 2048',       tag: 'touch' },
@@ -52,6 +54,7 @@ export default function GamesPage() {
         {active === 'flappy' && <FlappyBird />}
         {active === 'memory' && <MemoryMatch />}
         {active === 'mines'  && <Minesweeper />}
+        {active === 'wordle' && <WordleKR />}
         {active === 'snake'  && <Snake />}
         {active === 'tetris' && <Tetris />}
         {active === '2048'   && <Game2048 />}

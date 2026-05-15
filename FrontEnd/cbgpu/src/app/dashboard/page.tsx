@@ -7,7 +7,7 @@ import WeeklyGPUCard from '@/components/WeeklyGPUCard';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/useAuth';
 import { toast } from 'sonner';
-import { RefreshCw, Trash2, Copy, Key, AlertTriangle, StopCircle } from 'lucide-react';
+import { RefreshCw, Trash2, Copy, Key, AlertTriangle, StopCircle, Bell, BellOff, Download, Wifi, WifiOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 export default function Dashboard() {
@@ -21,6 +21,9 @@ export default function Dashboard() {
   const [endTarget, setEndTarget] = useState<string | null>(null);
   const [currentHost, setCurrentHost] = useState<string>('100.89.196.43');
   const [connectionMode, setConnectionMode] = useState<'internal' | 'public'>('public');
+  const [gpuStatus, setGpuStatus] = useState<Record<number, 'online'|'offline'|'checking'>>({1:'checking',2:'checking',3:'checking',4:'checking'});
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
+  const [statsData, setStatsData] = useState<{gpu_id: number; hours: number}[]>([]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -133,10 +136,87 @@ export default function Dashboard() {
     toast.success("Copied to clipboard!");
   };
 
+  // ── GPU 실시간 상태 ──────────────────────────────────────────────────────────
+  const checkGpuStatus = async () => {
+    setGpuStatus({1:'checking',2:'checking',3:'checking',4:'checking'});
+    try {
+      const res = await fetch('/api/gpu-status');
+      const data = await res.json();
+      const map: Record<number, 'online'|'offline'> = {};
+      data.gpus.forEach((g: {id:number;status:'online'|'offline'}) => { map[g.id] = g.status; });
+      setGpuStatus(map);
+    } catch { setGpuStatus({1:'offline',2:'offline',3:'offline',4:'offline'}); }
+  };
+
+  // ── iCal 내보내기 ──────────────────────────────────────────────────────────
+  const exportIcal = () => {
+    if (!myReservations.length) { toast.error('예약이 없습니다.'); return; }
+    const fmtDt = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
+    const events = myReservations.map(r => [
+      'BEGIN:VEVENT',
+      `DTSTART:${fmtDt(r.start_time)}`,
+      `DTEND:${fmtDt(r.end_time)}`,
+      `SUMMARY:GPU ${r.gpu_id} 예약 — CBGPU`,
+      `UID:cbgpu-${r.id}@cbgpu.vercel.app`,
+      'END:VEVENT',
+    ].join('\r\n')).join('\r\n');
+    const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//CBGPU//KO','CALSCALE:GREGORIAN',
+      'X-WR-CALNAME:CBGPU 예약','X-WR-TIMEZONE:Asia/Seoul', events,'END:VCALENDAR'].join('\r\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+    a.download = 'cbgpu-reservations.ics';
+    a.click();
+    toast.success('iCal 파일이 다운로드됩니다.');
+  };
+
+  // ── Push 알림 ──────────────────────────────────────────────────────────────
+  const requestNotif = async () => {
+    if (!('Notification' in window)) { toast.error('이 브라우저는 알림을 지원하지 않습니다.'); return; }
+    const perm = await Notification.requestPermission();
+    setNotifPerm(perm);
+    if (perm === 'granted') toast.success('알림이 활성화됐습니다. 예약 10분 전에 알림이 옵니다.');
+    else toast.error('알림 권한이 거부됐습니다.');
+  };
+
+  // ── GPU 통계 ───────────────────────────────────────────────────────────────
+  const fetchStats = async () => {
+    const since = new Date(Date.now() - 30 * 86400000).toISOString();
+    const { data } = await supabase.from('reservations').select('gpu_id, start_time, end_time').gte('start_time', since);
+    if (!data) return;
+    const map: Record<number, number> = {1:0,2:0,3:0,4:0};
+    data.forEach((r: any) => {
+      const h = (new Date(r.end_time).getTime() - new Date(r.start_time).getTime()) / 3600000;
+      if (r.gpu_id >= 1 && r.gpu_id <= 4) map[r.gpu_id] += h;
+    });
+    setStatsData([1,2,3,4].map(id => ({ gpu_id: id, hours: Math.round(map[id] * 10) / 10 })));
+  };
+
+  // push 알림 체크
+  useEffect(() => {
+    if (!('Notification' in window)) return;
+    setNotifPerm(Notification.permission);
+    const t = setInterval(() => {
+      if (Notification.permission !== 'granted') return;
+      myReservations.forEach((r: any) => {
+        const start = new Date(r.start_time).getTime();
+        const diff = start - Date.now();
+        if (diff > 0 && diff < 10 * 60 * 1000) {
+          new Notification(`GPU ${r.gpu_id} 예약 시작 10분 전`, {
+            body: `${new Date(r.start_time).toLocaleTimeString('ko-KR')} 시작`,
+            icon: '/favicon.ico',
+          });
+        }
+      });
+    }, 60000);
+    return () => clearInterval(t);
+  }, [myReservations]);
+
   useEffect(() => {
     if (user) {
       fetchMyReservations();
       fetchGpuPasswords();
+      checkGpuStatus();
+      fetchStats();
       const subscription = supabase
         .channel('schema-db-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => fetchMyReservations())
@@ -158,9 +238,32 @@ export default function Dashboard() {
   return (
     <div className="space-y-12 md:space-y-20 transition-colors duration-500">
       <section>
-        <div className="flex flex-col items-center md:items-start mb-8 gap-2">
-          <h1 className="text-3xl md:text-4xl font-black tracking-tighter italic uppercase">GPU Clusters</h1>
-          <div className="h-1 w-20 bg-primary rounded-full"></div>
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tighter italic uppercase">GPU Clusters</h1>
+            <div className="h-1 w-20 bg-primary rounded-full"></div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {[1,2,3,4].map(id => {
+              const st = gpuStatus[id];
+              return (
+                <div key={id} className="flex items-center gap-1.5 px-2.5 py-1 bg-muted rounded-lg border border-border/40">
+                  {st === 'checking'
+                    ? <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+                    : st === 'online'
+                    ? <Wifi className="size-3 text-green-500" />
+                    : <WifiOff className="size-3 text-destructive" />
+                  }
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    GPU{id} {st === 'checking' ? '...' : st === 'online' ? 'ON' : 'OFF'}
+                  </span>
+                </div>
+              );
+            })}
+            <Button variant="ghost" size="icon" className="size-7" onClick={checkGpuStatus} title="새로고침">
+              <RefreshCw className="size-3" />
+            </Button>
+          </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
           {gpus.map((gpu) => (
@@ -195,16 +298,57 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
           <div className="flex flex-col">
             <h2 className="text-xl md:text-2xl font-black tracking-tight uppercase italic">My Reservations</h2>
             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Manage your active sessions</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={fetchMyReservations} className="hover:bg-primary/10 font-bold uppercase text-[10px] gap-2">
-            <RefreshCw className="size-3" />
-            <span className="hidden sm:inline">Refresh</span>
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={exportIcal} className="font-black text-[10px] uppercase gap-1.5 h-8">
+              <Download className="size-3" /> iCal
+            </Button>
+            <Button
+              variant="outline" size="sm"
+              onClick={notifPerm === 'granted' ? undefined : requestNotif}
+              className={`font-black text-[10px] uppercase gap-1.5 h-8 ${notifPerm === 'granted' ? 'text-green-500 border-green-500/30' : ''}`}
+            >
+              {notifPerm === 'granted' ? <Bell className="size-3" /> : <BellOff className="size-3" />}
+              {notifPerm === 'granted' ? '알림 ON' : '알림 설정'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={fetchMyReservations} className="hover:bg-primary/10 font-bold uppercase text-[10px] gap-2 h-8">
+              <RefreshCw className="size-3" />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+          </div>
         </div>
+
+        {/* GPU 점유율 통계 */}
+        {statsData.length > 0 && (
+          <div className="mb-8 p-4 bg-muted/20 border border-border/40 rounded-2xl">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">GPU 점유율 (최근 30일)</p>
+              <Button variant="ghost" size="icon" className="size-6" onClick={fetchStats}><RefreshCw className="size-2.5" /></Button>
+            </div>
+            <div className="space-y-2">
+              {statsData.map(s => {
+                const max = Math.max(...statsData.map(d => d.hours), 1);
+                const pct = max > 0 ? (s.hours / max) * 100 : 0;
+                return (
+                  <div key={s.gpu_id} className="flex items-center gap-3">
+                    <span className="text-[10px] font-black text-muted-foreground w-10 shrink-0">GPU {s.gpu_id}</span>
+                    <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-700"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-black text-muted-foreground w-12 text-right shrink-0">{s.hours}h</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="grid gap-4">
