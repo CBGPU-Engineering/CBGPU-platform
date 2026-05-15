@@ -49,25 +49,25 @@ export default function Dashboard() {
       id: 1, 
       name: "RTX5000", 
       username: "gpu1", 
-      jupyterhubUrl: connectionMode === 'public' ? `https://9742905062627d.lhr.life` : `http://${effectiveHost}:8001`
+      jupyterhubUrl: connectionMode === 'public' ? `https://bbb1f73aa6bd31.lhr.life` : `http://${effectiveHost}:8001`
     },
     {
       id: 2,
       name: "RTX5000",
       username: "gpu2",
-      jupyterhubUrl: connectionMode === 'public' ? `https://9d1383bf1b937c.lhr.life` : `http://${effectiveHost}:8002`
+      jupyterhubUrl: connectionMode === 'public' ? `https://109a33522c2e35.lhr.life` : `http://${effectiveHost}:8002`
     },
     {
       id: 3,
       name: "RTX5000",
       username: "gpu3",
-      jupyterhubUrl: connectionMode === 'public' ? `https://e82966052c9da3.lhr.life` : `http://${effectiveHost}:8003`
+      jupyterhubUrl: connectionMode === 'public' ? `https://ccb4e81a1e065b.lhr.life` : `http://${effectiveHost}:8003`
     },
     {
       id: 4,
       name: "RTX5000",
       username: "gpu4",
-      jupyterhubUrl: connectionMode === 'public' ? `https://5144016024ce2b.lhr.life` : `http://${effectiveHost}:8004` 
+      jupyterhubUrl: connectionMode === 'public' ? `https://d145edf2d1b8f1.lhr.life` : `http://${effectiveHost}:8004`
     },
   ];
 
