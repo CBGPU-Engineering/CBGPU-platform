@@ -110,7 +110,7 @@ function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () =
         <Input value={title} onChange={e => { setTitle(e.target.value); scheduleAutoSave(); }}
           placeholder="제목 없음" className="flex-1 min-w-32 font-black text-base border-none shadow-none focus-visible:ring-0 px-2" />
         <div className="flex gap-1 items-center ml-auto flex-wrap">
-          <button onClick={() => { setShared(s => { const n=!s; save(title, content, tags, n); return n; })}
+          <button onClick={() => { const n = !shared; setShared(n); save(title, content, tags, n); }}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${shared?'text-primary bg-primary/10':'text-muted-foreground bg-muted'}`}>
             {shared ? <Share2 className="size-3" /> : <Lock className="size-3" />}
             {shared ? '공개' : '비공개'}
