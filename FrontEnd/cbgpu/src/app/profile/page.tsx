@@ -3,12 +3,13 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import { UserCircle2, Mail, Hash, Save, Loader2 } from 'lucide-react';
 
 export default function Profile() {
   const { user, profile, refreshProfile, isLoading: authLoading } = useAuth();
+  const { showError, showSuccess } = useAlert();
   const [isUpdating, setIsUpdating] = useState(false);
   const [studentId, setStudentId] = useState('');
   const [fullName, setFullName] = useState('');
@@ -31,9 +32,9 @@ export default function Profile() {
 
       if (error) throw error;
       await refreshProfile();
-      toast.success('Profile updated successfully!');
+      showSuccess('프로필이 업데이트됐습니다!');
     } catch (error: any) {
-      toast.error(error.message || 'Update failed');
+      showError(error.message || '업데이트 실패');
     } finally {
       setIsUpdating(false);
     }

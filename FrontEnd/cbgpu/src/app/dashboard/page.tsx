@@ -6,12 +6,13 @@ import GPUCard from '@/components/GPUCard';
 import WeeklyGPUCard from '@/components/WeeklyGPUCard';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/useAuth';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import { RefreshCw, Trash2, Copy, Key, AlertTriangle, StopCircle, Bell, BellOff, Download, Wifi, WifiOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { showError, showSuccess } = useAlert();
   const [myReservations, setMyReservations] = useState<any[]>([]);
   const [gpuPasswords, setGpuPasswords] = useState<{[key: number]: string}>({});
   const [loading, setLoading] = useState(true);
@@ -107,11 +108,11 @@ export default function Dashboard() {
 
       if (error) throw error;
       if (!count || count === 0) throw new Error("삭제 권한이 없거나 이미 삭제된 예약입니다.");
-      toast.success("Reservation cancelled.");
+      showSuccess("예약이 취소됐습니다.");
       setCancelTarget(null);
       fetchMyReservations();
     } catch (err: any) {
-      toast.error("Failed to cancel: " + err.message);
+      showError("취소 실패: " + err.message);
     }
   };
 
@@ -122,9 +123,9 @@ export default function Dashboard() {
       .update({ end_time: new Date().toISOString() })
       .eq('id', endTarget);
     if (error) {
-      toast.error("Failed to end session: " + error.message);
+      showError("세션 종료 실패: " + error.message);
     } else {
-      toast.success("Session ended.");
+      showSuccess("세션이 종료됐습니다.");
       setEndTarget(null);
       setSelectedRes(null);
       fetchMyReservations();
@@ -133,7 +134,7 @@ export default function Dashboard() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard!");
+    showSuccess("클립보드에 복사됐습니다.");
   };
 
   // ── GPU 실시간 상태 ──────────────────────────────────────────────────────────
@@ -150,7 +151,7 @@ export default function Dashboard() {
 
   // ── iCal 내보내기 ──────────────────────────────────────────────────────────
   const exportIcal = () => {
-    if (!myReservations.length) { toast.error('예약이 없습니다.'); return; }
+    if (!myReservations.length) { showError('예약이 없습니다.'); return; }
     const fmtDt = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
     const events = myReservations.map(r => [
       'BEGIN:VEVENT',
@@ -166,16 +167,16 @@ export default function Dashboard() {
     a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
     a.download = 'cbgpu-reservations.ics';
     a.click();
-    toast.success('iCal 파일이 다운로드됩니다.');
+    showSuccess('iCal 파일이 다운로드됩니다.');
   };
 
   // ── Push 알림 ──────────────────────────────────────────────────────────────
   const requestNotif = async () => {
-    if (!('Notification' in window)) { toast.error('이 브라우저는 알림을 지원하지 않습니다.'); return; }
+    if (!('Notification' in window)) { showError('이 브라우저는 알림을 지원하지 않습니다.'); return; }
     const perm = await Notification.requestPermission();
     setNotifPerm(perm);
-    if (perm === 'granted') toast.success('알림이 활성화됐습니다. 예약 10분 전에 알림이 옵니다.');
-    else toast.error('알림 권한이 거부됐습니다.');
+    if (perm === 'granted') showSuccess('알림이 활성화됐습니다. 예약 10분 전에 알림이 옵니다.');
+    else showError('알림 권한이 거부됐습니다.');
   };
 
   // ── GPU 통계 ───────────────────────────────────────────────────────────────

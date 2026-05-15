@@ -4,8 +4,9 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import { Plus, Users, X, Trash2, Lock } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface StudyPost {
   id: string; created_at: string; user_id: string;
@@ -78,6 +79,7 @@ function PostCard({
 
 function CreateForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
   const { user } = useAuth();
+  const { showError, showSuccess } = useAlert();
   const [subject,  setSubject]  = useState('수학');
   const [title,    setTitle]    = useState('');
   const [desc,     setDesc]     = useState('');
@@ -93,12 +95,12 @@ function CreateForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
   };
 
   const submit = async () => {
-    if (!title.trim()) { toast.error('제목을 입력하세요'); return; }
+    if (!title.trim()) { showError('제목을 입력하세요'); return; }
     setSaving(true);
     const { error } = await supabase.from('study_posts').insert({ user_id: user!.id, subject, title, description: desc, tags, max_members: max, is_open: true });
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success('스터디 그룹이 만들어졌습니다!');
+    if (error) { showError(error.message); return; }
+    showSuccess('스터디 그룹이 만들어졌습니다!');
     onCreated();
   };
 
@@ -149,6 +151,7 @@ function CreateForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
 
 export default function MatchPage() {
   const { user } = useAuth();
+  const { showError, showSuccess } = useAlert();
   const [posts,   setPosts]   = useState<StudyPost[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [tab,     setTab]     = useState<'all'|'mine'>('all');
@@ -156,6 +159,7 @@ export default function MatchPage() {
   const [creating,setCreating]= useState(false);
   const [loading, setLoading] = useState(true);
   const [dbMissing, setDbMissing] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const [{ data: p, error }, { data: m }] = await Promise.all([
@@ -180,17 +184,16 @@ export default function MatchPage() {
 
   const join  = async (postId: string) => {
     const { error } = await supabase.from('study_members').insert({ post_id: postId, user_id: user!.id });
-    if (error) { toast.error(error.message); return; }
-    toast.success('참여했습니다!'); load();
+    if (error) { showError(error.message); return; }
+    showSuccess('참여했습니다!'); load();
   };
   const leave = async (postId: string) => {
     await supabase.from('study_members').delete().eq('post_id', postId).eq('user_id', user!.id);
-    toast.success('탈퇴했습니다.'); load();
+    showSuccess('탈퇴했습니다.'); load();
   };
   const del   = async (postId: string) => {
-    if (!confirm('삭제하시겠습니까?')) return;
     await supabase.from('study_posts').delete().eq('id', postId);
-    toast.success('삭제됐습니다.'); load();
+    showSuccess('삭제됐습니다.'); load();
   };
   const close = async (postId: string) => {
     await supabase.from('study_posts').update({ is_open: false }).eq('id', postId);
@@ -213,6 +216,11 @@ export default function MatchPage() {
 
   return (
     <main className="px-4 py-8 space-y-6 max-w-2xl mx-auto">
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onConfirm={() => { del(confirmDeleteId!); setConfirmDeleteId(null); }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
       {creating && <CreateForm onCreated={() => { setCreating(false); load(); }} onCancel={() => setCreating(false)} />}
 
       <div className="flex items-end justify-between">
@@ -251,7 +259,7 @@ export default function MatchPage() {
             <PostCard key={post.id} post={post}
               members={members} myUserId={user?.id ?? ''}
               onJoin={() => join(post.id)} onLeave={() => leave(post.id)}
-              onDelete={() => del(post.id)} onClose={() => close(post.id)} />
+              onDelete={() => setConfirmDeleteId(post.id)} onClose={() => close(post.id)} />
           ))}
         </div>
       )}

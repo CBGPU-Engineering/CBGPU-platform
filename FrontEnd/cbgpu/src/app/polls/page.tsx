@@ -4,11 +4,12 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import {
   Plus, Trash2, X, Edit3, BarChart3, ArrowLeft, ChevronUp, ChevronDown,
   CheckSquare, Circle, Type, AlignLeft, Star, List, Lock, CheckCircle2,
 } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 // ─── types ────────────────────────────────────────────────────────────────────
 type QType = 'choice' | 'checkbox' | 'text' | 'paragraph' | 'scale' | 'dropdown';
@@ -291,6 +292,7 @@ function QuestionBuilder({ q, idx, total, prevQs, onChange, onDelete, onMove }: 
 // ─── PollBuilder ──────────────────────────────────────────────────────────────
 function PollBuilder({ poll, onSaved, onBack }: { poll?: Poll; onSaved: () => void; onBack: () => void }) {
   const { user } = useAuth();
+  const { showError, showSuccess } = useAlert();
   const [title, setTitle]   = useState(poll?.title ?? '');
   const [desc, setDesc]     = useState(poll?.description ?? '');
   const [endsAt, setEndsAt] = useState(poll?.ends_at?.slice(0, 16) ?? '');
@@ -319,7 +321,7 @@ function PollBuilder({ poll, onSaved, onBack }: { poll?: Poll; onSaved: () => vo
   };
 
   const save = async () => {
-    if (!title.trim()) { toast.error('제목을 입력하세요'); return; }
+    if (!title.trim()) { showError('제목을 입력하세요'); return; }
     setSaving(true);
     try {
       let pollId = poll?.id;
@@ -337,9 +339,9 @@ function PollBuilder({ poll, onSaved, onBack }: { poll?: Poll; onSaved: () => vo
         const { error } = await supabase.from('poll_questions').insert(rows);
         if (error) throw error;
       }
-      toast.success('저장됐습니다!');
+      showSuccess('저장됐습니다!');
       onSaved();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { showError(e.message); }
     finally { setSaving(false); }
   };
 
@@ -396,6 +398,7 @@ function PollBuilder({ poll, onSaved, onBack }: { poll?: Poll; onSaved: () => vo
 // ─── PollForm ─────────────────────────────────────────────────────────────────
 function PollForm({ poll, questions, onSubmitted, onBack }: { poll: Poll; questions: Question[]; onSubmitted: () => void; onBack: () => void }) {
   const { user } = useAuth();
+  const { showError, showSuccess } = useAlert();
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [submitting, setSubmitting] = useState(false);
   const closed = isClosed(poll);
@@ -407,7 +410,7 @@ function PollForm({ poll, questions, onSubmitted, onBack }: { poll: Poll; questi
       if (!q.required) continue;
       const v = answers[q.id];
       const empty = v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length);
-      if (empty) { toast.error(`"${q.title || '질문'}" 은(는) 필수 항목입니다`); return; }
+      if (empty) { showError(`"${q.title || '질문'}" 은(는) 필수 항목입니다`); return; }
     }
     setSubmitting(true);
     try {
@@ -416,9 +419,9 @@ function PollForm({ poll, questions, onSubmitted, onBack }: { poll: Poll; questi
       const rows = visibleQs.map(q => ({ response_id: resp.id, question_id: q.id, value: answers[q.id] ?? null }));
       const { error: ae } = await supabase.from('poll_answers').insert(rows);
       if (ae) throw ae;
-      toast.success('제출됐습니다!');
+      showSuccess('제출됐습니다!');
       onSubmitted();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { showError(e.message); }
     finally { setSubmitting(false); }
   };
 
@@ -500,12 +503,14 @@ type View = { type: 'list' } | { type: 'form'; poll: Poll; questions: Question[]
 
 export default function PollsPage() {
   const { user, isAdmin } = useAuth();
+  const { showSuccess } = useAlert();
   const [polls,  setPolls]  = useState<Poll[]>([]);
   const [myResponses, setMyResponses] = useState<string[]>([]); // poll_ids I've answered
   const [view,   setView]   = useState<View>({ type: 'list' });
   const [loading, setLoading] = useState(true);
   const [tab,    setTab]    = useState<'active' | 'closed'>('active');
   const [dbMissing, setDbMissing] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const loadPolls = useCallback(async () => {
     const { data, error } = await supabase.from('polls').select('*').order('created_at', { ascending: false });
@@ -532,13 +537,12 @@ export default function PollsPage() {
 
   const closePoll = async (pollId: string) => {
     await supabase.from('polls').update({ is_active: false }).eq('id', pollId);
-    toast.success('마감됐습니다.'); loadPolls();
+    showSuccess('마감됐습니다.'); loadPolls();
   };
 
   const deletePoll = async (pollId: string) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
     await supabase.from('polls').delete().eq('id', pollId);
-    toast.success('삭제됐습니다.'); loadPolls();
+    showSuccess('삭제됐습니다.'); loadPolls();
   };
 
   if (dbMissing) return (
@@ -576,6 +580,13 @@ export default function PollsPage() {
 
   return (
     <main className="px-4 py-8 space-y-6 max-w-2xl mx-auto">
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        title="투표를 삭제하시겠습니까?"
+        description="투표와 모든 응답이 영구적으로 삭제됩니다."
+        onConfirm={() => { deletePoll(confirmDeleteId!); setConfirmDeleteId(null); }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-black uppercase tracking-tighter italic">투표</h1>
@@ -626,7 +637,7 @@ export default function PollsPage() {
                           setView({ type: 'builder', poll });
                         }}><Edit3 className="size-3.5" /></Button>
                         {poll.is_active && !closed && <Button variant="ghost" size="icon" className="size-7 text-amber-500" onClick={() => closePoll(poll.id)}><Lock className="size-3.5" /></Button>}
-                        <Button variant="ghost" size="icon" className="size-7 text-destructive" onClick={() => deletePoll(poll.id)}><Trash2 className="size-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="size-7 text-destructive" onClick={() => setConfirmDeleteId(poll.id)}><Trash2 className="size-3.5" /></Button>
                       </>
                     )}
                   </div>
