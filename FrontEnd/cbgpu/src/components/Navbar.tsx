@@ -51,6 +51,9 @@ export default function Navbar() {
             <Link href="/schedule" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/schedule' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
               Schedule
             </Link>
+            <Link href="/study" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/study' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              자습신청
+            </Link>
             <Link href="/games" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/games' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
               Arcade
             </Link>
@@ -134,6 +137,9 @@ export default function Navbar() {
               </Link>
               <Link href="/schedule" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/schedule' ? 'text-primary' : 'text-muted-foreground'}`}>
                 Schedule
+              </Link>
+              <Link href="/study" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/study' ? 'text-primary' : 'text-muted-foreground'}`}>
+                자습신청
               </Link>
               <Link href="/games" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/games' ? 'text-primary' : 'text-muted-foreground'}`}>
                 Arcade
