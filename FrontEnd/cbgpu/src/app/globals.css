@@ -127,6 +127,15 @@
   0%, 100% { opacity: 0.35; transform: scale(1); }
   50%       { opacity: 0.15; transform: scale(0.85); }
 }
+@keyframes smoke-rise {
+  0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0.45; }
+  50%  { transform: translateY(-12px) translateX(2px) scale(1.4); opacity: 0.2; }
+  100% { transform: translateY(-24px) translateX(-1px) scale(2); opacity: 0; }
+}
+@keyframes incense-float {
+  0%,100% { transform: translateX(0); }
+  50%     { transform: translateX(2px); }
+}
 
 @layer base {
   * {
