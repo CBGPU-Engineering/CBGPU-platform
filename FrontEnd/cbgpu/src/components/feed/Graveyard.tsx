@@ -312,8 +312,7 @@ function FuneralAltar({ services, label }: { services: DeadService[]; label: str
           <span style={{ color: 'rgba(180,150,60,0.5)', fontSize: 10 }}>✦ ✦ ✦</span>
         </div>
         <h3 style={{
-          color: 'rgba(220,185,100,0.85)', fontFamily: 'serif',
-          fontSize: 13, fontWeight: 900, letterSpacing: '0.2em',
+          color: 'rgba(220,185,100,0.85)',          fontSize: 13, fontWeight: 900, letterSpacing: '0.2em',
           textTransform: 'uppercase',
         }}>
           {label}
