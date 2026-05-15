@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import { getURL } from '@/lib/utils';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { showError, showSuccess } = useAlert();
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -24,13 +25,13 @@ export default function Login() {
         password
       });
       if (error) {
-        toast.error("로그인 실패: " + error.message);
+        showError("로그인 실패: " + error.message);
       } else {
-        toast.success("Welcome back!");
+        showSuccess("로그인됐습니다!");
         router.push('/dashboard');
       }
     } catch (err: any) {
-      toast.error("오류가 발생했습니다.");
+      showError("오류가 발생했습니다.");
     } finally {
       setIsSubmitting(false);
     }

@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import { startOfWeek, endOfWeek, addWeeks, format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { CalendarDays, Lock, CheckCircle2, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function WeeklyGPUCard({ id, name }: { id: number; name: string }) {
+  const { showError, showSuccess } = useAlert();
   const [selectedWeeks, setSelectedWeeks] = useState<Date[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [approvedReservations, setApprovedReservations] = useState<any[]>([]);
@@ -52,10 +53,10 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
   };
 
   const handleSubmit = async () => {
-    if (selectedWeeks.length === 0) return toast.error('주차를 선택해 주세요.');
+    if (selectedWeeks.length === 0) { showError('주차를 선택해 주세요.'); return; }
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return toast.error('로그인이 필요합니다.');
+    if (!user) { showError('로그인이 필요합니다.'); return; }
 
     setIsSubmitting(true);
     try {
@@ -109,7 +110,7 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
 
         if (hasConflict) {
           setIsSubmitting(false);
-          return toast.error(`${format(start, 'M월 d일', { locale: ko })} 주에는 이미 확정된 예약이 있습니다.`);
+          showError(`${format(start, 'M월 d일', { locale: ko })} 주에는 이미 확정된 예약이 있습니다.`); return;
         }
 
         records.push({
@@ -125,11 +126,11 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
       const { error } = await supabase.from('reservations').insert(records);
       if (error) throw error;
       const totalWeeks = selectedWeeks.length;
-      toast.success(`GPU #${id} ${totalWeeks}주(${records.length}건) 예약 신청이 완료되었습니다!`);
+      showSuccess(`GPU #${id} ${totalWeeks}주(${records.length}건) 예약 신청이 완료되었습니다!`);
       setSelectedWeeks([]);
       fetchApprovedReservations();
     } catch (err: any) {
-      toast.error('예약 실패: ' + err.message);
+      showError('예약 실패: ' + err.message);
     } finally {
       setIsSubmitting(false);
     }

@@ -5,13 +5,14 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Navbar() {
   const { user, profile, isAdmin, isLoading } = useAuth();
+  const { showError, showSuccess } = useAlert();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -20,11 +21,11 @@ export default function Navbar() {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      toast.success("Signed out successfully.");
+      showSuccess("로그아웃됐습니다.");
       router.push('/auth/login');
       setIsMenuOpen(false);
     } catch (err: any) {
-      toast.error("Logout failed.");
+      showError("로그아웃 실패.");
       console.error(err);
     }
   };

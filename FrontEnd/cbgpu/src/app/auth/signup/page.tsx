@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import { getURL } from '@/lib/utils';
 
 export default function Signup() {
@@ -14,6 +14,7 @@ export default function Signup() {
   const [studentId, setStudentId] = useState('');
   const [fullName, setFullName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { showError, showSuccess } = useAlert();
   const router = useRouter();
 
   const handleSignup = async (e: any) => {
@@ -30,7 +31,7 @@ export default function Signup() {
       });
 
       if (error) {
-        toast.error("Signup failed: " + error.message);
+        showError("회원가입 실패: " + error.message);
         return;
       }
 
@@ -49,14 +50,14 @@ export default function Signup() {
 
         if (profileError) {
           console.error(profileError);
-          toast.error("Profile creation failed: " + profileError.message);
+          showError("프로필 생성 실패: " + profileError.message);
         } else {
-          toast.success('Sign up complete! Please wait for admin approval.');
+          showSuccess('회원가입 완료! 관리자 승인을 기다려 주세요.');
           router.push('/auth/login');
         }
       }
     } catch (err: any) {
-        toast.error("An error occurred during signup.");
+        showError("회원가입 중 오류가 발생했습니다.");
     } finally {
         setIsSubmitting(false);
     }

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import { Send, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,7 @@ const CATEGORIES = ['예약 문의', '계정 문제', '기술 지원', '기타']
 
 export default function ContactPage() {
   const { user, profile } = useAuth();
+  const { showError, showSuccess } = useAlert();
   const [form, setForm] = useState({
     name: profile?.full_name || '',
     email: user?.email || '',
@@ -26,7 +27,7 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.message) {
-      return toast.error('이름, 이메일, 내용은 필수입니다.');
+      showError('이름, 이메일, 내용은 필수입니다.'); return;
     }
     setIsSubmitting(true);
     try {
@@ -37,10 +38,10 @@ export default function ContactPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success('문의가 전송되었습니다. 빠른 시일 내에 답변 드리겠습니다.');
+      showSuccess('문의가 전송되었습니다. 빠른 시일 내에 답변 드리겠습니다.');
       setForm(prev => ({ ...prev, category: '', message: '' }));
     } catch (err: any) {
-      toast.error('전송 실패: ' + err.message);
+      showError('전송 실패: ' + err.message);
     } finally {
       setIsSubmitting(false);
     }

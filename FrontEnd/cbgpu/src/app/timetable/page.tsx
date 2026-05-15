@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import { Edit3, Save, X, RotateCcw, RefreshCw, AlertTriangle } from 'lucide-react';
 
 const DAYS    = ['월', '화', '수', '목', '금'];
@@ -34,6 +34,7 @@ type Grid = Record<number, Record<number, Cell>>;
 
 export default function TimetablePage() {
   const { isAdmin } = useAuth();
+  const { showAlert, showError, showSuccess } = useAlert();
   const [grade,   setGrade]   = useState(1);
   const [cls,     setCls]     = useState(1);
   const [grades,  setGrades]  = useState([1, 2, 3]);
@@ -82,7 +83,7 @@ export default function TimetablePage() {
   useEffect(() => { loadComcigan(1, 1); }, []); // eslint-disable-line
 
   const switchTo = (g: number, c: number) => {
-    if (editing) { toast('편집 중 변경 불가'); return; }
+    if (editing) { showAlert('편집 중에는 변경할 수 없습니다.', 'info'); return; }
     setGrade(g); setCls(c); loadComcigan(g, c);
   };
 
@@ -101,10 +102,10 @@ export default function TimetablePage() {
     const { error: dbErr } = await supabase.from('timetable')
       .upsert(rows, { onConflict: 'grade,class_num,weekday,period' });
     setSaving(false);
-    if (dbErr) { toast.error(dbErr.message); return; }
+    if (dbErr) { showError(dbErr.message); return; }
     const g2: Grid = {};
     for (let wd = 0; wd < 5; wd++) { g2[wd] = {}; for (const p of PERIODS) { const s = draft[wd]?.[p] ?? ''; if (s) g2[wd][p] = { subject: s, teacher: '' }; } }
-    setGrid(g2); setEditing(false); toast.success('저장됐습니다.');
+    setGrid(g2); setEditing(false); showSuccess('저장됐습니다.');
   };
 
   if (dbMissing) return (

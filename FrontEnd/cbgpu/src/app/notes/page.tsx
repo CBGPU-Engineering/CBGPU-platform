@@ -4,8 +4,9 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import { Plus, Trash2, ArrowLeft, Share2, Lock, Save, Tag, X } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 // ─── types ────────────────────────────────────────────────────────────────────
 interface Note {
@@ -48,6 +49,7 @@ function inlineMd(s: string) {
 // ─── NoteEditor ───────────────────────────────────────────────────────────────
 function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () => void; onSaved: (n: Note) => void }) {
   const { user } = useAuth();
+  const { showError } = useAlert();
   const [title,    setTitle]    = useState(note?.title ?? '');
   const [content,  setContent]  = useState(note?.content ?? '');
   const [tags,     setTags]     = useState<string[]>(note?.tags ?? []);
@@ -65,7 +67,7 @@ function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () =
       ? await supabase.from('research_notes').update(payload).eq('id', note.id).select().single()
       : await supabase.from('research_notes').insert(payload).select().single();
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { showError(error.message); return; }
     onSaved(data as Note);
   }, [note, title, content, tags, shared, user, onSaved]);
 
@@ -172,12 +174,14 @@ function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () =
 // ─── NoteList ─────────────────────────────────────────────────────────────────
 function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
   const { user } = useAuth();
+  const { showSuccess } = useAlert();
   const [notes,  setNotes]  = useState<Note[]>([]);
   const [shared, setShared] = useState<Note[]>([]);
   const [tab,    setTab]    = useState<'mine'|'shared'>('mine');
   const [search, setSearch] = useState('');
   const [loading,setLoading]= useState(true);
   const [dbMissing, setDbMissing] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -194,10 +198,9 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
   useEffect(() => { load(); }, [load]);
 
   const deleteNote = async (id: string) => {
-    if (!confirm('삭제하시겠습니까?')) return;
     await supabase.from('research_notes').delete().eq('id', id);
     setNotes(n => n.filter(x => x.id !== id));
-    toast.success('삭제됐습니다.');
+    showSuccess('삭제됐습니다.');
   };
 
   if (dbMissing) return (
@@ -213,6 +216,11 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
 
   return (
     <div className="space-y-4">
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onConfirm={() => { deleteNote(confirmDeleteId!); setConfirmDeleteId(null); }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex gap-1.5">
           {(['mine','shared'] as const).map(t => (
@@ -241,7 +249,7 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-black text-sm leading-tight line-clamp-1">{n.title}</h3>
                 {tab==='mine' && (
-                  <button onClick={e=>{e.stopPropagation();deleteNote(n.id);}} className="opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all">
+                  <button onClick={e=>{e.stopPropagation();setConfirmDeleteId(n.id);}} className="opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all">
                     <Trash2 className="size-3.5" />
                   </button>
                 )}

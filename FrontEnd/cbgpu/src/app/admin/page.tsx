@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
 import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2 } from 'lucide-react';
 
 export default function AdminPage() {
   const { isAdmin, isLoading: authLoading } = useAuth();
+  const { showError, showSuccess } = useAlert();
   const [reservations, setReservations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function AdminPage() {
 
     if (error) {
         console.error("Data Load Error:", error);
-        toast.error("Failed to load data.");
+        showError("데이터 로드 실패.");
     } else {
         setReservations(data || []);
     }
@@ -62,7 +63,7 @@ export default function AdminPage() {
           new Date(r.end_time) > new Date(target.start_time)
         );
         if (conflict) {
-          toast.error("Cannot approve: time conflict with an already approved reservation.");
+          showError("승인 불가: 이미 확정된 예약과 시간이 겹칩니다.");
           return;
         }
       }
@@ -72,7 +73,7 @@ export default function AdminPage() {
         .from('gpus')
         .upsert({ id: gpuId, password }, { onConflict: 'id' });
       if (gpuError) {
-        toast.error("Failed to generate credentials: " + gpuError.message);
+        showError("비밀번호 생성 실패: " + gpuError.message);
         return;
       }
     }
@@ -83,9 +84,9 @@ export default function AdminPage() {
       .eq('id', id);
 
     if (error) {
-        toast.error("Action failed: " + error.message);
+        showError("처리 실패: " + error.message);
     } else {
-        toast.success(`Status updated to ${newStatus}.`);
+        showSuccess(`상태가 ${newStatus}로 변경됐습니다.`);
         fetchReservations();
     }
   }

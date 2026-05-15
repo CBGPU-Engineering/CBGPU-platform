@@ -5,11 +5,12 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
+import { useAlert } from '@/lib/alert';
 import { format, isSameDay, parseISO, addDays, startOfDay, endOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 export default function GPUCard({ id, name }: { id: number; name: string }) {
+  const { showAlert, showError, showSuccess } = useAlert();
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,27 +39,27 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
   const handleRequest = async () => {
     if (showSchedule && (!startTime || !endTime)) {
       setShowSchedule(false);
-      return toast.info('예약 시간을 선택해 주세요.');
+      showAlert('예약 시간을 선택해 주세요.', 'info'); return;
     }
 
     if (!startTime || !endTime) {
-      return toast.error('시작 시간과 종료 시간을 모두 선택해 주세요.');
+      showError('시작 시간과 종료 시간을 모두 선택해 주세요.'); return;
     }
 
     const start = new Date(startTime);
     const end = new Date(endTime);
 
     if (start >= end) {
-      return toast.error('종료 시간은 시작 시간보다 늦어야 합니다.');
+      showError('종료 시간은 시작 시간보다 늦어야 합니다.'); return;
     }
 
     const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
     if (diffDays > 7) {
-      return toast.error('GPU #1은 최대 7일까지만 예약 가능합니다. 장기 사용은 GPU #2~4의 주 단위 예약을 이용해 주세요.');
+      showError('GPU #1은 최대 7일까지만 예약 가능합니다. 장기 사용은 GPU #2~4의 주 단위 예약을 이용해 주세요.'); return;
     }
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return toast.error('로그인이 필요합니다.');
+    if (!user) { showError('로그인이 필요합니다.'); return; }
 
     setIsSubmitting(true);
 
@@ -80,29 +81,29 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
 
       if (hasConflict) {
         setIsSubmitting(false);
-        return toast.error('해당 시간에는 이미 확정된 예약이 있습니다.');
+        showError('해당 시간에는 이미 확정된 예약이 있습니다.'); return;
       }
 
       const { error } = await supabase
         .from('reservations')
-        .insert({ 
-            gpu_id: id, 
-            user_id: user.id, 
+        .insert({
+            gpu_id: id,
+            user_id: user.id,
             user_email: user.email,
             start_time: start.toISOString(),
             end_time: end.toISOString(),
-            status: 'pending' 
+            status: 'pending'
         });
 
       if (error) throw error;
 
-      toast.success(`GPU #${id} 예약 신청이 완료되었습니다!`);
+      showSuccess(`GPU #${id} 예약 신청이 완료되었습니다!`);
       setStartTime('');
       setEndTime('');
       fetchApprovedReservations();
     } catch (error: any) {
       console.error('Reservation Error:', error);
-      toast.error('예약 실패: ' + error.message);
+      showError('예약 실패: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
