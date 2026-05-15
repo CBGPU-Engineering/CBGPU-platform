@@ -116,6 +116,18 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+@keyframes candle-flicker {
+  0%, 100% { transform: scaleX(1) scaleY(1) rotate(-1deg); opacity: 1; }
+  20%       { transform: scaleX(0.82) scaleY(1.12) rotate(1.5deg); opacity: 0.88; }
+  40%       { transform: scaleX(1.12) scaleY(0.88) rotate(-2deg); opacity: 0.95; }
+  60%       { transform: scaleX(0.9) scaleY(1.06) rotate(1.2deg); opacity: 0.82; }
+  80%       { transform: scaleX(1.06) scaleY(0.94) rotate(-1.5deg); opacity: 0.93; }
+}
+@keyframes candle-glow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50%       { opacity: 0.15; transform: scale(0.85); }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
