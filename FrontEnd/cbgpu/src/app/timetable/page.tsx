@@ -1,14 +1,13 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, ExternalLink, AlertTriangle } from 'lucide-react';
+import { RefreshCw, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-const DAYS = ['월', '화', '수', '목', '금'];
-const MAX_PERIODS = 7;
+const DAYS  = ['월', '화', '수', '목', '금'];
+const MAX_P = 7;
 
-// 과목명 → 색상 (해시 기반)
 function subjectColor(name: string): string {
-  if (!name) return 'bg-muted/30 text-muted-foreground';
+  if (!name?.trim()) return '';
   const COLORS = [
     'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/20',
     'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/20',
@@ -21,38 +20,43 @@ function subjectColor(name: string): string {
     'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/20',
     'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/20',
   ];
-  const hash = [...name].reduce((a, c) => a + c.charCodeAt(0), 0);
-  return COLORS[hash % COLORS.length];
+  const h = [...name].reduce((a, c) => a + c.charCodeAt(0), 0);
+  return COLORS[h % COLORS.length];
 }
 
-interface Cell { subject?: string; teacher?: string }
-type TimetableData = Record<string, Record<string, Cell>>; // weekday → period → cell
+function fmtWeek(mondayTs: number) {
+  const d = new Date(mondayTs);
+  const e = new Date(mondayTs + 4 * 86400000);
+  return `${d.getMonth()+1}/${d.getDate()} – ${e.getMonth()+1}/${e.getDate()}`;
+}
+
+type Grid = Record<number, Record<number, string>>; // weekday → period → subject
 
 export default function TimetablePage() {
-  const [grade, setGrade]   = useState(1);
-  const [cls, setCls]       = useState(1);
-  const [grades, setGrades] = useState<number[]>([1, 2, 3]);
-  const [classes, setClasses] = useState<number[]>([1]);
-  const [data, setData]     = useState<TimetableData>({});
-  const [times, setTimes]   = useState<{hour:number;min:number}[]>([]);
-  const [school, setSchool] = useState('충북과학고등학교');
+  const [grade,   setGrade]   = useState(1);
+  const [cls,     setCls]     = useState(1);
+  const [weekOff, setWeekOff] = useState(0);
+  const [grades,  setGrades]  = useState([1,2,3]);
+  const [classes, setClasses] = useState([1,2,3,4]);
+  const [grid,    setGrid]    = useState<Grid>({});
+  const [school,  setSchool]  = useState('충북과학고등학교');
+  const [weekLabel, setWeekLabel] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState('');
-  const [updated, setUpdated] = useState<Date|null>(null);
-  const todayIdx = new Date().getDay(); // 0=Sun, 1=Mon...
+  const [error,   setError]   = useState('');
 
-  const load = useCallback(async (g: number, c: number) => {
+  const todayWd = (() => { const d = new Date().getDay(); return d === 0 ? -1 : d - 1; })();
+
+  const load = useCallback(async (g: number, c: number, w: number) => {
     setLoading(true); setError('');
     try {
-      const res = await fetch(`/api/timetable?grade=${g}&class=${c}`);
+      const res  = await fetch(`/api/timetable?grade=${g}&class=${c}&week=${w}`);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
-      setData(json.timetable ?? {});
-      setTimes(json.times ?? []);
-      if (json.grades?.length) setGrades(json.grades);
-      if (json.classes?.length) setClasses(json.classes);
-      if (json.school?.name) setSchool(json.school.name);
-      setUpdated(new Date());
+      setGrid(json.grid ?? {});
+      if (json.school)  setSchool(json.school);
+      if (json.grades)  setGrades(json.grades);
+      if (json.classes) setClasses(json.classes);
+      if (json.mondayTs) setWeekLabel(fmtWeek(json.mondayTs));
     } catch (e: any) {
       setError(e.message ?? '시간표를 불러오지 못했습니다.');
     } finally {
@@ -60,17 +64,19 @@ export default function TimetablePage() {
     }
   }, []);
 
-  useEffect(() => { load(grade, cls); }, []);
+  useEffect(() => { load(grade, cls, weekOff); }, []);
 
-  const handleGrade = (g: number) => { setGrade(g); load(g, cls); };
-  const handleCls   = (c: number) => { setCls(c);   load(grade, c); };
+  const handleGrade = (g: number) => { setGrade(g); load(g, cls, weekOff); };
+  const handleCls   = (c: number) => { setCls(c);   load(grade, c, weekOff); };
+  const handleWeek  = (delta: number) => {
+    const nw = weekOff + delta;
+    setWeekOff(nw);
+    load(grade, cls, nw);
+  };
 
-  // 각 교시별 최대 period 파악
-  const maxPeriod = Math.max(
-    MAX_PERIODS,
-    ...Object.values(data).flatMap(d => Object.keys(d).map(Number))
-  );
-  const periods = Array.from({length: maxPeriod}, (_, i) => i + 1);
+  const maxPeriod = Math.max(MAX_P, ...Object.values(grid).flatMap(d => Object.keys(d).map(Number)));
+  const periods   = Array.from({ length: maxPeriod }, (_, i) => i + 1);
+  const hasData   = Object.keys(grid).length > 0;
 
   return (
     <main className="px-4 py-8 space-y-6 max-w-4xl mx-auto">
@@ -79,36 +85,55 @@ export default function TimetablePage() {
         <div>
           <h1 className="text-3xl font-black uppercase tracking-tighter italic">시간표</h1>
           <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">
-            {school} · 컴시간알리미
+            {school} · 나이스 교육정보 개방 포털
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* grade selector */}
+          {/* grade */}
           <div className="flex gap-1">
             {grades.map(g => (
               <button key={g} onClick={() => handleGrade(g)}
-                className={`px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${
-                  grade === g ? 'bg-primary text-primary-foreground shadow-md' : 'bg-muted text-muted-foreground hover:bg-muted/70'
-                }`}>{g}학년</button>
+                className={`px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${grade===g?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
+                {g}학년
+              </button>
             ))}
           </div>
-          {/* class selector */}
+          {/* class */}
           <div className="flex gap-1">
             {classes.map(c => (
               <button key={c} onClick={() => handleCls(c)}
-                className={`px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${
-                  cls === c ? 'bg-primary text-primary-foreground shadow-md' : 'bg-muted text-muted-foreground hover:bg-muted/70'
-                }`}>{c}반</button>
+                className={`px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${cls===c?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
+                {c}반
+              </button>
             ))}
           </div>
-          {updated && <span className="text-[10px] text-muted-foreground">{updated.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</span>}
-          <Button variant="ghost" size="icon" className="size-7" onClick={() => load(grade, cls)} disabled={loading}>
+          <Button variant="ghost" size="icon" className="size-7" onClick={() => load(grade, cls, weekOff)} disabled={loading}>
             <RefreshCw className={`size-3 ${loading ? 'animate-spin' : ''}`} />
           </Button>
-          <a href="http://xn--s39aj90b0nb2xw6xh.kr/" target="_blank" rel="noopener noreferrer">
+          <a href="https://open.neis.go.kr" target="_blank" rel="noopener noreferrer">
             <Button variant="ghost" size="icon" className="size-7"><ExternalLink className="size-3" /></Button>
           </a>
         </div>
+      </div>
+
+      {/* week navigator */}
+      <div className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-2">
+        <Button variant="ghost" size="icon" className="size-8" onClick={() => handleWeek(-1)}>
+          <ChevronLeft className="size-4" />
+        </Button>
+        <div className="text-center">
+          <p className="font-black text-sm">{weekLabel}</p>
+          {weekOff !== 0 && (
+            <button onClick={() => handleWeek(-weekOff)}
+              className="text-[10px] text-primary font-bold hover:underline">
+              이번 주로
+            </button>
+          )}
+          {weekOff === 0 && <p className="text-[10px] text-muted-foreground font-medium">이번 주</p>}
+        </div>
+        <Button variant="ghost" size="icon" className="size-8" onClick={() => handleWeek(1)}>
+          <ChevronRight className="size-4" />
+        </Button>
       </div>
 
       {error && (
@@ -116,64 +141,60 @@ export default function TimetablePage() {
           <AlertTriangle className="size-4 text-amber-500 mt-0.5 shrink-0" />
           <div>
             <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{error}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">컴시간 서버가 응답하지 않을 수 있습니다. 잠시 후 다시 시도하세요.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              NEIS SAMPLE 키는 하루 1,000회 제한입니다.{' '}
+              <a href="https://open.neis.go.kr" target="_blank" rel="noopener noreferrer" className="underline">
+                open.neis.go.kr
+              </a>에서 무료 API 키를 발급받아 <code className="bg-muted px-1 rounded text-xs">NEIS_API_KEY</code> 환경변수로 설정하세요.
+            </p>
           </div>
         </div>
       )}
 
-      {loading && !Object.keys(data).length && (
+      {loading && (
         <div className="grid grid-cols-6 gap-1.5">
-          {Array.from({length: 6 * 7}).map((_, i) => (
-            <div key={i} className="h-14 bg-muted/40 animate-pulse rounded-lg" style={{opacity: 1 - (i % 7) * 0.08}} />
+          {Array.from({ length: 6*7 }).map((_, i) => (
+            <div key={i} className="h-12 bg-muted/40 animate-pulse rounded-lg" style={{opacity: 1-(i%7)*0.08}} />
           ))}
         </div>
       )}
 
-      {/* timetable grid */}
-      {Object.keys(data).length > 0 && (
+      {!loading && hasData && (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th className="w-12 p-2 text-[10px] font-black text-muted-foreground uppercase" />
+                <th className="w-10 p-1" />
                 {DAYS.map((day, i) => (
-                  <th key={day}
-                    className={`p-2 text-[11px] font-black uppercase tracking-widest text-center rounded-t-lg ${
-                      todayIdx === i + 1 ? 'text-primary bg-primary/5' : 'text-muted-foreground'
-                    }`}
-                  >
+                  <th key={day} className={`p-2 text-[11px] font-black uppercase tracking-widest text-center ${
+                    weekOff === 0 && todayWd === i
+                      ? 'text-primary' : 'text-muted-foreground'
+                  }`}>
                     {day}
-                    {todayIdx === i + 1 && <span className="ml-1 text-[8px] text-primary">오늘</span>}
+                    {weekOff === 0 && todayWd === i && (
+                      <span className="block text-[8px] text-primary/70">오늘</span>
+                    )}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {periods.map(p => (
-                <tr key={p} className="group">
+                <tr key={p}>
                   <td className="p-1 text-center">
-                    <div className="flex flex-col items-center justify-center">
-                      <span className="text-[10px] font-black text-muted-foreground">{p}</span>
-                      {times[p - 1] && (
-                        <span className="text-[8px] text-muted-foreground/50">
-                          {String(times[p-1].hour).padStart(2,'0')}:{String(times[p-1].min).padStart(2,'0')}
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-[10px] font-black text-muted-foreground">{p}</span>
                   </td>
                   {DAYS.map((_, di) => {
-                    const weekday = di + 1;
-                    const cell: Cell = data[weekday]?.[p] ?? {};
-                    const isToday = todayIdx === weekday;
+                    const subj: string = grid[di]?.[p] ?? '';
+                    const isToday = weekOff === 0 && todayWd === di;
                     return (
                       <td key={di} className={`p-0.5 ${isToday ? 'bg-primary/3' : ''}`}>
-                        {cell.subject ? (
-                          <div className={`h-14 px-1.5 py-1 rounded-lg border text-center flex flex-col items-center justify-center gap-0.5 transition-all hover:scale-105 ${subjectColor(cell.subject)} ${isToday ? 'shadow-sm' : ''}`}>
-                            <span className="text-[11px] font-black leading-tight line-clamp-1">{cell.subject}</span>
-                            {cell.teacher && <span className="text-[9px] opacity-60 leading-tight">{cell.teacher}</span>}
+                        {subj ? (
+                          <div className={`h-12 px-1.5 rounded-lg border text-center flex items-center justify-center transition-all hover:scale-105 ${subjectColor(subj)} ${isToday ? 'shadow-sm' : ''}`}>
+                            <span className="text-[11px] font-black leading-tight line-clamp-2">{subj}</span>
                           </div>
                         ) : (
-                          <div className="h-14 rounded-lg bg-muted/10 border border-transparent" />
+                          <div className="h-12 rounded-lg bg-muted/10 border border-transparent" />
                         )}
                       </td>
                     );
@@ -185,8 +206,17 @@ export default function TimetablePage() {
         </div>
       )}
 
+      {!loading && !hasData && !error && (
+        <div className="py-16 text-center text-muted-foreground border-2 border-dashed rounded-3xl font-medium">
+          이번 주 시간표 데이터가 없습니다.
+        </div>
+      )}
+
       <p className="text-[10px] text-muted-foreground text-center">
-        데이터 출처: 컴시간알리미 · 매 1시간 캐시
+        데이터: 나이스 교육정보 개방 포털 · 1시간 캐시 ·{' '}
+        <a href="https://open.neis.go.kr" target="_blank" rel="noopener noreferrer" className="hover:underline">
+          API 키 발급
+        </a>
       </p>
     </main>
   );
