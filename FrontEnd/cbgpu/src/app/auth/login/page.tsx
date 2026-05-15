@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { getURL } from '@/lib/utils';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,7 +19,10 @@ export default function Login() {
     setIsSubmitting(true);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password
+      });
       if (error) {
         toast.error("로그인 실패: " + error.message);
       } else {

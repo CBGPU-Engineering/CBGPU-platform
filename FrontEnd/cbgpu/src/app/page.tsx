@@ -25,7 +25,7 @@ export default function Home() {
             <span className="text-primary block sm:inline sm:ml-2">GPU Rental System</span>
           </h1>
           <p className="text-muted-foreground text-base md:text-xl max-w-2xl mx-auto font-bold uppercase tracking-wide opacity-80">
-            AI 학습을 위한 충곽 유일의 서비스
+            GPU 렌탈 · 자습신청 · 뉴스 · 게임 — 충곽 종합 포털
           </p>
         </div>
         <div className="h-1.5 w-24 bg-primary rounded-full mt-4"></div>

@@ -51,6 +51,33 @@ export default function Navbar() {
             <Link href="/schedule" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/schedule' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
               Schedule
             </Link>
+            <Link href="/study" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/study' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              자습신청
+            </Link>
+            <Link href="/timetable" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/timetable' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              시간표
+            </Link>
+            <Link href="/meal" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/meal' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              급식
+            </Link>
+            <Link href="/polls" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/polls' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              투표
+            </Link>
+            <Link href="/notes" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/notes' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              노트
+            </Link>
+            <Link href="/match" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/match' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              스터디
+            </Link>
+            <Link href="/tools" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/tools' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              도구
+            </Link>
+            <Link href="/games" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/games' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              Arcade
+            </Link>
+            <Link href="/feed" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/feed' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
+              Feed
+            </Link>
             {isAdmin && (
               <Link href="/admin" className={`text-xs transition-all duration-300 font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/admin' ? 'bg-orange-500 text-white shadow-lg' : 'text-orange-500 hover:bg-orange-500/10'}`}>
                 Admin
@@ -128,6 +155,33 @@ export default function Navbar() {
               </Link>
               <Link href="/schedule" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/schedule' ? 'text-primary' : 'text-muted-foreground'}`}>
                 Schedule
+              </Link>
+              <Link href="/study" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/study' ? 'text-primary' : 'text-muted-foreground'}`}>
+                자습신청
+              </Link>
+              <Link href="/timetable" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/timetable' ? 'text-primary' : 'text-muted-foreground'}`}>
+                시간표
+              </Link>
+              <Link href="/meal" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/meal' ? 'text-primary' : 'text-muted-foreground'}`}>
+                급식
+              </Link>
+              <Link href="/polls" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/polls' ? 'text-primary' : 'text-muted-foreground'}`}>
+                투표
+              </Link>
+              <Link href="/notes" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/notes' ? 'text-primary' : 'text-muted-foreground'}`}>
+                연구노트
+              </Link>
+              <Link href="/match" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/match' ? 'text-primary' : 'text-muted-foreground'}`}>
+                스터디 매칭
+              </Link>
+              <Link href="/tools" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/tools' ? 'text-primary' : 'text-muted-foreground'}`}>
+                도구
+              </Link>
+              <Link href="/games" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/games' ? 'text-primary' : 'text-muted-foreground'}`}>
+                Arcade
+              </Link>
+              <Link href="/feed" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/feed' ? 'text-primary' : 'text-muted-foreground'}`}>
+                Feed
               </Link>
               <Link href="/contact" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/contact' ? 'text-primary' : 'text-muted-foreground'}`}>
                 Contact
