@@ -46,7 +46,7 @@ export default function TechNews() {
     setLoading(true); setError('');
     try {
       const res = await fetch(
-        `https://hn.algolia.com/api/v1/search_by_date?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=25`
+        `https://hn.algolia.com/api/v1/search_by_date?query=${encodeURIComponent(q)}&tags=story&hitsPerPage=50`
       );
       if (!res.ok) throw new Error();
       const data = await res.json();
