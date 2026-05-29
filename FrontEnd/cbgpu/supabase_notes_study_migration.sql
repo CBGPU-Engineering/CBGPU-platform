@@ -10,6 +10,7 @@ create table if not exists research_notes (
   user_id    uuid references auth.users(id) not null,
   title      text not null default '제목 없음',
   content    text not null default '',
+  
   tags       text[] default '{}',
   is_shared  boolean default false
 );
