@@ -49,10 +49,10 @@ export default function TimetablePage() {
   const [dbMissing, setDbMissing] = useState(false);
   const todayWd = (() => { const d = new Date().getDay(); return d === 0 ? -1 : d - 1; })();
 
-  const loadComcigan = useCallback(async (g: number, c: number) => {
+  const loadComcigan = useCallback(async (g: number, c: number, refresh = false) => {
     setLoading(true); setError('');
     try {
-      const res  = await fetch(`/api/timetable?grade=${g}&class=${c}`);
+      const res  = await fetch(`/api/timetable?grade=${g}&class=${c}${refresh ? '&refresh=1' : ''}`);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       setGrid(json.grid ?? {});
@@ -133,7 +133,7 @@ export default function TimetablePage() {
         </div>
         <div className="flex gap-2 items-center">
           {!editing && (
-            <Button variant="ghost" size="icon" className="size-8" onClick={() => loadComcigan(grade, cls)} disabled={loading}>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => loadComcigan(grade, cls, true)} disabled={loading}>
               <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           )}
@@ -215,6 +215,7 @@ export default function TimetablePage() {
                     const cell    = editing ? undefined : grid[di]?.[p];
                     const subject = editing ? (draft[di]?.[p] ?? '') : (cell?.subject ?? '');
                     const teacher = editing ? '' : (cell?.teacher ?? '');
+                    const changed = !editing && !!cell?.changed;
                     const isToday = todayWd === di;
                     return (
                       <td key={di} className={`p-0.5 ${isToday?'bg-primary/[0.03]':''}`}>
@@ -225,7 +226,9 @@ export default function TimetablePage() {
                             className={`w-full h-14 px-1.5 text-center text-[11px] font-black rounded-lg border outline-none focus:border-primary ${subject?subjectColor(subject):'bg-muted/20 border-border/30 placeholder:text-muted-foreground/30'}`}
                           />
                         ) : subject ? (
-                          <div className={`h-14 px-1.5 rounded-lg border text-center flex flex-col items-center justify-center gap-0.5 hover:scale-105 transition-all ${subjectColor(subject)} ${isToday?'shadow-sm':''}`}>
+                          <div title={changed ? '컴시간 실시간 변경' : undefined}
+                            className={`relative h-14 px-1.5 rounded-lg border text-center flex flex-col items-center justify-center gap-0.5 hover:scale-105 transition-all ${subjectColor(subject)} ${isToday?'shadow-sm':''} ${changed?'ring-2 ring-amber-500/70':''}`}>
+                            {changed && <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-500" />}
                             <span className="text-[11px] font-black leading-tight line-clamp-1">{subject}</span>
                             {teacher && <span className="text-[9px] opacity-55 leading-tight">{teacher}</span>}
                           </div>
@@ -242,8 +245,11 @@ export default function TimetablePage() {
         </div>
       )}
 
-      <p className="text-[10px] text-muted-foreground text-center">
-        컴시간 알리미 자동 연동 · 실패 시 수동 데이터 표시{isAdmin && ' · 직접 편집 가능'}
+      <p className="text-[10px] text-muted-foreground text-center flex items-center justify-center gap-1.5 flex-wrap">
+        <span>컴시간 알리미 자동 연동 · 실패 시 수동 데이터 표시{isAdmin && ' · 직접 편집 가능'}</span>
+        {source === 'comcigan' && (
+          <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-amber-500" />실시간 보강/결강 변경</span>
+        )}
       </p>
     </main>
   );
