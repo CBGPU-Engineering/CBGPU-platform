@@ -29,7 +29,7 @@ function subjectColor(n: string) {
   return cc[n];
 }
 
-type Cell = { subject: string; teacher: string };
+type Cell = { subject: string; teacher: string; changed?: boolean };
 type Grid = Record<number, Record<number, Cell>>;
 
 export default function TimetablePage() {
