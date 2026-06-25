@@ -18,20 +18,35 @@ declare global {
   }
 }
 
-function useTurnstile(onToken: (token: string) => void) {
+function useTurnstile(onToken: (token: string) => void, onError: (message: string) => void, enabled: boolean) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!enabled) return;
+
     let widgetId: string | undefined;
     let cancelled = false;
 
     const render = () => {
-      if (cancelled || !ref.current || !window.turnstile) return;
+      if (cancelled || !ref.current || !window.turnstile) {
+        if (!cancelled) onError('Cloudflare Turnstile 위젯을 초기화하지 못했습니다.');
+        return;
+      }
+
       widgetId = window.turnstile.render(ref.current, {
         sitekey: TURNSTILE_SITE_KEY,
-        callback: onToken,
-        'error-callback': () => onToken(''),
-        'expired-callback': () => onToken(''),
+        callback: (token: string) => {
+          onToken(token);
+          onError('');
+        },
+        'error-callback': () => {
+          onToken('');
+          onError('보안 인증이 차단됐습니다. 로컬 환경에서는 우회 모드로 계속할 수 있습니다.');
+        },
+        'expired-callback': () => {
+          onToken('');
+          onError('보안 인증이 만료됐습니다. 다시 시도해주세요.');
+        },
       });
     };
 
@@ -47,6 +62,7 @@ function useTurnstile(onToken: (token: string) => void) {
         script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
         script.async = true;
         script.onload = render;
+        script.onerror = () => onError('Cloudflare Turnstile 스크립트를 불러오지 못했습니다.');
         document.body.appendChild(script);
       }
     }
@@ -55,7 +71,7 @@ function useTurnstile(onToken: (token: string) => void) {
       cancelled = true;
       if (widgetId && window.turnstile) window.turnstile.remove(widgetId);
     };
-  }, [onToken]);
+  }, [enabled, onError, onToken]);
 
   return ref;
 }
@@ -65,15 +81,27 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileError, setTurnstileError] = useState('');
   const [loading, setLoading] = useState(false);
-  const turnstileRef = useTurnstile(useCallback((t: string) => setTurnstileToken(t), []));
+
+  const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const allowTurnstileBypass = isLocalHost || process.env.NEXT_PUBLIC_EDUSET_BYPASS_TURNSTILE === 'true';
+  const turnstileRef = useTurnstile(
+    useCallback((t: string) => setTurnstileToken(t), []),
+    useCallback((message: string) => setTurnstileError(message), []),
+    !allowTurnstileBypass,
+  );
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!turnstileToken) { showError('보안 인증을 완료해주세요.'); return; }
+    if (!allowTurnstileBypass && !turnstileToken) {
+      showError('보안 인증을 완료해주세요.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await signIn(id, password, turnstileToken);
+      await signIn(id, password, allowTurnstileBypass ? undefined : turnstileToken);
       onSuccess();
     } catch (err: any) {
       showError(err.message ?? String(err));
@@ -92,7 +120,15 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       </div>
       <Input placeholder="아이디 또는 이메일" value={id} onChange={e => setId(e.target.value)} autoComplete="username" required />
       <Input type="password" placeholder="비밀번호" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" required />
-      <div ref={turnstileRef} />
+      {!allowTurnstileBypass && <div ref={turnstileRef} />}
+      {allowTurnstileBypass && (
+        <p className="text-[10px] text-muted-foreground font-medium rounded-lg border border-dashed border-border/70 bg-muted/20 p-2">
+          현재 환경에서는 Turnstile 인증이 막혀서 우회 모드로 진행합니다. 실제 계정 로그인 테스트 시에는 배포 도메인에서 다시 확인해주세요.
+        </p>
+      )}
+      {turnstileError && (
+        <p className="text-[10px] font-medium text-amber-600 dark:text-amber-400">{turnstileError}</p>
+      )}
       <Button type="submit" disabled={loading} className="font-black uppercase tracking-widest gap-2">
         <LogIn className="size-4" /> {loading ? '로그인 중...' : '로그인'}
       </Button>
