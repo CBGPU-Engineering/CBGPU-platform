@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import { UserCircle2, Mail, Hash, Save, Loader2, Camera } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
@@ -86,7 +87,7 @@ export default function Profile() {
 
   if (authLoading) return (
     <div className="flex items-center justify-center min-h-[50vh]">
-      <div className="animate-pulse font-black uppercase tracking-widest text-muted-foreground">Loading Profile...</div>
+      <LoadingSpinner size={56} label="프로필 불러오는 중" />
     </div>
   );
 

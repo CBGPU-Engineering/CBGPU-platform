@@ -29,8 +29,8 @@ export default function Home() {
       <div className="flex items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
         {profile?.avatar_url && (
           <>
-            <img src={profile.avatar_url} alt="" className="size-12 md:size-14 rounded-full object-cover ring-2 ring-background shadow-sm shrink-0" />
-            <div className="w-px h-10 bg-border shrink-0" />
+            <img src={profile.avatar_url} alt="" className="size-16 md:size-20 rounded-full object-cover ring-2 ring-background shadow-md shrink-0" />
+            <div className="w-px h-16 md:h-20 bg-border shrink-0" />
           </>
         )}
         <div className="space-y-0.5">

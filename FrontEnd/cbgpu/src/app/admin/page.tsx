@@ -9,12 +9,14 @@ import { useAuth } from '@/lib/useAuth';
 import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2, KeyRound } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 export default function AdminPage() {
   const { isAdmin, isLoading: authLoading } = useAuth();
   const { showError, showSuccess } = useAlert();
   const [reservations, setReservations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [justFinished, setJustFinished] = useState(false);
   const router = useRouter();
 
   const fetchReservations = async () => {
@@ -36,6 +38,8 @@ export default function AdminPage() {
         setReservations(data || []);
     }
     setLoading(false);
+    setJustFinished(true);
+    setTimeout(() => setJustFinished(false), 600);
   };
 
   useEffect(() => {
@@ -96,7 +100,7 @@ export default function AdminPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-pulse font-black uppercase tracking-widest text-muted-foreground">Verifying Authority...</div>
+        <LoadingSpinner size={56} label="권한 확인 중" />
       </div>
     );
   }
@@ -150,7 +154,7 @@ export default function AdminPage() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-20 animate-pulse font-bold text-muted-foreground">Loading Records...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="py-16"><div className="flex items-center justify-center"><LoadingSpinner done={justFinished} size={48} label="예약 내역 불러오는 중" /></div></TableCell></TableRow>
                 ) : reservations.length === 0 ? (
                   <TableRow><TableCell colSpan={5} className="text-center py-20 font-bold text-muted-foreground opacity-50">No pending requests found.</TableCell></TableRow>
                 ) : (

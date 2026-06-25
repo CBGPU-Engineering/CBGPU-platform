@@ -12,6 +12,7 @@ import {
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { Badge } from '@/components/ui/badge';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 // ─── types ────────────────────────────────────────────────────────────────────
 type QType = 'choice' | 'checkbox' | 'text' | 'paragraph' | 'scale' | 'dropdown';
@@ -510,6 +511,7 @@ export default function PollsPage() {
   const [myResponses, setMyResponses] = useState<string[]>([]); // poll_ids I've answered
   const [view,   setView]   = useState<View>({ type: 'list' });
   const [loading, setLoading] = useState(true);
+  const [justFinished, setJustFinished] = useState(false);
   const [tab,    setTab]    = useState<'active' | 'closed'>('active');
   const [dbMissing, setDbMissing] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -523,6 +525,8 @@ export default function PollsPage() {
       setMyResponses((resps ?? []).map(r => r.poll_id));
     }
     setLoading(false);
+    setJustFinished(true);
+    setTimeout(() => setJustFinished(false), 600);
   }, [user]);
 
   useEffect(() => { loadPolls(); }, [loadPolls]);
@@ -606,7 +610,7 @@ export default function PollsPage() {
         onChange={(v) => setTab(v as 'active' | 'closed')}
       />
 
-      {loading ? <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted/50 animate-pulse rounded-2xl" />)}</div>
+      {loading ? <div className="py-16 flex items-center justify-center"><LoadingSpinner done={justFinished} size={56} label="투표 불러오는 중" /></div>
       : shown.length === 0 ? (
         <div className="py-20 text-center border-2 border-dashed rounded-3xl text-muted-foreground font-medium">
           {tab === 'active' ? '진행 중인 투표가 없습니다.' : '마감된 투표가 없습니다.'}

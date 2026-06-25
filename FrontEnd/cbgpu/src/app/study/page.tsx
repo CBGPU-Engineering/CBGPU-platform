@@ -135,6 +135,7 @@ export default function StudyPage() {
   const [openRoomId, setOpenRoomId] = useState<number | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState(1);
   const [justFinished, setJustFinished] = useState(false);
+  const [searchMode, setSearchMode] = useState<'room' | 'student'>('room');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -298,99 +299,108 @@ export default function StudyPage() {
   };
 
   return (
-    <main className="px-4 py-8 space-y-5 max-w-5xl mx-auto">
+    <main className="px-4 py-8 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter italic">자습신청</h1>
-          <p className="hidden sm:block text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">
-            자습실별 현황을 확인하고 공식 사이트로 바로 이동합니다.
-          </p>
+          <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">실시간 현황</p>
+          <h1 className="text-3xl font-black tracking-tight">자습신청</h1>
         </div>
         <div className="flex gap-2 items-center shrink-0">
-          <Button variant="ghost" size="icon" className="size-8" onClick={() => loadData()} disabled={loading}>
-            <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button onClick={openOfficialSite} size="sm" className="font-black uppercase tracking-widest gap-1.5">
+          <button
+            onClick={() => loadData()}
+            disabled={loading}
+            className="flex items-center justify-center size-10 rounded-full bg-card ring-1 ring-foreground/5 shadow-sm active:scale-90 transition-transform disabled:opacity-50"
+          >
+            <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <Button onClick={openOfficialSite} size="sm" className="font-black uppercase tracking-widest gap-1.5 rounded-full">
             <ExternalLink className="size-4" />
-            <span className="hidden sm:inline">공식 사이트로 가기</span>
+            <span className="hidden sm:inline">공식 사이트</span>
           </Button>
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="자습실 이름으로 검색"
-          className="pl-9"
-        />
-      </div>
-
-      {selectedStudent ? (
-        <div className="rounded-2xl border border-border/60 bg-background/70 p-4 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-black text-sm">{formatStudentLabel(selectedStudent)}</p>
-            <Button variant="ghost" size="sm" onClick={clearStudentSearch} className="font-bold text-xs">
-              다른 학생 검색
-            </Button>
-          </div>
-          {periods.length > 0 && (
-            <PeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} />
-          )}
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/10 p-3">
-            <p className="text-sm">
-              {selectedStudentEntry
-                ? `${selectedPeriod}교시: ${selectedStudentEntry.roomName} ${selectedStudentEntry.seatName}번 자리에 신청했습니다.${
-                    selectedStudentEntry.status === 'PENDING' ? ' (승인 대기중)' : ''
-                  }`
-                : `${selectedPeriod}교시: 아직 신청하지 않았습니다.`}
-            </p>
-            {selectedStudentEntry && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 font-bold text-xs"
-                onClick={() => setOpenRoomId(selectedStudentEntry.roomId)}
-              >
-                좌석 보기
-              </Button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="relative">
-          <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            value={studentQuery}
-            onChange={(e) => setStudentQuery(e.target.value)}
-            placeholder="이름 또는 학번으로 학생 검색"
-            className="pl-9"
-          />
-          {studentQuery.trim() && (
-            <div className="absolute z-10 mt-1 w-full rounded-2xl border border-border/60 bg-background shadow-lg divide-y divide-border/40 overflow-hidden max-h-72 overflow-y-auto">
-              {studentMatches.length === 0 ? (
-                <p className="p-3 text-sm text-muted-foreground text-center">일치하는 학생이 없습니다.</p>
-              ) : (
-                studentMatches.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => setSelectedStudent(s)}
-                    className="w-full p-3 text-left font-bold text-sm hover:bg-muted/40 transition-colors"
-                  >
-                    {formatStudentLabel(s)}
-                  </button>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {!selectedStudent && periods.length > 0 && (
+      {/* 교시 — 가장 자주 바뀌는 축이라 검색 모드와 무관하게 항상 맨 위에 고정 */}
+      {periods.length > 0 && (
         <PeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} className="-mx-1 px-1" />
       )}
+
+      {/* 자습실 / 학생, 하나의 검색 흐름으로 통합 */}
+      <div className="space-y-3">
+        <SegmentedTabs
+          items={[{ value: 'room', label: '자습실로 찾기' }, { value: 'student', label: '학생으로 찾기' }]}
+          value={searchMode}
+          onChange={(v) => setSearchMode(v as 'room' | 'student')}
+        />
+
+        {searchMode === 'room' ? (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="자습실 이름으로 검색"
+              className="pl-9"
+            />
+          </div>
+        ) : selectedStudent ? (
+          <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-black text-sm">{formatStudentLabel(selectedStudent)}</p>
+              <Button variant="ghost" size="sm" onClick={clearStudentSearch} className="font-bold text-xs">
+                다른 학생 검색
+              </Button>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/10 p-3">
+              <p className="text-sm">
+                {selectedStudentEntry
+                  ? `${selectedPeriod}교시: ${selectedStudentEntry.roomName} ${selectedStudentEntry.seatName}번 자리에 신청했습니다.${
+                      selectedStudentEntry.status === 'PENDING' ? ' (승인 대기중)' : ''
+                    }`
+                  : `${selectedPeriod}교시: 아직 신청하지 않았습니다.`}
+              </p>
+              {selectedStudentEntry && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 font-bold text-xs"
+                  onClick={() => setOpenRoomId(selectedStudentEntry.roomId)}
+                >
+                  좌석 보기
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              value={studentQuery}
+              onChange={(e) => setStudentQuery(e.target.value)}
+              placeholder="이름 또는 학번으로 학생 검색"
+              className="pl-9"
+            />
+            {studentQuery.trim() && (
+              <div className="absolute z-10 mt-1 w-full rounded-2xl border border-border/60 bg-background shadow-lg divide-y divide-border/40 overflow-hidden max-h-72 overflow-y-auto">
+                {studentMatches.length === 0 ? (
+                  <p className="p-3 text-sm text-muted-foreground text-center">일치하는 학생이 없습니다.</p>
+                ) : (
+                  studentMatches.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setSelectedStudent(s)}
+                      className="w-full p-3 text-left font-bold text-sm hover:bg-muted/40 transition-colors"
+                    >
+                      {formatStudentLabel(s)}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {error && (
         <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 md:flex-row md:items-start md:justify-between">
@@ -414,51 +424,44 @@ export default function StudyPage() {
           {roomData.length === 0 ? '아직 확인 가능한 자습실 데이터가 없습니다.' : '검색 결과가 없습니다.'}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
           {sortedRoomData.map(({ room, seats, occupiedCount }) => {
+            const total = seats.length;
+            const ratio = room.hasSeats && total > 0 ? occupiedCount / total : 0;
             const highlighted = room.hasSeats && occupiedCount > 0;
+            const clickable = room.hasSeats && total > 0;
             return (
-              <div
+              <button
                 key={room.id}
-                className={`rounded-3xl border p-4 space-y-3 shadow-sm transition-colors ${
-                  highlighted ? 'border-primary/40 bg-primary/5' : 'border-border/50 bg-background/70'
+                type="button"
+                disabled={!clickable}
+                onClick={() => clickable && setOpenRoomId(room.id)}
+                className={`tilt-3d w-full flex items-center gap-4 p-4 rounded-2xl bg-card ring-1 ring-foreground/5 shadow-sm text-left transition-opacity ${
+                  clickable ? '' : 'opacity-60'
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-black text-sm">{room.name}</p>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
-                      {room.hasSeats ? `${room.width} x ${room.height}` : '좌석 없음'}
-                    </p>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-black text-sm truncate">{room.name}</p>
+                    {room.hasSeats ? (
+                      <span className={`text-[11px] font-black shrink-0 ${highlighted ? 'text-primary' : 'text-muted-foreground'}`}>
+                        {occupiedCount}/{total}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest">정원제</span>
+                    )}
                   </div>
                   {room.hasSeats && (
-                    <div
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest shrink-0 border ${
-                        highlighted ? 'bg-primary text-primary-foreground border-primary' : 'border-border/50'
-                      }`}
-                    >
-                      {occupiedCount}명 예약
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-500 ease-[var(--ease-spring)]"
+                        style={{ width: `${Math.min(100, ratio * 100)}%` }}
+                      />
                     </div>
                   )}
                 </div>
-
-                {room.hasSeats ? (
-                  seats.length > 0 ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full font-bold text-xs gap-1.5"
-                      onClick={() => setOpenRoomId(room.id)}
-                    >
-                      <LayoutGrid className="size-3.5" /> 좌석 배치 보려면 누르세요
-                    </Button>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">좌석 배치 정보를 불러오지 못했습니다.</p>
-                  )
-                ) : (
-                  <p className="text-sm text-muted-foreground">좌석 없이 정원으로 운영되는 자습실입니다.</p>
-                )}
-              </div>
+                {clickable && <LayoutGrid className="size-4 text-muted-foreground shrink-0" />}
+              </button>
             );
           })}
         </div>
@@ -484,15 +487,6 @@ export default function StudyPage() {
           )}
         </DialogContent>
       </Dialog>
-
-      <Button
-        onClick={openOfficialSite}
-        size="sm"
-        className="fixed bottom-4 right-4 z-20 rounded-full px-4 py-3 font-black uppercase tracking-widest shadow-lg gap-1.5"
-      >
-        <ExternalLink className="size-4" />
-        <span className="hidden sm:inline">자습신청 사이트</span>
-      </Button>
     </main>
   );
 }

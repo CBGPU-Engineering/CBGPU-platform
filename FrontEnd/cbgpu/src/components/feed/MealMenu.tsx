@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, RefreshCw, Utensils } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 function fmt(d: Date) {
   return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
@@ -21,6 +22,7 @@ export default function MealMenu() {
   const [date,   setDate]   = useState(new Date());
   const [meals,  setMeals]  = useState<any[]>([]);
   const [loading,setLoading]= useState(false);
+  const [justFinished, setJustFinished] = useState(false);
   const [error,  setError]  = useState('');
 
   const load = async (d: Date) => {
@@ -31,7 +33,11 @@ export default function MealMenu() {
       if (json.error && !json.meals?.length) throw new Error(json.error);
       setMeals(json.meals ?? []);
     } catch (e: any) { setError(e.message); }
-    finally { setLoading(false); }
+    finally {
+      setLoading(false);
+      setJustFinished(true);
+      setTimeout(() => setJustFinished(false), 600);
+    }
   };
 
   useEffect(() => { load(date); }, []);
@@ -63,7 +69,9 @@ export default function MealMenu() {
       {error && <p className="text-xs text-amber-600 bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl font-medium">{error}</p>}
 
       {loading && (
-        <div className="space-y-2">{[1,2].map(i => <div key={i} className="h-32 bg-muted/40 animate-pulse rounded-2xl" />)}</div>
+        <div className="py-10 flex items-center justify-center">
+          <LoadingSpinner done={justFinished} size={48} label="급식 불러오는 중" />
+        </div>
       )}
 
       {!loading && meals.length === 0 && !error && (

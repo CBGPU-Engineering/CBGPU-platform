@@ -11,6 +11,7 @@ import {
 import { ko } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 const GPU_COLORS: Record<number, { bg: string; text: string; border: string; dot: string }> = {
   1: { bg: 'bg-blue-500/15',    text: 'text-blue-600',    border: 'border-blue-500/30',    dot: 'bg-blue-500' },
@@ -24,6 +25,8 @@ export default function SchedulePage() {
   const [reservations, setReservations] = useState<any[]>([]);
   const [selected, setSelected] = useState<Date | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [justFinished, setJustFinished] = useState(false);
 
   useEffect(() => {
     const now = new Date();
@@ -39,6 +42,9 @@ export default function SchedulePage() {
         .eq('status', 'approved')
         .order('start_time', { ascending: true });
       if (data) setReservations(data);
+      setLoading(false);
+      setJustFinished(true);
+      setTimeout(() => setJustFinished(false), 600);
     };
     fetchReservations();
   }, []);
@@ -94,6 +100,11 @@ export default function SchedulePage() {
       </div>
 
       {/* Calendar + Detail side by side */}
+      {loading ? (
+        <div className="py-20 flex items-center justify-center">
+          <LoadingSpinner done={justFinished} size={56} label="예약 현황 불러오는 중" />
+        </div>
+      ) : (
       <div className="flex flex-col md:flex-row gap-4 items-start">
 
         {/* Calendar */}
@@ -204,6 +215,7 @@ export default function SchedulePage() {
         </div>
 
       </div>
+      )}
     </div>
   );
 }

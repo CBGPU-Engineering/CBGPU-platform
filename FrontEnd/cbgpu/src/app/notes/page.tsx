@@ -8,6 +8,7 @@ import { useAlert } from '@/lib/alert';
 import { Plus, Trash2, ArrowLeft, Share2, Lock, Save, Tag, X, Check } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 // ─── types ────────────────────────────────────────────────────────────────────
 interface Note {
@@ -234,6 +235,7 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
   const [tab,    setTab]    = useState<'mine'|'shared'>('mine');
   const [search, setSearch] = useState('');
   const [loading,setLoading]= useState(true);
+  const [justFinished, setJustFinished] = useState(false);
   const [dbMissing, setDbMissing] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -247,6 +249,8 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
     setNotes((mine ?? []) as Note[]);
     setShared((pub ?? []) as Note[]);
     setLoading(false);
+    setJustFinished(true);
+    setTimeout(() => setJustFinished(false), 600);
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
@@ -290,7 +294,7 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
         </div>
       </div>
 
-      {loading ? <div className="space-y-2">{[1,2,3].map(i=><div key={i} className="h-16 bg-muted/40 animate-pulse rounded-xl"/>)}</div>
+      {loading ? <div className="py-16 flex items-center justify-center"><LoadingSpinner done={justFinished} size={56} label="노트 불러오는 중" /></div>
       : shown.length === 0 ? (
         <div className="py-16 text-center text-muted-foreground border-2 border-dashed rounded-3xl animate-in fade-in duration-300 pop-in-3d">
           <img src="/3d-icons/notebook.webp" alt="" className="size-20 mx-auto mb-3 opacity-90" />

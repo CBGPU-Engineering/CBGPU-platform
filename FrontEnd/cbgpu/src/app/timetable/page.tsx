@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useAlert } from '@/lib/alert';
 import { Edit3, Save, X, RotateCcw, RefreshCw, AlertTriangle } from 'lucide-react';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 const DAYS    = ['월', '화', '수', '목', '금'];
 const MAX_P   = 7;
@@ -41,6 +42,7 @@ export default function TimetablePage() {
   const [draft,   setDraft]   = useState<Record<number, Record<number, string>>>({});
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [justFinished, setJustFinished] = useState(false);
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
   const [source,  setSource]  = useState<'comcigan' | 'manual'>('comcigan');
@@ -62,6 +64,8 @@ export default function TimetablePage() {
       await loadManual(g, c);
     } finally {
       setLoading(false);
+      setJustFinished(true);
+      setTimeout(() => setJustFinished(false), 600);
     }
   }, []); // eslint-disable-line
 
@@ -181,10 +185,8 @@ export default function TimetablePage() {
       )}
 
       {loading ? (
-        <div className="grid grid-cols-6 gap-1.5">
-          {Array.from({ length: 6 * MAX_P }).map((_, i) => (
-            <div key={i} className="h-14 bg-muted/40 animate-pulse rounded-lg" style={{ opacity: 1 - (i % MAX_P) * 0.09 }} />
-          ))}
+        <div className="py-16 flex items-center justify-center">
+          <LoadingSpinner done={justFinished} size={56} label="시간표 불러오는 중" />
         </div>
       ) : (
         <div className="overflow-x-auto">

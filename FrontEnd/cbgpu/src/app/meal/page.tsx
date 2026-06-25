@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, RefreshCw, UtensilsCrossed } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight, Sunrise, Sun, Moon, UtensilsCrossed } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 interface MealItem {
   type: string;
@@ -19,15 +19,15 @@ interface MealData {
   error?: string;
 }
 
-const TYPE_ACCENT: Record<string, string> = {
-  '조식': 'bg-amber-500',
-  '중식': 'bg-green-500',
-  '석식': 'bg-indigo-500',
+const TYPE_ICON: Record<string, typeof Sunrise> = {
+  '조식': Sunrise,
+  '중식': Sun,
+  '석식': Moon,
 };
-const TYPE_BADGE: Record<string, string> = {
-  '조식': 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  '중식': 'bg-green-500/10 text-green-600 dark:text-green-400',
-  '석식': 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
+const TYPE_COLOR: Record<string, string> = {
+  '조식': 'text-amber-400 bg-amber-400/10',
+  '중식': 'text-orange-400 bg-orange-400/10',
+  '석식': 'text-indigo-400 bg-indigo-400/10',
 };
 
 function fmtDate(d: Date) {
@@ -35,13 +35,13 @@ function fmtDate(d: Date) {
 }
 
 function parseYmd(ymd: string): Date {
-  return new Date(+ymd.slice(0,4), +ymd.slice(4,6) - 1, +ymd.slice(6,8));
+  return new Date(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8));
 }
 
 function displayDate(ymd: string) {
   const d = parseYmd(ymd);
   const days = ['일', '월', '화', '수', '목', '금', '토'];
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+  return { full: `${d.getMonth() + 1}월 ${d.getDate()}일`, dow: `${days[d.getDay()]}요일`, year: d.getFullYear() };
 }
 
 function shiftDate(ymd: string, delta: number) {
@@ -54,9 +54,12 @@ export default function MealPage() {
   const [date, setDate] = useState(() => fmtDate(new Date()));
   const [data, setData] = useState<MealData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [justLoaded, setJustLoaded] = useState(false);
+  const [slideDir, setSlideDir] = useState<'left' | 'right'>('right');
 
   const load = useCallback(async (d: string) => {
     setLoading(true);
+    setJustLoaded(false);
     try {
       const res = await fetch(`/api/meal?date=${d}`);
       setData(await res.json());
@@ -64,45 +67,63 @@ export default function MealPage() {
       setData({ meals: [], date: d, today: fmtDate(new Date()), error: '불러오기 실패' });
     } finally {
       setLoading(false);
+      setJustLoaded(true);
+      setTimeout(() => setJustLoaded(false), 600);
     }
   }, []);
 
   useEffect(() => { load(date); }, [date, load]);
 
   const today = fmtDate(new Date());
+  const { full, dow, year } = displayDate(date);
+
+  function navigate(delta: number) {
+    setSlideDir(delta > 0 ? 'left' : 'right');
+    setDate(d => shiftDate(d, delta));
+  }
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-black uppercase tracking-tighter italic">급식 메뉴</h1>
-        <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">충북과학고등학교 학교급식</p>
+    <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+      <div className="space-y-1">
+        <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">충북과학고 학교급식</p>
+        <h1 className="text-3xl font-black tracking-tight">오늘 뭐 나와요?</h1>
       </div>
 
-      {/* Date navigation */}
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" className="size-9" onClick={() => setDate(d => shiftDate(d, -1))}>
-          <ChevronLeft className="size-4" />
-        </Button>
-        <p className="flex-1 text-center font-black text-sm tracking-tight">{displayDate(date)}</p>
-        <Button variant="outline" size="icon" className="size-9" onClick={() => setDate(d => shiftDate(d, +1))}>
-          <ChevronRight className="size-4" />
-        </Button>
-        {date !== today && (
-          <Button variant="outline" size="sm" onClick={() => setDate(today)} className="font-black text-[11px] uppercase tracking-widest h-9 px-3">
-            오늘
-          </Button>
-        )}
-        <Button variant="ghost" size="icon" className="size-9" onClick={() => load(date)}>
-          <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
+      {/* 날짜 네비게이션 — 큰 날짜 카드, 좌우로 물리적으로 밀어내는 느낌 */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center justify-center size-12 rounded-full bg-card ring-1 ring-foreground/5 shadow-sm shrink-0 active:scale-90 transition-transform"
+        >
+          <ChevronLeft className="size-5" />
+        </button>
+
+        <div key={date} className={`flex-1 text-center overflow-hidden ${slideDir === 'left' ? 'animate-in slide-in-from-right-8' : 'animate-in slide-in-from-left-8'} fade-in duration-300 ease-[var(--ease-spring)]`}>
+          <p className="text-2xl font-black tracking-tight">{full} <span className="text-muted-foreground font-bold">{dow}</span></p>
+          <p className="text-[11px] font-bold text-muted-foreground/70">{year}</p>
+        </div>
+
+        <button
+          onClick={() => navigate(1)}
+          className="flex items-center justify-center size-12 rounded-full bg-card ring-1 ring-foreground/5 shadow-sm shrink-0 active:scale-90 transition-transform"
+        >
+          <ChevronRight className="size-5" />
+        </button>
       </div>
+
+      {date !== today && (
+        <button
+          onClick={() => { setSlideDir(date > today ? 'right' : 'left'); setDate(today); }}
+          className="block mx-auto text-[11px] font-black uppercase tracking-widest text-primary active:scale-95 transition-transform"
+        >
+          ← 오늘로 돌아가기
+        </button>
+      )}
 
       {/* Content */}
       {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-36 rounded-2xl bg-muted/40 animate-pulse" />
-          ))}
+        <div className="py-16 flex items-center justify-center">
+          <LoadingSpinner done={justLoaded} size={64} label="급식 정보 불러오는 중" />
         </div>
       ) : data?.error ? (
         <Empty icon={<UtensilsCrossed className="size-10 mx-auto mb-3 opacity-30" />} title={data.error} />
@@ -113,32 +134,37 @@ export default function MealPage() {
           sub={data?.note ?? '주말이나 방학일 수 있습니다'}
         />
       ) : (
-        <div className="space-y-4">
-          {data.meals.map((meal, i) => (
-            <div
-              key={meal.type}
-              style={{ animationDelay: `${i * 60}ms` }}
-              className="relative pl-6 pr-5 py-5 rounded-2xl border border-border/40 bg-card overflow-hidden tilt-3d transition-all animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
-            >
-              <span className={`absolute inset-y-0 left-0 w-1 ${TYPE_ACCENT[meal.type] ?? 'bg-primary'}`} />
-              <div className="flex items-center justify-between mb-3">
-                <span className={`text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wide ${TYPE_BADGE[meal.type] ?? 'bg-primary/10 text-primary'}`}>
-                  {meal.type}
-                </span>
-                {meal.calories && (
-                  <span className="text-[11px] font-bold text-muted-foreground">{meal.calories}</span>
-                )}
+        <div className="grid gap-4">
+          {data.meals.map((meal, i) => {
+            const Icon = TYPE_ICON[meal.type] ?? UtensilsCrossed;
+            return (
+              <div
+                key={meal.type}
+                style={{ animationDelay: `${i * 70}ms` }}
+                className="tilt-3d flex flex-col gap-4 p-6 rounded-[28px] bg-card ring-1 ring-foreground/5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-400 fill-mode-backwards"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className={`flex items-center justify-center size-11 rounded-2xl ${TYPE_COLOR[meal.type] ?? 'bg-primary/10 text-primary'}`}>
+                      <Icon className="size-5" strokeWidth={2} />
+                    </span>
+                    <p className="font-black text-lg tracking-tight">{meal.type}</p>
+                  </div>
+                  {meal.calories && (
+                    <span className="text-[11px] font-bold text-muted-foreground">{meal.calories}</span>
+                  )}
+                </div>
+                <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                  {meal.items.map((item, j) => (
+                    <li key={j} className="text-sm font-medium text-foreground/90 flex items-start gap-1.5">
+                      <span className="opacity-30 mt-0.5 shrink-0">·</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="space-y-1.5">
-                {meal.items.map((item, j) => (
-                  <li key={j} className="text-sm font-medium text-foreground/90 flex items-start gap-1.5">
-                    <span className="opacity-30 mt-0.5 shrink-0">·</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </main>
