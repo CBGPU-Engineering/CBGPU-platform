@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
+import { Badge } from '@/components/ui/badge';
 import { format, isSameDay, parseISO, addDays, startOfDay, endOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -123,7 +124,7 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
   };
 
   return (
-    <Card className="overflow-hidden border-border bg-card hover:border-primary transition-all group shadow-lg flex flex-col h-full">
+    <Card className="tilt-3d overflow-hidden border-border bg-card hover:border-primary group shadow-lg flex flex-col h-full rounded-[28px]">
       <CardHeader className="p-0 overflow-hidden relative">
         <img 
           src="/img/rtx5000.jpg" 
@@ -149,7 +150,7 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
             <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">RTX5000</p>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">READY</span>
+            <Badge variant="success">Ready</Badge>
           </div>
         </div>
 

@@ -38,7 +38,7 @@ export default function Login() {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-20 p-8 bg-card border border-border rounded-2xl shadow-2xl transition-colors duration-500">
+    <div className="tilt-3d max-w-md mx-auto mt-20 p-8 bg-card ring-1 ring-foreground/5 rounded-[28px] shadow-lg">
       <h2 className="text-3xl font-black mb-6 text-center text-foreground italic uppercase tracking-tighter">Sign In</h2>
       <form onSubmit={handleLogin} className="space-y-4">
         <div className="space-y-1">

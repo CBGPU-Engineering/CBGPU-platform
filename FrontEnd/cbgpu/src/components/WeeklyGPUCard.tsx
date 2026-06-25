@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { useAlert } from '@/lib/alert';
+import { Badge } from '@/components/ui/badge';
 import { startOfWeek, endOfWeek, addWeeks, format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { CalendarDays, Lock, CheckCircle2, ChevronRight } from 'lucide-react';
@@ -137,7 +138,7 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
   };
 
   return (
-    <Card className="overflow-hidden border-border bg-card hover:border-primary transition-all group shadow-lg flex flex-col h-full">
+    <Card className="tilt-3d overflow-hidden border-border bg-card hover:border-primary group shadow-lg flex flex-col h-full rounded-[28px]">
       <CardHeader className="p-0 overflow-hidden relative">
         <img
           src="/img/rtx5000.jpg"
@@ -168,7 +169,7 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
             <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">RTX5000</p>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <span className="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">READY</span>
+            <Badge variant="success">Ready</Badge>
             <span className="text-[9px] font-black px-2 py-0.5 rounded bg-violet-500/10 text-violet-600 border border-violet-500/20">주 단위 예약</span>
           </div>
         </div>
