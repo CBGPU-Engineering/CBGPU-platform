@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
 import { useAlert } from '@/lib/alert';
 import { Edit3, Save, X, RotateCcw, RefreshCw, AlertTriangle } from 'lucide-react';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 
 const DAYS    = ['월', '화', '수', '목', '금'];
 const MAX_P   = 7;
@@ -156,22 +157,16 @@ export default function TimetablePage() {
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex gap-1">
-          {grades.map(g => (
-            <button key={g} onClick={() => switchTo(g, cls)}
-              className={`px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${grade===g?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
-              {g}학년
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          {classes.map(c => (
-            <button key={c} onClick={() => switchTo(grade, c)}
-              className={`px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${cls===c?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
-              {c}반
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          items={grades.map(g => ({ value: String(g), label: `${g}학년` }))}
+          value={String(grade)}
+          onChange={(v) => switchTo(Number(v), cls)}
+        />
+        <SegmentedTabs
+          items={classes.map(c => ({ value: String(c), label: `${c}반` }))}
+          value={String(cls)}
+          onChange={(v) => switchTo(grade, Number(v))}
+        />
         {editing && <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1"><Edit3 className="size-3" /> 편집 모드</span>}
       </div>
 

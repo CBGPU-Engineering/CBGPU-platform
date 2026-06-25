@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, RefreshCw, Utensils } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 function fmt(d: Date) {
   return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
@@ -74,11 +75,13 @@ export default function MealMenu() {
 
       <div className="space-y-3">
         {meals.map((meal, i) => (
-          <div key={i} className="p-4 rounded-2xl border border-border/40 bg-card space-y-2">
+          <div
+            key={i}
+            style={{ animationDelay: `${i * 60}ms` }}
+            className="p-4 rounded-2xl border border-border/40 bg-card space-y-2 hover:-translate-y-0.5 hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+          >
             <div className="flex items-center gap-2">
-              <span className={`text-[11px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest ${MEAL_COLOR[meal.type] ?? 'bg-muted text-muted-foreground'}`}>
-                {meal.type}
-              </span>
+              <Badge className={MEAL_COLOR[meal.type] ?? 'bg-muted text-muted-foreground'}>{meal.type}</Badge>
               {meal.calories && (
                 <span className="text-[10px] text-muted-foreground font-medium">{meal.calories}</span>
               )}

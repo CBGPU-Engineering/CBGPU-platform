@@ -4,6 +4,7 @@ import { useState } from 'react';
 import TechNews from '@/components/feed/TechNews';
 import Graveyard from '@/components/feed/Graveyard';
 import SchoolNews from '@/components/feed/SchoolNews';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 
 const TABS = [
   { id: 'school',    label: '🏫 학교 소식',   desc: '충북과학고 공지' },
@@ -23,22 +24,19 @@ export default function FeedPage() {
         <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">AI 학습 대기 중 읽을거리</p>
       </div>
 
-      <div className="flex gap-2">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex flex-col items-center px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
-              tab === t.id
-                ? 'bg-primary text-primary-foreground shadow-md'
-                : 'bg-muted text-muted-foreground hover:bg-muted/70'
-            }`}
-          >
-            <span>{t.label}</span>
-            <span className={`text-[9px] font-medium mt-0.5 ${tab === t.id ? 'opacity-70' : 'opacity-40'}`}>{t.desc}</span>
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        items={TABS.map(t => ({
+          value: t.id,
+          label: (
+            <span className="flex flex-col items-center gap-0.5">
+              <span>{t.label}</span>
+              <span className="text-[9px] font-medium opacity-70">{t.desc}</span>
+            </span>
+          ),
+        }))}
+        value={tab}
+        onChange={(v) => setTab(v as TabId)}
+      />
 
       <div className="w-full max-w-2xl">
         {tab === 'school'    && <SchoolNews />}

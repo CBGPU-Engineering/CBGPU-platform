@@ -38,6 +38,8 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-success-foreground: var(--success-foreground);
+  --color-success: var(--success);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -80,6 +82,11 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --success: oklch(0.6 0.16 145);
+  --success-foreground: oklch(0.985 0 0);
+  /* 토스 스타일 모션 토큰: 탭 인디케이터/토스트 진입처럼 살짝 튀는 느낌이 필요한 곳엔 spring, 그 외엔 quick */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-quick: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dark {
@@ -114,6 +121,8 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 15%);
   --sidebar-ring: oklch(0.556 0 0);
+  --success: oklch(0.65 0.16 145);
+  --success-foreground: oklch(0.145 0 0);
 }
 
 @keyframes candle-flicker {
@@ -140,19 +149,28 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    transition: color 500ms cubic-bezier(0.4, 0, 0.2, 1), 
-                background-color 500ms cubic-bezier(0.4, 0, 0.2, 1), 
-                border-color 500ms cubic-bezier(0.4, 0, 0.2, 1), 
-                text-decoration-color 500ms cubic-bezier(0.4, 0, 0.2, 1), 
-                fill 500ms cubic-bezier(0.4, 0, 0.2, 1), 
-                stroke 500ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: color 150ms var(--ease-quick),
+                background-color 150ms var(--ease-quick),
+                border-color 150ms var(--ease-quick),
+                text-decoration-color 150ms var(--ease-quick),
+                fill 150ms var(--ease-quick),
+                stroke 150ms var(--ease-quick);
   }
-  
+
   body {
     @apply bg-background text-foreground antialiased;
   }
 
   .dark {
     color-scheme: dark;
+  }
+
+  /* 도허티 임계/터치 피드백: 모든 네이티브 버튼에 기본 프레스 효과를 준다.
+     shadcn Button은 유틸리티 클래스(active:translate-y-px)가 specificity로 우선 적용된다. */
+  button:not(:disabled) {
+    transition: transform 100ms var(--ease-quick);
+  }
+  button:not(:disabled):active {
+    transform: scale(0.96);
   }
 }

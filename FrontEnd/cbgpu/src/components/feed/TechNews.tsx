@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, ExternalLink, MessageSquare, ChevronUp, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 
 // ─── category config ──────────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -149,20 +150,12 @@ export default function TechNews() {
 
       {/* source + refresh */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex gap-1.5">
-          {(['google', 'hn'] as Source[]).map(s => (
-            <button
-              key={s}
-              onClick={() => setSrc(s)}
-              className={`px-2.5 py-1 rounded-md font-black text-[10px] uppercase tracking-widest transition-all border ${
-                src === s
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border/50 text-muted-foreground hover:bg-muted/50'
-              }`}
-            >
-              {s === 'google' ? '🔍 Google' : '🔶 HN'}
-            </button>
-          ))}
+        <div className="flex items-center gap-1.5">
+          <SegmentedTabs
+            items={[{ value: 'google', label: '🔍 Google' }, { value: 'hn', label: '🔶 HN' }]}
+            value={src}
+            onChange={(v) => setSrc(v as Source)}
+          />
           {total > 0 && (
             <span className="text-[10px] text-muted-foreground self-center ml-1 font-medium">{total}건</span>
           )}

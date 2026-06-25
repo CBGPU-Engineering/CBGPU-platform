@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
 import { Plus, Trash2, ArrowLeft, Share2, Lock, Save, Tag, X, Check } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 
 // ─── types ────────────────────────────────────────────────────────────────────
 interface Note {
@@ -50,6 +51,7 @@ function inlineMd(s: string) {
 function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () => void; onSaved: (n: Note) => void }) {
   const { user } = useAuth();
   const { showError } = useAlert();
+  const isOwner = !note || note.user_id === user?.id;
   const [title,    setTitle]    = useState(note?.title ?? '');
   const [content,  setContent]  = useState(note?.content ?? '');
   const [tags,     setTags]     = useState<string[]>(note?.tags ?? []);
@@ -116,6 +118,30 @@ function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () =
     { label: '>',  action: () => { const ta = document.getElementById('note-content') as HTMLTextAreaElement; const pos = ta?.value.lastIndexOf('\n', ta.selectionStart-1)+1; setContent(c => c.slice(0,pos)+'> '+c.slice(pos)); }},
     { label: '—',  action: () => setContent(c => c + '\n---\n') },
   ];
+
+  // 다른 사람이 공유한 노트는 읽기만 가능 — DB RLS도 실제 수정을 막지만,
+  // 편집 UI를 그대로 보여주면 한참 고치고 저장할 때야 에러를 보게 돼서 미리 분기한다.
+  if (!isOwner) {
+    return (
+      <div className="flex flex-col h-screen max-h-screen">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 flex-shrink-0">
+          <Button variant="ghost" size="icon" onClick={onBack} className="active:scale-90 transition-transform"><ArrowLeft className="size-4" /></Button>
+          <h1 className="flex-1 font-black text-base truncate px-2">{title || '제목 없음'}</h1>
+          <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-muted shrink-0">
+            <Share2 className="size-3" />공개 노트
+          </span>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-4"
+          dangerouslySetInnerHTML={{ __html: renderMd(content) || '<p class="text-muted-foreground text-sm">내용이 없습니다.</p>' }} />
+        {tags.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-3 border-t border-border/20 flex-shrink-0 flex-wrap">
+            <Tag className="size-3 text-muted-foreground shrink-0" />
+            {tags.map(t => <span key={t} className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{t}</span>)}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen max-h-screen">
@@ -250,14 +276,14 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
         onCancel={() => setConfirmDeleteId(null)}
       />
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex gap-1.5">
-          {(['mine','shared'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`px-3 py-1.5 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 ${tab===t?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
-              {t === 'mine' ? `내 노트 (${notes.length})` : `공유됨 (${shared.length})`}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          items={[
+            { value: 'mine', label: `내 노트 (${notes.length})` },
+            { value: 'shared', label: `공유됨 (${shared.length})` },
+          ]}
+          value={tab}
+          onChange={(v) => setTab(v as 'mine' | 'shared')}
+        />
         <div className="flex gap-2">
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="검색..." className="h-8 w-32 text-xs" />
           {tab === 'mine' && <Button onClick={() => onOpen(null)} size="sm" className="font-black text-xs gap-1.5 h-8 active:scale-95 transition-transform"><Plus className="size-3" />새 노트</Button>}

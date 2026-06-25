@@ -4,6 +4,7 @@ import { Search, ExternalLink, RefreshCw, AlertTriangle, LayoutGrid, User } from
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import {
   getRooms, getRoomComposition, getSeatOccupations, getStudent, getStudents,
   getSelfStudyPolicy, getPeriodCountForDate, localDateStr, searchSelfStudy,
@@ -50,22 +51,13 @@ function PeriodSelector({ periods, selectedPeriod, onSelect, className = '' }: {
   className?: string;
 }) {
   return (
-    <div className={`flex gap-1.5 overflow-x-auto pb-1 ${className}`}>
-      {periods.map((p) => (
-        <button
-          key={p}
-          type="button"
-          onClick={() => onSelect(p)}
-          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-black uppercase tracking-widest border transition-colors ${
-            selectedPeriod === p
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-background border-border/60 text-muted-foreground hover:border-primary/50'
-          }`}
-        >
-          {p}교시
-        </button>
-      ))}
-    </div>
+    <SegmentedTabs
+      items={periods.map((p) => ({ value: String(p), label: `${p}교시` }))}
+      value={String(selectedPeriod)}
+      onChange={(v) => onSelect(Number(v))}
+      pill
+      className={className}
+    />
   );
 }
 

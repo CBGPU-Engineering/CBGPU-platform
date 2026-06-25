@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Plus, Trash2, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 
 // ─── Pomodoro ─────────────────────────────────────────────────────────────────
 const PRESETS = [
@@ -73,14 +74,12 @@ function Pomodoro() {
 
   return (
     <div className="flex flex-col items-center gap-5">
-      <div className="flex gap-1.5 flex-wrap justify-center">
-        {PRESETS.map((p, i) => (
-          <button key={i} onClick={() => selectPreset(i)}
-            className={`px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${preset===i?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        items={PRESETS.map((p, i) => ({ value: String(i), label: p.label }))}
+        value={String(preset)}
+        onChange={(v) => selectPreset(Number(v))}
+        className="justify-center"
+      />
 
       <div className="relative flex items-center justify-center">
         <Ring pct={pct} color={phase === 'work' ? '#6366f1' : '#22c55e'} size={200} />
@@ -163,7 +162,7 @@ function DDayCounter() {
           const { label: dl, color } = diff(item.date);
           const dateStr = new Date(item.date).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
           return (
-            <div key={item.id} className="flex items-center gap-3 p-3 border border-border/40 rounded-xl bg-card hover:bg-muted/20 transition-all">
+            <div key={item.id} className="flex items-center gap-3 p-3 border border-border/40 rounded-xl bg-card hover:bg-muted/20 hover:-translate-y-0.5 hover:shadow-md transition-all">
               <span className="text-2xl select-none">{item.emoji}</span>
               <div className="flex-1 min-w-0">
                 <p className="font-black text-sm truncate">{item.label}</p>
@@ -194,15 +193,19 @@ export default function ToolsPage() {
         <h1 className="text-3xl font-black uppercase tracking-tighter italic">도구</h1>
         <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">공부 도우미</p>
       </div>
-      <div className="flex gap-2">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex flex-col items-center px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${tab===t.id?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
-            <span>{t.label}</span>
-            <span className={`text-[9px] font-medium mt-0.5 ${tab===t.id?'opacity-70':'opacity-40'}`}>{t.desc}</span>
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        items={TABS.map(t => ({
+          value: t.id,
+          label: (
+            <span className="flex flex-col items-center gap-0.5">
+              <span>{t.label}</span>
+              <span className="text-[9px] font-medium opacity-70">{t.desc}</span>
+            </span>
+          ),
+        }))}
+        value={tab}
+        onChange={(v) => setTab(v as TabId)}
+      />
       <div className="w-full max-w-lg">
         {tab === 'pomodoro' && <Pomodoro />}
         {tab === 'dday'     && <DDayCounter />}
