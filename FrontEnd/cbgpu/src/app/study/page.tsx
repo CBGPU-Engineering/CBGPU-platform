@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   getRooms, getRoomComposition, getSeatOccupations, getStudent,
+  getSelfStudyPolicy, getPeriodCountForDate, localDateStr,
   type Room, type Seat, type Obstacle, type Student,
 } from '@/lib/eduset';
 
 const OFFICIAL_STUDY_URL = 'https://cbsh.edu-set.com';
-const MIN_PERIODS = 4;
+/** 정책을 못 받아왔을 때만 쓰는 최후의 추정치 */
+const FALLBACK_MIN_PERIODS = 4;
 
 function formatStudentLabel(student: Student): string {
   const studentNumber = student.grade * 1000 + student.classNo * 100 + student.number;
@@ -62,23 +64,18 @@ function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod }: {
   occupantsBySeat: Map<number, Occupant[]>;
   selectedPeriod: number;
 }) {
-  const [selected, setSelected] = useState<number | null>(null);
-  const cellSize = Math.max(18, Math.min(36, 480 / Math.max(room.width, 1)));
-  const selectedSeat = selected != null ? seats.find((s) => s.id === selected) : undefined;
-  const selectedOccupants = selected != null
-    ? occupantsBySeat.get(selected)?.filter((o) => o.period === selectedPeriod)
-    : undefined;
+  const cellSize = 56;
 
   return (
-    <div className="space-y-2">
+    <div className="rounded-xl border border-border/50 bg-muted/10 overflow-auto max-h-[360px]">
       <div
-        className="relative rounded-xl border border-border/50 bg-muted/10 mx-auto overflow-hidden"
+        className="relative mx-auto"
         style={{ width: room.width * cellSize, height: room.height * cellSize }}
       >
         {obstacles.map((ob) => (
           <div
             key={`ob-${ob.id}`}
-            className="absolute rounded-sm bg-muted-foreground/20 border border-border/40 flex items-center justify-center text-[8px] text-muted-foreground font-bold overflow-hidden"
+            className="absolute rounded-sm bg-muted-foreground/20 border border-border/40 flex items-center justify-center text-[9px] text-muted-foreground font-bold overflow-hidden"
             style={{ left: ob.x * cellSize, top: ob.y * cellSize, width: ob.w * cellSize, height: ob.h * cellSize }}
             title={ob.name}
           >
@@ -89,34 +86,25 @@ function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod }: {
           const occupants = occupantsBySeat.get(seat.id)?.filter((o) => o.period === selectedPeriod);
           const occupied = !!occupants?.length;
           return (
-            <button
+            <div
               key={seat.id}
-              type="button"
-              onClick={() => setSelected(seat.id)}
-              title={
-                occupied
-                  ? `${seat.name}: ${occupants!.map((o) => o.label).join(', ')}`
-                  : `${seat.name}: 비어있음`
-              }
-              className={`absolute rounded-[4px] border text-[8px] font-bold flex items-center justify-center transition-colors ${
+              title={occupied ? occupants!.map((o) => o.label).join(', ') : `${seat.name}: 비어있음`}
+              className={`absolute rounded border flex flex-col items-center justify-center gap-0.5 overflow-hidden leading-tight px-0.5 ${
                 occupied
                   ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background border-border/60 text-muted-foreground hover:border-primary/50'
-              } ${selected === seat.id ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-              style={{ left: seat.x * cellSize, top: seat.y * cellSize, width: cellSize - 2, height: cellSize - 2 }}
+                  : 'bg-background border-border/60 text-muted-foreground'
+              }`}
+              style={{ left: seat.x * cellSize, top: seat.y * cellSize, width: cellSize - 4, height: cellSize - 4 }}
             >
-              {seat.name}
-            </button>
+              <span className="text-[9px] font-black">{seat.name}</span>
+              {occupied && (
+                <span className="text-[8px] font-bold truncate w-full text-center">
+                  {occupants!.map((o) => o.label).join(', ')}
+                </span>
+              )}
+            </div>
           );
         })}
-      </div>
-
-      <div className="text-xs text-center text-muted-foreground min-h-[1.2em]">
-        {selectedSeat
-          ? selectedOccupants?.length
-            ? `${selectedSeat.name}: ${selectedOccupants.map((o) => o.label).join(', ')}`
-            : `${selectedSeat.name}: 비어있음`
-          : '좌석을 눌러 확인하세요'}
       </div>
     </div>
   );
@@ -124,6 +112,7 @@ function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod }: {
 
 export default function StudyPage() {
   const [roomData, setRoomData] = useState<RoomData[]>([]);
+  const [periodCount, setPeriodCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -135,8 +124,12 @@ export default function StudyPage() {
     setError('');
 
     try {
-      const rooms = await getRooms();
-      const dateStr = new Date().toISOString().slice(0, 10);
+      const [rooms, policy] = await Promise.all([
+        getRooms(),
+        getSelfStudyPolicy().catch(() => null),
+      ]);
+      const today = new Date();
+      const dateStr = localDateStr(today);
 
       const data = await Promise.all(
         rooms.map(async (room): Promise<RoomData> => {
@@ -179,6 +172,21 @@ export default function StudyPage() {
       );
 
       setRoomData(data);
+
+      const policyCount = policy ? getPeriodCountForDate(policy, today) : 0;
+      if (policyCount > 0) {
+        setPeriodCount(policyCount);
+      } else {
+        let maxObserved = 0;
+        data.forEach(({ occupantsBySeat }) => {
+          occupantsBySeat.forEach((list) => {
+            list.forEach((o) => {
+              if (o.period > maxObserved) maxObserved = o.period;
+            });
+          });
+        });
+        setPeriodCount(Math.max(FALLBACK_MIN_PERIODS, maxObserved));
+      }
     } catch (err: any) {
       setError(err?.message ?? String(err) ?? '현황을 불러오지 못했습니다.');
     } finally {
@@ -190,18 +198,16 @@ export default function StudyPage() {
     void loadData();
   }, [loadData]);
 
-  const periods = useMemo(() => {
-    let maxObserved = 0;
-    roomData.forEach(({ occupantsBySeat }) => {
-      occupantsBySeat.forEach((list) => {
-        list.forEach((o) => {
-          if (o.period > maxObserved) maxObserved = o.period;
-        });
-      });
-    });
-    const count = Math.max(MIN_PERIODS, maxObserved);
-    return Array.from({ length: count }, (_, i) => i + 1);
-  }, [roomData]);
+  const periods = useMemo(
+    () => Array.from({ length: periodCount }, (_, i) => i + 1),
+    [periodCount]
+  );
+
+  useEffect(() => {
+    if (periodCount > 0 && selectedPeriod > periodCount) {
+      setSelectedPeriod(1);
+    }
+  }, [periodCount, selectedPeriod]);
 
   const filteredRoomData = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -245,7 +251,9 @@ export default function StudyPage() {
         />
       </div>
 
-      <PeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} className="-mx-1 px-1" />
+      {periods.length > 0 && (
+        <PeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} className="-mx-1 px-1" />
+      )}
 
       {error && (
         <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 md:flex-row md:items-start md:justify-between">
@@ -273,8 +281,14 @@ export default function StudyPage() {
             const occupiedCount = [...occupantsBySeat.values()].filter((list) =>
               list.some((o) => o.period === selectedPeriod)
             ).length;
+            const highlighted = room.hasSeats && occupiedCount > 0;
             return (
-              <div key={room.id} className="rounded-3xl border border-border/50 bg-background/70 p-4 space-y-3 shadow-sm">
+              <div
+                key={room.id}
+                className={`rounded-3xl border p-4 space-y-3 shadow-sm transition-colors ${
+                  highlighted ? 'border-primary/40 bg-primary/5' : 'border-border/50 bg-background/70'
+                }`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-black text-sm">{room.name}</p>
@@ -283,7 +297,11 @@ export default function StudyPage() {
                     </p>
                   </div>
                   {room.hasSeats && (
-                    <div className="rounded-full border border-border/50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest shrink-0">
+                    <div
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest shrink-0 border ${
+                        highlighted ? 'bg-primary text-primary-foreground border-primary' : 'border-border/50'
+                      }`}
+                    >
                       {occupiedCount}명 예약
                     </div>
                   )}
@@ -317,9 +335,7 @@ export default function StudyPage() {
             <>
               <DialogHeader>
                 <DialogTitle>{openRoomData.room.name} 좌석 배치</DialogTitle>
-                <DialogDescription>
-                  {selectedPeriod}교시 기준입니다. 좌석을 눌러 예약자(학번/이름)를 확인하세요.
-                </DialogDescription>
+                <DialogDescription>좌석 번호 옆에 학번/이름이 표시됩니다.</DialogDescription>
               </DialogHeader>
               <PeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} />
               <SeatMap

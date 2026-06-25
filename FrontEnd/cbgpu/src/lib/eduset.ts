@@ -68,6 +68,31 @@ export interface SeatOccupation {
   state?: string;
 }
 
+export interface SelfStudyPolicy {
+  timetable: {
+    presets: Record<string, unknown[]>;
+    assign: Record<string, string>;
+    exception: Record<string, string>;
+  };
+  timelimit: unknown;
+}
+
+/** 'YYYY-MM-DD'. UTC가 아니라 로컬(한국) 날짜 기준 — toISOString()은 자정~오전9시에 전날로 밀린다 */
+export function localDateStr(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** 해당 날짜에 자율학습이 몇 교시까지 있는지. 정책 자체가 없거나 그날 배정이 없으면 0 */
+export function getPeriodCountForDate(policy: SelfStudyPolicy, date: Date): number {
+  const { presets, assign, exception } = policy.timetable;
+  const presetKey = exception[localDateStr(date)] ?? assign[date.getDay()];
+  if (!presetKey) return 0;
+  return presets[presetKey]?.length ?? 0;
+}
+
 function clearTokenStorage() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(TOKEN_EXPIRES_KEY);
@@ -184,6 +209,12 @@ export async function getMe(): Promise<Me> {
 
 export function getRooms(): Promise<Room[]> {
   return apiFetch('/rooms');
+}
+
+/** /policies/:id 응답은 { data: <policy> } 형태로 한 번 더 감싸져 있다 */
+export async function getSelfStudyPolicy(): Promise<SelfStudyPolicy> {
+  const res = await apiFetch<{ data: SelfStudyPolicy }>('/policies/selfstudy');
+  return res.data;
 }
 
 export function getRoomComposition(roomId: number): Promise<RoomComposition> {
