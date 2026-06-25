@@ -4,19 +4,41 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
 import { Badge } from '@/components/ui/badge';
 import { format, isSameDay, parseISO, addDays, startOfDay, endOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
+const DURATION_PRESETS = [
+  { label: '1시간', hours: 1 },
+  { label: '3시간', hours: 3 },
+  { label: '6시간', hours: 6 },
+  { label: '12시간', hours: 12 },
+  { label: '1일', hours: 24 },
+  { label: '2일', hours: 48 },
+  { label: '3일', hours: 72 },
+  { label: '7일', hours: 168 },
+];
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const NEXT_14_DAYS = Array.from({ length: 14 }, (_, i) => addDays(startOfDay(new Date()), i));
+
+function combineDateHour(day: Date, hour: number): Date {
+  const d = new Date(day);
+  d.setHours(hour, 0, 0, 0);
+  return d;
+}
+
 export default function GPUCard({ id, name }: { id: number; name: string }) {
   const { showAlert, showError, showSuccess } = useAlert();
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
+  const [selectedHour, setSelectedHour] = useState(() => Math.min(23, new Date().getHours() + 1));
+  const [durationHours, setDurationHours] = useState(3);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [approvedReservations, setApprovedReservations] = useState<any[]>([]);
+
+  const start = combineDateHour(selectedDate, selectedHour);
+  const end = new Date(start.getTime() + durationHours * 3600000);
 
   useEffect(() => {
     fetchApprovedReservations();
@@ -38,25 +60,13 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
   };
 
   const handleRequest = async () => {
-    if (showSchedule && (!startTime || !endTime)) {
+    if (showSchedule) {
       setShowSchedule(false);
-      showAlert('예약 시간을 선택해 주세요.', 'info'); return;
+      showAlert('예약 시간을 확인해 주세요.', 'info'); return;
     }
 
-    if (!startTime || !endTime) {
-      showError('시작 시간과 종료 시간을 모두 선택해 주세요.'); return;
-    }
-
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-
-    if (start >= end) {
-      showError('종료 시간은 시작 시간보다 늦어야 합니다.'); return;
-    }
-
-    const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
-    if (diffDays > 7) {
-      showError('GPU #1은 최대 7일까지만 예약 가능합니다. 장기 사용은 GPU #2~4의 주 단위 예약을 이용해 주세요.'); return;
+    if (start <= new Date()) {
+      showError('시작 시간은 현재 시간보다 늦어야 합니다.'); return;
     }
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -99,8 +109,7 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
       if (error) throw error;
 
       showSuccess(`GPU #${id} 예약 신청이 완료되었습니다!`);
-      setStartTime('');
-      setEndTime('');
+      setDurationHours(3);
       fetchApprovedReservations();
     } catch (error: any) {
       console.error('Reservation Error:', error);
@@ -196,26 +205,75 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
             </div>
           </div>
         ) : (
-          <div className="space-y-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">사용 시작</label>
-              <Input 
-                type="datetime-local" 
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="bg-background cursor-pointer h-9 text-xs"
-              />
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">사용 시작일</label>
+              <div className="flex gap-1.5 overflow-x-auto py-1.5 -mx-1 px-1">
+                {NEXT_14_DAYS.map((day, i) => {
+                  const isSelected = isSameDay(day, selectedDate);
+                  const dayHasReservation = approvedReservations.some((res) => {
+                    const s = parseISO(res.start_time);
+                    const e = parseISO(res.end_time);
+                    return s <= endOfDay(day) && e >= startOfDay(day);
+                  });
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setSelectedDate(day)}
+                      className={`flex flex-col items-center gap-0.5 shrink-0 px-2.5 py-1.5 rounded-xl border text-center transition-all active:scale-95 ${
+                        isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-border/50 hover:bg-muted/30'
+                      }`}
+                    >
+                      <span className="text-[9px] font-bold opacity-70">{i === 0 ? '오늘' : i === 1 ? '내일' : format(day, 'eee', { locale: ko })}</span>
+                      <span className="text-xs font-black">{format(day, 'M/d')}</span>
+                      <span className={`size-1 rounded-full ${dayHasReservation ? (isSelected ? 'bg-primary-foreground' : 'bg-primary') : 'bg-transparent'}`} />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">사용 종료 <span className="text-primary/60 normal-case">(최대 7일)</span></label>
-              <Input
-                type="datetime-local"
-                value={endTime}
-                min={startTime || undefined}
-                max={startTime ? new Date(new Date(startTime).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16) : undefined}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="bg-background cursor-pointer h-9 text-xs"
-              />
+
+            <div>
+              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">시작 시각</label>
+              <div className="flex gap-1.5 overflow-x-auto py-1.5 -mx-1 px-1">
+                {HOURS.map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setSelectedHour(h)}
+                    className={`shrink-0 px-3 py-1.5 rounded-xl border text-xs font-black transition-all active:scale-95 ${
+                      selectedHour === h ? 'border-primary bg-primary text-primary-foreground' : 'border-border/50 hover:bg-muted/30'
+                    }`}
+                  >
+                    {String(h).padStart(2, '0')}:00
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">사용 시간 <span className="text-primary/60 normal-case">(최대 7일)</span></label>
+              <div className="grid grid-cols-4 gap-1.5 mt-1.5">
+                {DURATION_PRESETS.map((p) => (
+                  <button
+                    key={p.hours}
+                    type="button"
+                    onClick={() => setDurationHours(p.hours)}
+                    className={`px-2 py-1.5 rounded-xl border text-[11px] font-black transition-all active:scale-95 ${
+                      durationHours === p.hours ? 'border-primary bg-primary text-primary-foreground' : 'border-border/50 hover:bg-muted/30'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 text-[11px] font-bold text-muted-foreground bg-muted/30 rounded-xl py-2 px-3">
+              <span>{format(start, 'M/d(eee) HH:mm', { locale: ko })}</span>
+              <span className="opacity-40">→</span>
+              <span>{format(end, 'M/d(eee) HH:mm', { locale: ko })}</span>
             </div>
           </div>
         )}

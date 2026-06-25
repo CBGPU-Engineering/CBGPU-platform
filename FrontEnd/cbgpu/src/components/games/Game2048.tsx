@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 
 type Grid = (number | null)[][];
@@ -106,6 +106,23 @@ export default function Game2048() {
     return () => window.removeEventListener('keydown', onKey);
   }, [handleMove]);
 
+  const touchOrigin = useRef<{ x: number; y: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchOrigin.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const origin = touchOrigin.current;
+    touchOrigin.current = null;
+    if (!origin) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - origin.x;
+    const dy = t.clientY - origin.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    if (Math.abs(dx) > Math.abs(dy)) handleMove(dx > 0 ? 'right' : 'left');
+    else handleMove(dy > 0 ? 'down' : 'up');
+  };
+
   return (
     <div className="flex flex-col items-center gap-5">
       <div className="flex items-center gap-6">
@@ -114,10 +131,18 @@ export default function Game2048() {
         <Button onClick={reset} variant="outline" size="sm" className="font-black text-xs uppercase tracking-widest">New Game</Button>
       </div>
 
-      <div className="p-3 bg-muted rounded-2xl shadow-lg">
-        <div className="grid grid-cols-4 gap-2">
+      <div
+        className="p-3 bg-muted rounded-2xl shadow-lg touch-none select-none"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        <div className="grid grid-cols-4 gap-2" style={{ width: 'min(312px, 80vw)' }}>
           {grid.flat().map((val, i) => (
-            <div key={i} className={`w-[72px] h-[72px] flex items-center justify-center rounded-xl font-black transition-all duration-100 ${val ? (COLORS[val] || 'bg-emerald-800 text-white') + ' ' + fontSize(val) : 'bg-muted-foreground/10'}`}>
+            <div
+              key={i}
+              style={{ aspectRatio: '1 / 1' }}
+              className={`flex items-center justify-center rounded-xl font-black transition-all duration-100 ${val ? (COLORS[val] || 'bg-emerald-800 text-white') + ' ' + fontSize(val) : 'bg-muted-foreground/10'}`}
+            >
               {val ?? ''}
             </div>
           ))}
@@ -137,7 +162,7 @@ export default function Game2048() {
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground font-medium">Arrow keys to slide tiles · reach 2048!</p>
+      <p className="text-xs text-muted-foreground font-medium">화살표 또는 스와이프로 타일 밀기 · 2048을 만들어보세요!</p>
     </div>
   );
 }

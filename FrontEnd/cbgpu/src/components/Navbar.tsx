@@ -8,15 +8,14 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
-import { Menu, X, ChevronDown, Cpu, Calendar, BookOpen, Wrench, Home } from 'lucide-react';
+import { Menu, X, ChevronDown, BookOpen, CalendarDays, UtensilsCrossed, Users, Home } from 'lucide-react';
 import { useState, useRef, useLayoutEffect } from 'react';
 
 interface NavLink { href: string; label: string; }
 interface NavGroup { label: string; links: NavLink[]; }
 
 const PRIMARY_LINKS: NavLink[] = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/schedule', label: 'Schedule' },
+  { href: '/dashboard', label: 'GPU' },
 ];
 
 const GROUPS: NavGroup[] = [
@@ -40,14 +39,15 @@ const GROUPS: NavGroup[] = [
 const PILL = 'relative z-10 shrink-0 text-xs font-black px-3 py-1.5 rounded-lg uppercase tracking-widest transition-colors';
 
 /** 모바일 하단 플로팅 탭바 — 바(컨테이너)는 3D로 띄우고, 안의 아이콘은 단순한 2D 라인 아이콘(회색/흰색)으로.
- * 가운데는 원형으로 띄운 홈 버튼 — 홈에 전체 기능 바로가기가 다 있어서 "더보기"가 따로 필요 없다. */
+ * 가운데는 원형으로 띄운 홈 버튼. 학교생활에서 매일 쓰는 4가지(자습/시간표/급식/스터디)를 바로
+ * 누르게 두고, GPU 대여 등 나머지는 홈 화면 타일과 상단 메뉴로 충분히 닿을 수 있게 둔다. */
 const BOTTOM_TABS_LEFT = [
-  { href: '/dashboard', label: 'GPU', Icon: Cpu },
-  { href: '/schedule', label: '일정', Icon: Calendar },
+  { href: '/study', label: '자습', Icon: BookOpen },
+  { href: '/timetable', label: '시간표', Icon: CalendarDays },
 ];
 const BOTTOM_TABS_RIGHT = [
-  { href: '/study', label: '자습', Icon: BookOpen },
-  { href: '/tools', label: '도구', Icon: Wrench },
+  { href: '/meal', label: '급식', Icon: UtensilsCrossed },
+  { href: '/match', label: '스터디', Icon: Users },
 ];
 
 export default function Navbar() {
@@ -233,10 +233,7 @@ export default function Navbar() {
               </div>
 
               <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
-                Dashboard
-              </Link>
-              <Link href="/schedule" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/schedule' ? 'text-primary' : 'text-muted-foreground'}`}>
-                Schedule
+                GPU
               </Link>
 
               {GROUPS.map(group => (

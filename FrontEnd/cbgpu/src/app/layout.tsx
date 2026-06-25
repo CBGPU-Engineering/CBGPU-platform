@@ -1,5 +1,7 @@
 import './globals.css';
 import Navbar from '@/components/Navbar';
+import LoginBanner from '@/components/LoginBanner';
+import AuthGate from '@/components/AuthGate';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/lib/useAuth';
 import { Metadata } from 'next';
@@ -68,6 +70,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/toss/tossface/dist/tossface.css" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -82,9 +86,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <AuthProvider>
             <AlertProvider>
+              <LoginBanner />
               <Navbar />
               <main className="flex-grow container mx-auto px-4 md:px-6 py-10 pb-28 md:pb-10">
-                {children}
+                <AuthGate>{children}</AuthGate>
               </main>
               <footer className="hidden md:block border-t py-12 bg-muted/20 text-center text-sm text-muted-foreground transition-all">
                 <div className="flex flex-col items-center gap-4">

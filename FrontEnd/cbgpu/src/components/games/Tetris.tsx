@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { ArrowLeft, ArrowRight, ArrowDown, RotateCw, ChevronsDown } from 'lucide-react';
 
 const COLS = 10;
 const ROWS = 20;
@@ -142,6 +143,34 @@ export default function Tetris() {
     setPaused(pausedRef.current);
   }, []);
 
+  const moveLeft = useCallback(() => {
+    const s = sRef.current;
+    if (!s.piece || !s.running || pausedRef.current) return;
+    if (valid(s.board, s.piece, -1)) { s.piece.x--; draw(); }
+  }, [draw]);
+  const moveRight = useCallback(() => {
+    const s = sRef.current;
+    if (!s.piece || !s.running || pausedRef.current) return;
+    if (valid(s.board, s.piece, 1)) { s.piece.x++; draw(); }
+  }, [draw]);
+  const softDrop = useCallback(() => {
+    const s = sRef.current;
+    if (!s.piece || !s.running || pausedRef.current) return;
+    if (valid(s.board, s.piece, 0, 1)) { s.piece.y++; draw(); } else lock();
+  }, [draw, lock]);
+  const rotatePiece = useCallback(() => {
+    const s = sRef.current;
+    if (!s.piece || !s.running || pausedRef.current) return;
+    const rot = rotate90(s.piece.shape);
+    if (valid(s.board, s.piece, 0, 0, rot)) { s.piece.shape = rot; draw(); }
+  }, [draw]);
+  const hardDrop = useCallback(() => {
+    const s = sRef.current;
+    if (!s.piece || !s.running || pausedRef.current) return;
+    while (valid(s.board, s.piece, 0, 1)) s.piece.y++;
+    lock();
+  }, [lock]);
+
   useEffect(() => {
     draw();
     const onKey = (e: KeyboardEvent) => {
@@ -150,15 +179,15 @@ export default function Tetris() {
       if (e.key === 'p' || e.key === 'P') { togglePause(); return; }
       if (pausedRef.current) return;
       if (['ArrowLeft','ArrowRight','ArrowDown','ArrowUp',' '].includes(e.key)) e.preventDefault();
-      if (e.key === 'ArrowLeft' && valid(s.board, s.piece, -1)) { s.piece.x--; draw(); }
-      if (e.key === 'ArrowRight' && valid(s.board, s.piece, 1)) { s.piece.x++; draw(); }
-      if (e.key === 'ArrowDown') { if (valid(s.board, s.piece, 0, 1)) { s.piece.y++; draw(); } else lock(); }
-      if (e.key === 'ArrowUp') { const rot = rotate90(s.piece.shape); if (valid(s.board, s.piece, 0, 0, rot)) { s.piece.shape = rot; draw(); } }
-      if (e.key === ' ') { while (valid(s.board, s.piece, 0, 1)) s.piece.y++; lock(); }
+      if (e.key === 'ArrowLeft') moveLeft();
+      if (e.key === 'ArrowRight') moveRight();
+      if (e.key === 'ArrowDown') softDrop();
+      if (e.key === 'ArrowUp') rotatePiece();
+      if (e.key === ' ') hardDrop();
     };
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [draw, lock, togglePause]);
+  }, [draw, togglePause, moveLeft, moveRight, softDrop, rotatePiece, hardDrop]);
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -168,7 +197,11 @@ export default function Tetris() {
         {started && !gameOver && <Button variant="outline" size="sm" onClick={togglePause} className="font-black text-xs uppercase">{paused ? 'Resume' : 'Pause'}</Button>}
       </div>
       <div className="relative">
-        <canvas ref={canvasRef} width={COLS * CELL} height={ROWS * CELL} className="border border-border rounded-xl shadow-lg" />
+        <canvas
+          ref={canvasRef} width={COLS * CELL} height={ROWS * CELL}
+          className="border border-border rounded-xl shadow-lg"
+          style={{ maxWidth: '100%', height: 'auto' }}
+        />
         {paused && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-xl">
             <p className="text-2xl font-black uppercase tracking-widest">Paused</p>
@@ -181,7 +214,18 @@ export default function Tetris() {
           <Button onClick={start} className="font-black uppercase tracking-widest">{gameOver ? 'Restart' : 'Start Game'}</Button>
         </div>
       )}
-      <p className="text-xs text-muted-foreground font-medium">← → move · ↑ rotate · ↓ drop · Space hard drop · P pause</p>
+
+      {/* 터치 컨트롤 — 키보드 없는 화면에서도 5가지 동작을 명확히 분리해서 누를 수 있게 */}
+      {started && !gameOver && (
+        <div className="flex md:hidden items-center gap-2 select-none">
+          <button onClick={moveLeft} className="flex items-center justify-center size-12 rounded-2xl bg-card ring-1 ring-foreground/10 shadow-sm active:scale-90 transition-transform"><ArrowLeft className="size-5" /></button>
+          <button onClick={rotatePiece} className="flex items-center justify-center size-12 rounded-2xl bg-card ring-1 ring-foreground/10 shadow-sm active:scale-90 transition-transform"><RotateCw className="size-5" /></button>
+          <button onClick={moveRight} className="flex items-center justify-center size-12 rounded-2xl bg-card ring-1 ring-foreground/10 shadow-sm active:scale-90 transition-transform"><ArrowRight className="size-5" /></button>
+          <button onClick={softDrop} className="flex items-center justify-center size-12 rounded-2xl bg-card ring-1 ring-foreground/10 shadow-sm active:scale-90 transition-transform"><ArrowDown className="size-5" /></button>
+          <button onClick={hardDrop} className="flex items-center justify-center size-12 rounded-2xl bg-primary text-primary-foreground shadow-sm active:scale-90 transition-transform"><ChevronsDown className="size-5" /></button>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground font-medium hidden md:block">← → move · ↑ rotate · ↓ drop · Space hard drop · P pause</p>
     </div>
   );
 }
