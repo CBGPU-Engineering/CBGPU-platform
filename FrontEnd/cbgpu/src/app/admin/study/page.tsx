@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import { supabase } from '@/lib/supabase';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 const OFFICIAL_STUDY_URL = 'https://cbsh.edu-set.com';
 
@@ -78,7 +79,7 @@ export default function AdminStudyPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-pulse font-black uppercase tracking-widest text-muted-foreground">Verifying Authority...</div>
+        <LoadingSpinner size={56} label="권한 확인 중" />
       </div>
     );
   }

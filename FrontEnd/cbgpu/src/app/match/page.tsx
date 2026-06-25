@@ -9,6 +9,7 @@ import { Plus, Users, X, Trash2, Lock } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { Badge } from '@/components/ui/badge';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 interface StudyPost {
   id: string; created_at: string; user_id: string;
@@ -160,6 +161,7 @@ export default function MatchPage() {
   const [filter,  setFilter]  = useState('');
   const [creating,setCreating]= useState(false);
   const [loading, setLoading] = useState(true);
+  const [justFinished, setJustFinished] = useState(false);
   const [dbMissing, setDbMissing] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -172,6 +174,8 @@ export default function MatchPage() {
     setPosts((p ?? []) as StudyPost[]);
     setMembers((m ?? []) as Member[]);
     setLoading(false);
+    setJustFinished(true);
+    setTimeout(() => setJustFinished(false), 600);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -249,7 +253,7 @@ export default function MatchPage() {
         </div>
       </div>
 
-      {loading ? <div className="space-y-3">{[1,2,3].map(i=><div key={i} className="h-20 bg-muted/40 animate-pulse rounded-2xl"/>)}</div>
+      {loading ? <div className="py-16 flex items-center justify-center"><LoadingSpinner done={justFinished} size={56} label="모집글 불러오는 중" /></div>
       : shown.length === 0 ? (
         <div className="py-20 text-center border-2 border-dashed rounded-3xl text-muted-foreground font-medium">스터디 그룹이 없습니다.</div>
       ) : (

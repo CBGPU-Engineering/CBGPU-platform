@@ -179,9 +179,14 @@
   }
 }
 
-@keyframes spin-3d {
-  0%   { transform: perspective(240px) rotateY(0deg); }
-  100% { transform: perspective(240px) rotateY(360deg); }
+@keyframes drop-in-3d {
+  0%   { opacity: 0; transform: perspective(600px) translateY(-70px) rotateX(25deg) scale(0.7); }
+  60%  { opacity: 1; transform: perspective(600px) translateY(6px) rotateX(-6deg) scale(1.05); }
+  100% { opacity: 1; transform: perspective(600px) translateY(0) rotateX(0deg) scale(1); }
+}
+
+@utility drop-in-3d {
+  animation: drop-in-3d 550ms var(--ease-spring);
 }
 
 @keyframes tilt-in {

@@ -11,6 +11,7 @@ import { RefreshCw, Trash2, Copy, Key, AlertTriangle, StopCircle, Bell, BellOff,
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { Badge } from '@/components/ui/badge';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ export default function Dashboard() {
   const [myReservations, setMyReservations] = useState<any[]>([]);
   const [gpuPasswords, setGpuPasswords] = useState<{[key: number]: string}>({});
   const [loading, setLoading] = useState(true);
+  const [justFinished, setJustFinished] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedRes, setSelectedRes] = useState<any>(null);
   const [cancelTarget, setCancelTarget] = useState<{ id: string; status: string } | null>(null);
@@ -98,6 +100,8 @@ export default function Dashboard() {
 
     if (!error) setMyReservations(data || []);
     setLoading(false);
+    setJustFinished(true);
+    setTimeout(() => setJustFinished(false), 600);
   };
 
   const handleCancel = async () => {
@@ -345,10 +349,8 @@ export default function Dashboard() {
         )}
 
         {loading ? (
-          <div className="grid gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-24 w-full bg-muted animate-pulse rounded-2xl"></div>
-            ))}
+          <div className="py-16 flex items-center justify-center">
+            <LoadingSpinner done={justFinished} size={56} label="예약 내역 불러오는 중" />
           </div>
         ) : myReservations.length === 0 ? (
           <div className="text-center py-20 border-2 border-dashed rounded-3xl text-muted-foreground transition-colors duration-500 font-medium bg-muted/10 pop-in-3d">

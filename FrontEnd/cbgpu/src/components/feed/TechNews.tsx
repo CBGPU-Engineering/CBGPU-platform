@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, ExternalLink, MessageSquare, ChevronUp, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 // ─── category config ──────────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -96,6 +97,7 @@ export default function TechNews() {
   const [hnStories, setHnStories] = useState<HNStory[]>([]);
   const [gnItems, setGnItems] = useState<GNewsItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [justFinished, setJustFinished] = useState(false);
   const [error, setError] = useState('');
   const [refreshed, setRefreshed] = useState<Date | null>(null);
 
@@ -118,6 +120,8 @@ export default function TechNews() {
         : 'Google News를 불러오지 못했습니다.');
     } finally {
       setLoading(false);
+      setJustFinished(true);
+      setTimeout(() => setJustFinished(false), 600);
     }
   }, []);
 
@@ -178,10 +182,8 @@ export default function TechNews() {
       )}
 
       {loading && total === 0 && (
-        <div className="space-y-2">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="h-[60px] bg-muted/50 animate-pulse rounded-xl" style={{ opacity: 1 - i * 0.06 }} />
-          ))}
+        <div className="py-10 flex items-center justify-center">
+          <LoadingSpinner done={justFinished} size={48} label="뉴스 불러오는 중" />
         </div>
       )}
 

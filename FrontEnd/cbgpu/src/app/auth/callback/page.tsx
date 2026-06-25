@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -23,9 +24,8 @@ export default function AuthCallback() {
   }, [router]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-      <p className="text-lg font-bold italic uppercase animate-pulse">Authenticating...</p>
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <LoadingSpinner size={56} label="로그인 처리 중" />
     </div>
   );
 }

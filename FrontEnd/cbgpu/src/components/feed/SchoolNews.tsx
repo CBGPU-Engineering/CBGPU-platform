@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 const TABS = [
   { id: 'notice',   label: '공지사항' },
@@ -24,6 +25,7 @@ export default function SchoolNews() {
   const [tab, setTab] = useState<TabId>('notice');
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
+  const [justFinished, setJustFinished] = useState(false);
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState<Date | null>(null);
 
@@ -39,6 +41,8 @@ export default function SchoolNews() {
       setError('공지를 불러오지 못했습니다.');
     } finally {
       setLoading(false);
+      setJustFinished(true);
+      setTimeout(() => setJustFinished(false), 600);
     }
   }, []);
 
@@ -66,9 +70,9 @@ export default function SchoolNews() {
       {error && <p className="text-destructive text-xs font-bold p-3 bg-destructive/10 rounded-lg">{error}</p>}
 
       {loading && items.length === 0 && (
-        <div className="space-y-2">{Array.from({length:8}).map((_,i) => (
-          <div key={i} className="h-14 bg-muted/50 animate-pulse rounded-xl" style={{opacity: 1-i*0.08}} />
-        ))}</div>
+        <div className="py-10 flex items-center justify-center">
+          <LoadingSpinner done={justFinished} size={48} label="공지사항 불러오는 중" />
+        </div>
       )}
 
       <div className="space-y-1.5">
