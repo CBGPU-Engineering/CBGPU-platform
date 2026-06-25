@@ -12,7 +12,7 @@ export default function AuthCallback() {
       // The browser's URL will contain the code if it's a redirect from Supabase
       const { error } = await supabase.auth.getSession();
       if (!error) {
-        router.push('/dashboard');
+        router.push('/');
       } else {
         console.error('Auth callback error:', error);
         router.push('/auth/login');
