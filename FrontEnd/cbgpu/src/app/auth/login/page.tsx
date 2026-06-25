@@ -28,7 +28,7 @@ export default function Login() {
         showError("로그인 실패: " + error.message);
       } else {
         showSuccess("로그인됐습니다!");
-        router.push('/dashboard');
+        router.push('/');
       }
     } catch (err: any) {
       showError("오류가 발생했습니다.");

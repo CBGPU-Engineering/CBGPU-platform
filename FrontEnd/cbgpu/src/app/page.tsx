@@ -6,17 +6,18 @@ import {
   NotebookPen, Users, Gamepad2, Wrench, Newspaper,
 } from 'lucide-react';
 
+/** 차가운 톤으로 통일한 은은한 팔레트 — 채도 낮은 400 톤 + 배경 /10 으로 너무 알록달록하지 않게 */
 const FEATURES = [
-  { href: '/study', label: '자습신청', icon: BookOpen, color: 'text-blue-500 bg-blue-500/10' },
-  { href: '/timetable', label: '시간표', icon: CalendarDays, color: 'text-violet-500 bg-violet-500/10' },
-  { href: '/meal', label: '급식', icon: UtensilsCrossed, color: 'text-amber-500 bg-amber-500/10' },
-  { href: '/polls', label: '투표', icon: Vote, color: 'text-rose-500 bg-rose-500/10' },
-  { href: '/notes', label: '연구노트', icon: NotebookPen, color: 'text-emerald-500 bg-emerald-500/10' },
-  { href: '/match', label: '스터디 매칭', icon: Users, color: 'text-sky-500 bg-sky-500/10' },
-  { href: '/dashboard', label: 'GPU 대여', icon: Cpu, color: 'text-indigo-500 bg-indigo-500/10' },
-  { href: '/tools', label: '도구', icon: Wrench, color: 'text-teal-500 bg-teal-500/10' },
-  { href: '/games', label: 'Arcade', icon: Gamepad2, color: 'text-pink-500 bg-pink-500/10' },
-  { href: '/feed', label: 'Feed', icon: Newspaper, color: 'text-orange-500 bg-orange-500/10' },
+  { href: '/study', label: '자습신청', icon: BookOpen, color: 'text-blue-400 bg-blue-400/10' },
+  { href: '/timetable', label: '시간표', icon: CalendarDays, color: 'text-indigo-400 bg-indigo-400/10' },
+  { href: '/meal', label: '급식', icon: UtensilsCrossed, color: 'text-amber-400 bg-amber-400/10' },
+  { href: '/polls', label: '투표', icon: Vote, color: 'text-violet-400 bg-violet-400/10' },
+  { href: '/notes', label: '연구노트', icon: NotebookPen, color: 'text-teal-400 bg-teal-400/10' },
+  { href: '/match', label: '스터디 매칭', icon: Users, color: 'text-sky-400 bg-sky-400/10' },
+  { href: '/dashboard', label: 'GPU 대여', icon: Cpu, color: 'text-slate-400 bg-slate-400/10' },
+  { href: '/tools', label: '도구', icon: Wrench, color: 'text-cyan-400 bg-cyan-400/10' },
+  { href: '/games', label: 'Arcade', icon: Gamepad2, color: 'text-violet-400 bg-violet-400/10' },
+  { href: '/feed', label: 'Feed', icon: Newspaper, color: 'text-blue-400 bg-blue-400/10' },
 ];
 
 export default function Home() {
@@ -25,13 +26,21 @@ export default function Home() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-10">
-      <div className="space-y-0.5 animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <p className="text-2xl md:text-4xl font-black tracking-tight">
-          {firstName ? `${firstName}님,` : '안녕하세요,'}
-        </p>
-        <p className="text-2xl md:text-4xl font-black tracking-tight text-muted-foreground">
-          오늘은 뭘 도와드릴까요?
-        </p>
+      <div className="flex items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+        {profile?.avatar_url && (
+          <>
+            <img src={profile.avatar_url} alt="" className="size-12 md:size-14 rounded-full object-cover ring-2 ring-background shadow-sm shrink-0" />
+            <div className="w-px h-10 bg-border shrink-0" />
+          </>
+        )}
+        <div className="space-y-0.5">
+          <p className="text-2xl md:text-4xl font-black tracking-tight">
+            {firstName ? `${firstName}님,` : '안녕하세요,'}
+          </p>
+          <p className="text-2xl md:text-4xl font-black tracking-tight text-muted-foreground">
+            오늘은 뭘 도와드릴까요?
+          </p>
+        </div>
       </div>
 
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">

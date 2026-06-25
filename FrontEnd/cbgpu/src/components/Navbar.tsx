@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
-import { Menu, X, ChevronDown, Cpu, Calendar, BookOpen, Wrench } from 'lucide-react';
+import { Menu, X, ChevronDown, Cpu, Calendar, BookOpen, Wrench, Home } from 'lucide-react';
 import { useState, useRef, useLayoutEffect } from 'react';
 
 interface NavLink { href: string; label: string; }
@@ -39,10 +39,13 @@ const GROUPS: NavGroup[] = [
 
 const PILL = 'relative z-10 shrink-0 text-xs font-black px-3 py-1.5 rounded-lg uppercase tracking-widest transition-colors';
 
-/** 모바일 하단 플로팅 탭바 — 바(컨테이너)는 3D로 띄우고, 안의 아이콘은 단순한 2D 라인 아이콘(회색/흰색)으로 */
-const BOTTOM_TABS = [
+/** 모바일 하단 플로팅 탭바 — 바(컨테이너)는 3D로 띄우고, 안의 아이콘은 단순한 2D 라인 아이콘(회색/흰색)으로.
+ * 가운데는 원형으로 띄운 홈 버튼 — 홈에 전체 기능 바로가기가 다 있어서 "더보기"가 따로 필요 없다. */
+const BOTTOM_TABS_LEFT = [
   { href: '/dashboard', label: 'GPU', Icon: Cpu },
   { href: '/schedule', label: '일정', Icon: Calendar },
+];
+const BOTTOM_TABS_RIGHT = [
   { href: '/study', label: '자습', Icon: BookOpen },
   { href: '/tools', label: '도구', Icon: Wrench },
 ];
@@ -165,13 +168,18 @@ export default function Navbar() {
           {!isLoading && (
             user ? (
               <div className="flex items-center gap-4 pl-4 border-l border-border/50">
-                <Link href="/profile" className="flex flex-col items-end group transition-all text-right">
-                  <span className="text-[10px] font-black uppercase text-primary leading-none group-hover:underline max-w-[150px] truncate">
-                    {profile?.full_name || 'My Profile'}
-                  </span>
-                  <span className="text-[9px] text-muted-foreground font-medium opacity-70 max-w-[150px] truncate">
-                    {user.email}
-                  </span>
+                <Link href="/profile" className="flex items-center gap-2 group transition-all">
+                  <div className="flex flex-col items-end text-right">
+                    <span className="text-[10px] font-black uppercase text-primary leading-none group-hover:underline max-w-[150px] truncate">
+                      {profile?.full_name || 'My Profile'}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground font-medium opacity-70 max-w-[150px] truncate">
+                      {user.email}
+                    </span>
+                  </div>
+                  {profile?.avatar_url && (
+                    <img src={profile.avatar_url} alt="" className="size-8 rounded-full object-cover ring-2 ring-background shadow-sm" />
+                  )}
                 </Link>
 
                 <Button variant="outline" size="xs" onClick={handleLogout} className="font-black text-[10px] uppercase h-8 px-3 border-border hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors">
@@ -206,13 +214,18 @@ export default function Navbar() {
           {user ? (
             <>
               <div className="flex items-center justify-between pb-4 mb-3 border-b border-border/50">
-                <Link href="/profile" onClick={() => setIsMenuOpen(false)} className="flex flex-col">
-                  <span className="text-sm font-black uppercase text-primary leading-none">
-                    {profile?.full_name || 'My Profile'}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground font-medium opacity-70">
-                    {user.email}
-                  </span>
+                <Link href="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3">
+                  {profile?.avatar_url && (
+                    <img src={profile.avatar_url} alt="" className="size-10 rounded-full object-cover ring-2 ring-background shadow-sm" />
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-sm font-black uppercase text-primary leading-none">
+                      {profile?.full_name || 'My Profile'}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-medium opacity-70">
+                      {user.email}
+                    </span>
+                  </div>
                 </Link>
                 <Button variant="destructive" size="xs" onClick={handleLogout} className="font-black text-[10px] uppercase">
                   Sign Out
@@ -268,8 +281,8 @@ export default function Navbar() {
     </nav>
 
     {user && !isLoading && (
-      <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50 flex items-center justify-between gap-1 rounded-[28px] bg-background/85 backdrop-blur-xl ring-1 ring-foreground/10 shadow-2xl px-2 py-2 tilt-3d">
-        {BOTTOM_TABS.map(({ href, label, Icon }) => {
+      <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50 flex items-end justify-between gap-1 rounded-[28px] bg-background/85 backdrop-blur-xl ring-1 ring-foreground/10 shadow-2xl px-2 py-2 tilt-3d">
+        {BOTTOM_TABS_LEFT.map(({ href, label, Icon }) => {
           const active = pathname === href;
           return (
             <Link
@@ -284,14 +297,30 @@ export default function Navbar() {
             </Link>
           );
         })}
-        <button
-          type="button"
-          onClick={() => setIsMenuOpen(o => !o)}
-          className="flex flex-1 flex-col items-center gap-0.5 py-1 rounded-2xl text-muted-foreground active:scale-95 transition-transform"
-        >
-          {isMenuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
-          <span className="text-[9px] font-black uppercase tracking-wide">더보기</span>
-        </button>
+
+        <Link href="/" className="relative flex flex-1 flex-col items-center -mt-7">
+          <span className={`flex items-center justify-center size-14 rounded-full shadow-lg ring-4 ring-background transition-all active:scale-95 ${
+            pathname === '/' ? 'bg-primary text-primary-foreground' : 'bg-foreground text-background'
+          }`}>
+            <Home className="size-6" strokeWidth={2.5} />
+          </span>
+        </Link>
+
+        {BOTTOM_TABS_RIGHT.map(({ href, label, Icon }) => {
+          const active = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-1 rounded-2xl transition-all duration-300 ${active ? '-translate-y-1.5' : ''}`}
+            >
+              <Icon className={`size-5 transition-colors duration-300 ${active ? 'text-primary' : 'text-muted-foreground'}`} strokeWidth={active ? 2.5 : 2} />
+              <span className={`text-[9px] font-black uppercase tracking-wide ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+                {label}
+              </span>
+            </Link>
+          );
+        })}
       </nav>
     )}
     </>

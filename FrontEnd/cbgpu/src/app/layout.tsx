@@ -86,7 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <main className="flex-grow container mx-auto px-4 md:px-6 py-10 pb-28 md:pb-10">
                 {children}
               </main>
-              <footer className="border-t py-12 bg-muted/20 text-center text-sm text-muted-foreground transition-all">
+              <footer className="hidden md:block border-t py-12 bg-muted/20 text-center text-sm text-muted-foreground transition-all">
                 <div className="flex flex-col items-center gap-4">
                   <div className="flex items-center gap-2 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-500">
                     <img
