@@ -211,6 +211,10 @@ export function getRooms(): Promise<Room[]> {
   return apiFetch('/rooms');
 }
 
+export function getStudents(): Promise<Student[]> {
+  return apiFetch('/students');
+}
+
 /** /policies/:id 응답은 { data: <policy> } 형태로 한 번 더 감싸져 있다 */
 export async function getSelfStudyPolicy(): Promise<SelfStudyPolicy> {
   const res = await apiFetch<{ data: SelfStudyPolicy }>('/policies/selfstudy');
