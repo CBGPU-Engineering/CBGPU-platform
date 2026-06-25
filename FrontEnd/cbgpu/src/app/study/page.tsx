@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { LoadingSpinner } from '@/components/ui/spinner';
 import {
   getRooms, getRoomComposition, getSeatOccupations, getStudent, getStudents,
   getSelfStudyPolicy, getPeriodCountForDate, localDateStr, searchSelfStudy,
@@ -133,9 +134,11 @@ export default function StudyPage() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [openRoomId, setOpenRoomId] = useState<number | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState(1);
+  const [justFinished, setJustFinished] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setJustFinished(false);
     setError('');
 
     try {
@@ -226,6 +229,8 @@ export default function StudyPage() {
         });
         setPeriodCount(Math.max(FALLBACK_MIN_PERIODS, maxObserved));
       }
+      setJustFinished(true);
+      setTimeout(() => setJustFinished(false), 600);
     } catch (err: any) {
       setError(err?.message ?? String(err) ?? '현황을 불러오지 못했습니다.');
     } finally {
@@ -399,9 +404,9 @@ export default function StudyPage() {
         </div>
       )}
 
-      {loading ? (
+      {loading || justFinished ? (
         <div className="flex justify-center py-12">
-          <RefreshCw className="size-6 animate-spin text-muted-foreground" />
+          <LoadingSpinner done={justFinished} size={44} label={justFinished ? '불러왔습니다' : undefined} />
         </div>
       ) : sortedRoomData.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">

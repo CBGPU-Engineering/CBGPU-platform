@@ -219,7 +219,7 @@ export default function TimetablePage() {
                           />
                         ) : subject ? (
                           <div title={changed ? '컴시간 실시간 변경' : undefined}
-                            className={`relative h-14 pl-2.5 pr-1.5 rounded-lg border border-border/40 bg-card text-center flex flex-col items-center justify-center gap-0.5 overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all ${isToday?'ring-1 ring-primary/15':''} ${changed?'ring-2 ring-amber-500/60':''}`}>
+                            className={`relative h-14 pl-2.5 pr-1.5 rounded-lg border border-border/40 bg-card text-center flex flex-col items-center justify-center gap-0.5 overflow-hidden tilt-3d transition-all ${isToday?'ring-1 ring-primary/15':''} ${changed?'ring-2 ring-amber-500/60':''}`}>
                             <span className={`absolute inset-y-0 left-0 w-1 ${subjectColor(subject).bar}`} />
                             {changed && <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-500" />}
                             <span className={`text-[11px] font-black leading-tight line-clamp-1 ${subjectColor(subject).text}`}>{subject}</span>

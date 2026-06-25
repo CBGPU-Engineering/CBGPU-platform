@@ -300,7 +300,7 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
           {shown.map((n, i) => (
             <div key={n.id} onClick={() => onOpen(n)}
               style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
-              className="p-4 border border-border/50 rounded-2xl bg-card hover:bg-muted/20 hover:-translate-y-0.5 hover:shadow-md cursor-pointer transition-all group space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards">
+              className="p-4 border border-border/50 rounded-2xl bg-card hover:bg-muted/20 tilt-3d cursor-pointer transition-all group space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-black text-sm leading-tight line-clamp-1">{n.title}</h3>
                 {tab==='mine' && (

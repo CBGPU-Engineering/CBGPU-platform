@@ -165,12 +165,39 @@
     color-scheme: dark;
   }
 
-  /* 도허티 임계/터치 피드백: 모든 네이티브 버튼에 기본 프레스 효과를 준다.
+  /* 도허티 임계/터치 피드백: 모든 네이티브 버튼에 기본 3D 프레스 효과를 준다 — 화면을
+     누르는 느낌을 주려고 단순 scale이 아니라 perspective + rotateX를 함께 쓴다.
      shadcn Button은 유틸리티 클래스(active:translate-y-px)가 specificity로 우선 적용된다. */
   button:not(:disabled) {
-    transition: transform 100ms var(--ease-quick);
+    transition: transform 120ms var(--ease-quick);
+    transform-style: preserve-3d;
   }
   button:not(:disabled):active {
-    transform: scale(0.96);
+    transform: perspective(600px) rotateX(8deg) scale(0.96) translateY(1px);
   }
+}
+
+@keyframes spin-3d {
+  0%   { transform: perspective(240px) rotateY(0deg); }
+  100% { transform: perspective(240px) rotateY(360deg); }
+}
+
+@keyframes tilt-in {
+  from { opacity: 0; transform: perspective(1000px) rotateX(-10deg) translateY(10px) scale(0.94); }
+  to   { opacity: 1; transform: perspective(1000px) rotateX(0deg) translateY(0) scale(1); }
+}
+
+@utility tilt-3d {
+  transform-style: preserve-3d;
+  transition: transform 250ms var(--ease-spring), box-shadow 250ms var(--ease-quick);
+  &:hover {
+    transform: perspective(800px) rotateX(3deg) rotateY(-2deg) translateY(-3px) scale(1.015);
+  }
+  &:active {
+    transform: perspective(800px) rotateX(1deg) scale(0.99);
+  }
+}
+
+@utility pop-in-3d {
+  animation: tilt-in 320ms var(--ease-spring);
 }

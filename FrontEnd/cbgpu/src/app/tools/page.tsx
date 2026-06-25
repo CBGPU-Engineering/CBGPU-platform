@@ -162,7 +162,7 @@ function DDayCounter() {
           const { label: dl, color } = diff(item.date);
           const dateStr = new Date(item.date).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
           return (
-            <div key={item.id} className="flex items-center gap-3 p-3 border border-border/40 rounded-xl bg-card hover:bg-muted/20 hover:-translate-y-0.5 hover:shadow-md transition-all">
+            <div key={item.id} className="flex items-center gap-3 p-3 border border-border/40 rounded-xl bg-card hover:bg-muted/20 tilt-3d transition-all">
               <span className="text-2xl select-none">{item.emoji}</span>
               <div className="flex-1 min-w-0">
                 <p className="font-black text-sm truncate">{item.label}</p>

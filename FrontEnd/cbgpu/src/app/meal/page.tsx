@@ -118,7 +118,7 @@ export default function MealPage() {
             <div
               key={meal.type}
               style={{ animationDelay: `${i * 60}ms` }}
-              className="relative pl-6 pr-5 py-5 rounded-2xl border border-border/40 bg-card overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+              className="relative pl-6 pr-5 py-5 rounded-2xl border border-border/40 bg-card overflow-hidden tilt-3d transition-all animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
             >
               <span className={`absolute inset-y-0 left-0 w-1 ${TYPE_ACCENT[meal.type] ?? 'bg-primary'}`} />
               <div className="flex items-center justify-between mb-3">
