@@ -119,11 +119,19 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export async function signIn(id: string, password: string, turnstileResponse: string): Promise<void> {
-  const body = EMAIL_RE.test(id) ? { email: id, password, turnstileResponse } : { username: id, password, turnstileResponse };
+export async function signIn(id: string, password: string, turnstileResponse?: string): Promise<void> {
+  const body = EMAIL_RE.test(id)
+    ? { email: id, password, turnstileResponse }
+    : { username: id, password, turnstileResponse };
+
+  const headers: Record<string, string> = {};
+  if (turnstileResponse) {
+    headers['X-Turnstile-Response'] = turnstileResponse;
+  }
+
   const { accessToken } = await apiFetch<{ accessToken: string }>('/auth/signin', {
     method: 'POST',
-    headers: { 'X-Turnstile-Response': turnstileResponse },
+    headers,
     body: JSON.stringify(body),
   });
   setToken(accessToken);
