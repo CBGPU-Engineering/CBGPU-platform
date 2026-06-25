@@ -1,0 +1,178 @@
+/**
+ * cbsh.edu-set.com(학생관리시스템) API 클라이언트.
+ *
+ * 학교 측 SaaS(edu-set)의 API는 CORS가 전면 허용(Access-Control-Allow-Origin: *)되어 있어
+ * 브라우저에서 직접 호출 가능하다. 그래서 우리 서버를 거치지 않고 클라이언트에서 바로
+ * api.cbsh.edu-set.com을 호출한다 — 학생 비밀번호가 우리 서버를 지나가지 않는다.
+ */
+const BASE_URL = 'https://api.cbsh.edu-set.com';
+const TOKEN_KEY = 'eduset_token';
+export const TURNSTILE_SITE_KEY = '0x4AAAAAAAhSoZoG7Vi6-ALf';
+
+export type Role = 'ADMIN' | 'TEACHER' | 'STUDENT' | 'PARENT' | 'HR_TEACHER';
+
+export interface EdusetUser {
+  id: number;
+  role: Role;
+  username?: string;
+  email?: string;
+}
+
+export interface Student {
+  id: number;
+  name: string;
+  grade: number;
+  classNo: number;
+  number: number;
+}
+
+export interface Me extends EdusetUser {
+  student?: Student;
+}
+
+export interface Room {
+  id: number;
+  name: string;
+  width: number;
+  height: number;
+  hasSeats: boolean;
+}
+
+export interface Seat {
+  id: number;
+  x: number;
+  y: number;
+  name: string;
+}
+
+export interface Obstacle {
+  id: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  name: string;
+}
+
+export interface RoomComposition {
+  seats: Seat[];
+  obstacles: Obstacle[];
+}
+
+export interface SeatOccupation {
+  seatId: number;
+  period: number;
+  studentId: number;
+  state?: string;
+}
+
+export function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function signOut() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+/** JWT payload(base64url)를 디코드해서 userId를 꺼낸다 */
+function decodeUserId(token: string): number {
+  const payload = token.split('.')[1];
+  const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+  const json = decodeURIComponent(
+    atob(base64)
+      .split('')
+      .map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
+      .join('')
+  );
+  return JSON.parse(json).userId;
+}
+
+class EdusetError extends Error {}
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
+  const res = await fetch(BASE_URL + path, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
+  });
+
+  if (res.status === 401 && !path.startsWith('/auth/signin')) {
+    signOut();
+    throw new EdusetError('로그인이 만료되었습니다. 다시 로그인해주세요.');
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new EdusetError(body?.message ?? `요청 실패 (HTTP ${res.status})`);
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json();
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export async function signIn(id: string, password: string, turnstileResponse: string): Promise<void> {
+  const body = EMAIL_RE.test(id) ? { email: id, password, turnstileResponse } : { username: id, password, turnstileResponse };
+  const { accessToken } = await apiFetch<{ accessToken: string }>('/auth/signin', {
+    method: 'POST',
+    headers: { 'X-Turnstile-Response': turnstileResponse },
+    body: JSON.stringify(body),
+  });
+  setToken(accessToken);
+}
+
+export async function getMe(): Promise<Me> {
+  const token = getToken();
+  if (!token) throw new EdusetError('로그인이 필요합니다.');
+  const userId = decodeUserId(token);
+  const user = await apiFetch<EdusetUser>(`/users/${userId}`);
+  if (user.role !== 'STUDENT') return user;
+  const student = await apiFetch<Student>(`/students/${userId}`);
+  return { ...user, student };
+}
+
+export function getRooms(): Promise<Room[]> {
+  return apiFetch('/rooms');
+}
+
+export function getRoomComposition(roomId: number): Promise<RoomComposition> {
+  return apiFetch(`/rooms/${roomId}/composition`);
+}
+
+export function getSeatOccupations(roomId: number, dateStr: string): Promise<SeatOccupation[]> {
+  return apiFetch(`/rooms/${roomId}/seats/occupations?date=${dateStr}`);
+}
+
+export function occupySeat(roomId: number, seatId: number, period: number, date: string): Promise<void> {
+  return apiFetch(`/rooms/${roomId}/seats/${seatId}/occupy`, {
+    method: 'POST',
+    body: JSON.stringify({ period, date }),
+  });
+}
+
+export function releaseSeat(roomId: number, seatId: number, period: number, date: string): Promise<void> {
+  return apiFetch(`/rooms/${roomId}/seats/${seatId}/release`, {
+    method: 'POST',
+    body: JSON.stringify({ period, date }),
+  });
+}
+
+const studentCache = new Map<number, Promise<Student>>();
+
+/** 같은 학생을 여러 좌석에서 동시에 조회해도 한 번만 요청하도록 캐싱 */
+export function getStudent(id: number): Promise<Student> {
+  let p = studentCache.get(id);
+  if (!p) {
+    p = apiFetch<Student>(`/students/${id}`);
+    studentCache.set(id, p);
+  }
+  return p;
+}
