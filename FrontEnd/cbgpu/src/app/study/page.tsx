@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
-  getRooms, getRoomComposition, getSeatOccupations, getStudent,
+  getRooms, getRoomComposition, getSeatOccupations, getStudent, getStudents,
   getSelfStudyPolicy, getPeriodCountForDate, localDateStr,
   type Room, type Seat, type Obstacle, type Student,
 } from '@/lib/eduset';
@@ -30,6 +30,7 @@ interface OccupancyEntry {
   seatName: string;
   period: number;
   label: string;
+  studentId: number;
 }
 
 interface RoomData {
@@ -121,11 +122,13 @@ function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod }: {
 
 export default function StudyPage() {
   const [roomData, setRoomData] = useState<RoomData[]>([]);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [periodCount, setPeriodCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
-  const [occupantQuery, setOccupantQuery] = useState('');
+  const [studentQuery, setStudentQuery] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [openRoomId, setOpenRoomId] = useState<number | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState(1);
 
@@ -134,10 +137,12 @@ export default function StudyPage() {
     setError('');
 
     try {
-      const [rooms, policy] = await Promise.all([
+      const [rooms, policy, students] = await Promise.all([
         getRooms(),
         getSelfStudyPolicy().catch(() => null),
+        getStudents().catch(() => []),
       ]);
+      setAllStudents(students);
       const today = new Date();
       const dateStr = localDateStr(today);
 
@@ -180,6 +185,7 @@ export default function StudyPage() {
                 seatName: seatNameById.get(o.seatId) ?? '',
                 period: o.period,
                 label,
+                studentId: o.studentId,
               });
             });
 
@@ -234,20 +240,26 @@ export default function StudyPage() {
     return roomData.filter(({ room }) => room.name.toLowerCase().includes(q));
   }, [roomData, query]);
 
-  const occupantMatches = useMemo(() => {
-    const q = occupantQuery.trim().toLowerCase();
+  const studentMatches = useMemo(() => {
+    const q = studentQuery.trim().toLowerCase();
     if (!q) return [];
-    return roomData
-      .flatMap((d) => d.occupancy)
-      .filter((entry) => entry.label.toLowerCase().includes(q))
-      .sort((a, b) => a.period - b.period);
-  }, [roomData, occupantQuery]);
+    return allStudents
+      .filter((s) => formatStudentLabel(s).toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [allStudents, studentQuery]);
+
+  const occupancyIndex = useMemo(() => roomData.flatMap((d) => d.occupancy), [roomData]);
+
+  const selectedStudentEntry = useMemo(() => {
+    if (!selectedStudent) return undefined;
+    return occupancyIndex.find((e) => e.studentId === selectedStudent.id && e.period === selectedPeriod);
+  }, [occupancyIndex, selectedStudent, selectedPeriod]);
 
   const openRoomData = openRoomId != null ? roomData.find((d) => d.room.id === openRoomId) : undefined;
 
-  const jumpToOccupancy = (entry: OccupancyEntry) => {
-    setSelectedPeriod(entry.period);
-    setOpenRoomId(entry.roomId);
+  const clearStudentSearch = () => {
+    setSelectedStudent(null);
+    setStudentQuery('');
   };
 
   const openOfficialSite = () => {
@@ -284,43 +296,66 @@ export default function StudyPage() {
         />
       </div>
 
-      <div className="relative">
-        <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          value={occupantQuery}
-          onChange={(e) => setOccupantQuery(e.target.value)}
-          placeholder="이름 또는 학번으로 예약자 검색"
-          className="pl-9"
-        />
-        {occupantQuery.trim() && (
-          <div className="absolute z-10 mt-1 w-full rounded-2xl border border-border/60 bg-background shadow-lg divide-y divide-border/40 overflow-hidden max-h-72 overflow-y-auto">
-            {occupantMatches.length === 0 ? (
-              <p className="p-3 text-sm text-muted-foreground text-center">일치하는 예약자가 없습니다.</p>
-            ) : (
-              occupantMatches.map((entry, i) => (
-                <button
-                  key={`${entry.roomId}-${entry.seatName}-${entry.period}-${i}`}
-                  type="button"
-                  onClick={() => jumpToOccupancy(entry)}
-                  className="w-full flex items-center justify-between gap-3 p-3 text-left hover:bg-muted/40 transition-colors"
-                >
-                  <div>
-                    <p className="font-bold text-sm">{entry.label}</p>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
-                      {entry.roomName} · {entry.seatName} 좌석
-                    </p>
-                  </div>
-                  <span className="text-xs font-black uppercase tracking-widest text-muted-foreground shrink-0">
-                    {entry.period}교시
-                  </span>
-                </button>
-              ))
+      {selectedStudent ? (
+        <div className="rounded-2xl border border-border/60 bg-background/70 p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-black text-sm">{formatStudentLabel(selectedStudent)}</p>
+            <Button variant="ghost" size="sm" onClick={clearStudentSearch} className="font-bold text-xs">
+              다른 학생 검색
+            </Button>
+          </div>
+          {periods.length > 0 && (
+            <PeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} />
+          )}
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/10 p-3">
+            <p className="text-sm">
+              {selectedStudentEntry
+                ? `${selectedPeriod}교시: ${selectedStudentEntry.roomName} ${selectedStudentEntry.seatName}번 자리에 신청했습니다.`
+                : `${selectedPeriod}교시: 아직 신청하지 않았습니다.`}
+            </p>
+            {selectedStudentEntry && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 font-bold text-xs"
+                onClick={() => setOpenRoomId(selectedStudentEntry.roomId)}
+              >
+                좌석 보기
+              </Button>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="relative">
+          <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            value={studentQuery}
+            onChange={(e) => setStudentQuery(e.target.value)}
+            placeholder="이름 또는 학번으로 학생 검색"
+            className="pl-9"
+          />
+          {studentQuery.trim() && (
+            <div className="absolute z-10 mt-1 w-full rounded-2xl border border-border/60 bg-background shadow-lg divide-y divide-border/40 overflow-hidden max-h-72 overflow-y-auto">
+              {studentMatches.length === 0 ? (
+                <p className="p-3 text-sm text-muted-foreground text-center">일치하는 학생이 없습니다.</p>
+              ) : (
+                studentMatches.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setSelectedStudent(s)}
+                    className="w-full p-3 text-left font-bold text-sm hover:bg-muted/40 transition-colors"
+                  >
+                    {formatStudentLabel(s)}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
-      {periods.length > 0 && (
+      {!selectedStudent && periods.length > 0 && (
         <PeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} className="-mx-1 px-1" />
       )}
 
