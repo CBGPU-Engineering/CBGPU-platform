@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
-import { Plus, Trash2, ArrowLeft, Share2, Lock, Save, Tag, X } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Share2, Lock, Save, Tag, X, Check } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -55,27 +55,40 @@ function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () =
   const [tags,     setTags]     = useState<string[]>(note?.tags ?? []);
   const [shared,   setShared]   = useState(note?.is_shared ?? false);
   const [tagInput, setTagInput] = useState('');
-  const [saving,   setSaving]   = useState(false);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [view,     setView]     = useState<'edit'|'preview'>('edit');
   const autoRef = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const savedFlashRef = useRef<ReturnType<typeof setTimeout>|null>(null);
 
   const save = useCallback(async (t = title, c = content, tg = tags, sh = shared) => {
     if (!user) return;
-    setSaving(true);
+    setSaveState('saving');
     const payload = { title: t || '제목 없음', content: c, tags: tg, is_shared: sh, updated_at: new Date().toISOString(), user_id: user.id };
     const { data, error } = note
       ? await supabase.from('research_notes').update(payload).eq('id', note.id).select().single()
       : await supabase.from('research_notes').insert(payload).select().single();
-    setSaving(false);
-    if (error) { showError(error.message); return; }
+    if (error) { setSaveState('idle'); showError(error.message); return; }
+    setSaveState('saved');
+    if (savedFlashRef.current) clearTimeout(savedFlashRef.current);
+    savedFlashRef.current = setTimeout(() => setSaveState('idle'), 1500);
     onSaved(data as Note);
-  }, [note, title, content, tags, shared, user, onSaved]);
+  }, [note, title, content, tags, shared, user, onSaved, showError]);
 
   // auto-save debounce
   const scheduleAutoSave = () => {
     if (autoRef.current) clearTimeout(autoRef.current);
     autoRef.current = setTimeout(() => save(), 2000);
   };
+
+  /**
+   * 공유 토글/태그 삭제처럼 즉시 저장해야 하는 동작 전용.
+   * 예약돼 있던 자동 저장(2초 디바운스)을 취소하지 않으면, 그 안에 캡처된
+   * 오래된 shared/tags 값으로 나중에 덮어써서 방금 한 변경이 사라지는 버그가 있었다.
+   */
+  const saveNow = useCallback((t = title, c = content, tg = tags, sh = shared) => {
+    if (autoRef.current) { clearTimeout(autoRef.current); autoRef.current = null; }
+    save(t, c, tg, sh);
+  }, [save, title, content, tags, shared]);
 
   const addTag = () => {
     const t = tagInput.trim();
@@ -108,25 +121,40 @@ function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () =
     <div className="flex flex-col h-screen max-h-screen">
       {/* header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 flex-shrink-0 flex-wrap gap-y-2">
-        <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="size-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={onBack} className="active:scale-90 transition-transform"><ArrowLeft className="size-4" /></Button>
         <Input value={title} onChange={e => { setTitle(e.target.value); scheduleAutoSave(); }}
           placeholder="제목 없음" className="flex-1 min-w-32 font-black text-base border-none shadow-none focus-visible:ring-0 px-2" />
         <div className="flex gap-1 items-center ml-auto flex-wrap">
-          <button onClick={() => { const n = !shared; setShared(n); save(title, content, tags, n); }}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${shared?'text-primary bg-primary/10':'text-muted-foreground bg-muted'}`}>
+          <button onClick={() => { const n = !shared; setShared(n); saveNow(title, content, tags, n); }}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${shared?'text-primary bg-primary/10':'text-muted-foreground bg-muted'}`}>
             {shared ? <Share2 className="size-3" /> : <Lock className="size-3" />}
             {shared ? '공개' : '비공개'}
           </button>
           <div className="flex gap-1 bg-muted rounded-lg p-0.5">
             {(['edit','preview'] as const).map(v => (
               <button key={v} onClick={() => setView(v)}
-                className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${view===v?'bg-background shadow text-foreground':'text-muted-foreground'}`}>
+                className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${view===v?'bg-background shadow text-foreground':'text-muted-foreground'}`}>
                 {v === 'edit' ? '편집' : '미리보기'}
               </button>
             ))}
           </div>
-          <Button size="sm" onClick={() => save()} disabled={saving} className="font-black text-xs gap-1.5">
-            <Save className="size-3" />{saving ? '저장 중...' : '저장'}
+          <Button
+            size="sm"
+            onClick={() => saveNow()}
+            disabled={saveState === 'saving'}
+            className={`font-black text-xs gap-1.5 transition-all active:scale-95 ${saveState === 'saved' ? 'bg-emerald-600 hover:bg-emerald-600 text-white' : ''}`}
+          >
+            {saveState === 'saving' ? (
+              <>저장 중...</>
+            ) : saveState === 'saved' ? (
+              <span key="saved" className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-200">
+                <Check className="size-3" />저장됨
+              </span>
+            ) : (
+              <>
+                <Save className="size-3" />저장
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -147,10 +175,10 @@ function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () =
           <textarea id="note-content" value={content}
             onChange={e => { setContent(e.target.value); scheduleAutoSave(); }}
             placeholder={'# 연구 노트 제목\n\n내용을 입력하세요...\n\n## 마크다운 문법 지원\n- **굵게**, *기울임*, `코드`\n- # H1, ## H2, ### H3\n- > 인용, --- 구분선\n- ``` 코드 블록 ```'}
-            className="flex-1 w-full resize-none px-6 py-4 text-sm font-mono bg-background outline-none leading-relaxed"
+            className="flex-1 w-full resize-none px-6 py-4 text-sm font-mono bg-background outline-none leading-relaxed animate-in fade-in duration-200"
           />
         ) : (
-          <div className="flex-1 overflow-y-auto px-6 py-4"
+          <div className="flex-1 overflow-y-auto px-6 py-4 animate-in fade-in duration-200"
             dangerouslySetInnerHTML={{ __html: renderMd(content) || '<p class="text-muted-foreground text-sm">내용이 없습니다.</p>' }} />
         )}
       </div>
@@ -159,8 +187,8 @@ function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () =
       <div className="flex items-center gap-2 px-4 py-2 border-t border-border/20 flex-shrink-0 flex-wrap">
         <Tag className="size-3 text-muted-foreground shrink-0" />
         {tags.map(t => (
-          <span key={t} className="flex items-center gap-1 text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-            {t}<button onClick={() => { const n=tags.filter(x=>x!==t); setTags(n); save(title,content,n,shared); }}><X className="size-2.5" /></button>
+          <span key={t} className="flex items-center gap-1 text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full animate-in fade-in zoom-in-95 duration-200">
+            {t}<button onClick={() => { const n=tags.filter(x=>x!==t); setTags(n); saveNow(title,content,n,shared); }} className="active:scale-90 transition-transform"><X className="size-2.5" /></button>
           </span>
         ))}
         <input value={tagInput} onChange={e => setTagInput(e.target.value)}
@@ -225,31 +253,32 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
         <div className="flex gap-1.5">
           {(['mine','shared'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-3 py-1.5 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all ${tab===t?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
+              className={`px-3 py-1.5 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 ${tab===t?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
               {t === 'mine' ? `내 노트 (${notes.length})` : `공유됨 (${shared.length})`}
             </button>
           ))}
         </div>
         <div className="flex gap-2">
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="검색..." className="h-8 w-32 text-xs" />
-          {tab === 'mine' && <Button onClick={() => onOpen(null)} size="sm" className="font-black text-xs gap-1.5 h-8"><Plus className="size-3" />새 노트</Button>}
+          {tab === 'mine' && <Button onClick={() => onOpen(null)} size="sm" className="font-black text-xs gap-1.5 h-8 active:scale-95 transition-transform"><Plus className="size-3" />새 노트</Button>}
         </div>
       </div>
 
       {loading ? <div className="space-y-2">{[1,2,3].map(i=><div key={i} className="h-16 bg-muted/40 animate-pulse rounded-xl"/>)}</div>
       : shown.length === 0 ? (
-        <div className="py-16 text-center text-muted-foreground border-2 border-dashed rounded-3xl">
+        <div className="py-16 text-center text-muted-foreground border-2 border-dashed rounded-3xl animate-in fade-in duration-300">
           <p className="font-medium">{tab==='mine'?'노트를 만들어 보세요.':'공유된 노트가 없습니다.'}</p>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
-          {shown.map(n => (
+          {shown.map((n, i) => (
             <div key={n.id} onClick={() => onOpen(n)}
-              className="p-4 border border-border/50 rounded-2xl bg-card hover:bg-muted/20 cursor-pointer transition-all group space-y-2">
+              style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+              className="p-4 border border-border/50 rounded-2xl bg-card hover:bg-muted/20 hover:-translate-y-0.5 hover:shadow-md cursor-pointer transition-all group space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-black text-sm leading-tight line-clamp-1">{n.title}</h3>
                 {tab==='mine' && (
-                  <button onClick={e=>{e.stopPropagation();setConfirmDeleteId(n.id);}} className="opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all">
+                  <button onClick={e=>{e.stopPropagation();setConfirmDeleteId(n.id);}} className="opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive active:scale-90 transition-all">
                     <Trash2 className="size-3.5" />
                   </button>
                 )}
@@ -258,7 +287,11 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
               <div className="flex items-center gap-2 flex-wrap">
                 {n.tags.slice(0,3).map(t=><span key={t} className="text-[9px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{t}</span>)}
                 <span className="text-[9px] text-muted-foreground ml-auto">{new Date(n.updated_at).toLocaleDateString('ko-KR')}</span>
-                {n.is_shared && <Share2 className="size-2.5 text-muted-foreground/50" />}
+                {n.is_shared && (
+                  <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                    <Share2 className="size-2.5" />공개
+                  </span>
+                )}
               </div>
             </div>
           ))}

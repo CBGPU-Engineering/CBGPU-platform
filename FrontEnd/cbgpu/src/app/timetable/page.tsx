@@ -10,21 +10,18 @@ const DAYS    = ['월', '화', '수', '목', '금'];
 const MAX_P   = 7;
 const PERIODS = Array.from({ length: MAX_P }, (_, i) => i + 1);
 
+/** 과목마다 셀 전체를 파스텔로 칠하는 대신, 좌측 얇은 띠 + 텍스트 색으로만 구분한다 */
 const COLORS = [
-  'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/20',
-  'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/20',
-  'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/20',
-  'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/20',
-  'bg-pink-500/15 text-pink-700 dark:text-pink-300 border-pink-500/20',
-  'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/20',
-  'bg-yellow-500/15 text-yellow-700 dark:text-yellow-300 border-yellow-500/20',
-  'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/20',
-  'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/20',
-  'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/20',
+  { bar: 'bg-blue-500',    text: 'text-blue-700 dark:text-blue-300' },
+  { bar: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-300' },
+  { bar: 'bg-violet-500',  text: 'text-violet-700 dark:text-violet-300' },
+  { bar: 'bg-amber-500',   text: 'text-amber-700 dark:text-amber-300' },
+  { bar: 'bg-rose-500',    text: 'text-rose-700 dark:text-rose-300' },
+  { bar: 'bg-sky-500',     text: 'text-sky-700 dark:text-sky-300' },
 ];
-const cc: Record<string, string> = {};
+const cc: Record<string, typeof COLORS[number]> = {};
 function subjectColor(n: string) {
-  if (!n) return '';
+  if (!n) return COLORS[0];
   if (!cc[n]) { const h = [...n].reduce((a, c) => a + c.charCodeAt(0), 0); cc[n] = COLORS[h % COLORS.length]; }
   return cc[n];
 }
@@ -138,19 +135,19 @@ export default function TimetablePage() {
             </Button>
           )}
           {isAdmin && !editing && (
-            <Button onClick={startEdit} variant="outline" size="sm" className="font-black text-xs uppercase gap-1.5">
+            <Button onClick={startEdit} variant="outline" size="sm" className="font-black text-xs uppercase gap-1.5 active:scale-95 transition-transform">
               <Edit3 className="size-3.5" /> 직접 편집
             </Button>
           )}
           {isAdmin && editing && (
             <div className="flex gap-2">
-              <Button onClick={() => setDraft({})} variant="ghost" size="sm" className="font-black text-xs gap-1.5 text-muted-foreground">
+              <Button onClick={() => setDraft({})} variant="ghost" size="sm" className="font-black text-xs gap-1.5 text-muted-foreground active:scale-95 transition-transform">
                 <RotateCcw className="size-3" />
               </Button>
-              <Button onClick={() => setEditing(false)} variant="outline" size="sm" className="font-black text-xs gap-1.5">
+              <Button onClick={() => setEditing(false)} variant="outline" size="sm" className="font-black text-xs gap-1.5 active:scale-95 transition-transform">
                 <X className="size-3" /> 취소
               </Button>
-              <Button onClick={save} size="sm" disabled={saving} className="font-black text-xs uppercase gap-1.5">
+              <Button onClick={save} size="sm" disabled={saving} className="font-black text-xs uppercase gap-1.5 active:scale-95 transition-transform">
                 <Save className="size-3" /> {saving ? '저장 중...' : '저장'}
               </Button>
             </div>
@@ -162,7 +159,7 @@ export default function TimetablePage() {
         <div className="flex gap-1">
           {grades.map(g => (
             <button key={g} onClick={() => switchTo(g, cls)}
-              className={`px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${grade===g?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
+              className={`px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${grade===g?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
               {g}학년
             </button>
           ))}
@@ -170,7 +167,7 @@ export default function TimetablePage() {
         <div className="flex gap-1">
           {classes.map(c => (
             <button key={c} onClick={() => switchTo(grade, c)}
-              className={`px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${cls===c?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
+              className={`px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${cls===c?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
               {c}반
             </button>
           ))}
@@ -223,14 +220,15 @@ export default function TimetablePage() {
                           <input value={subject}
                             onChange={e => setDraft(prev => ({ ...prev, [di]: { ...prev[di], [p]: e.target.value } }))}
                             placeholder="과목"
-                            className={`w-full h-14 px-1.5 text-center text-[11px] font-black rounded-lg border outline-none focus:border-primary ${subject?subjectColor(subject):'bg-muted/20 border-border/30 placeholder:text-muted-foreground/30'}`}
+                            className="w-full h-14 px-1.5 text-center text-[11px] font-bold rounded-lg border border-border/40 bg-muted/20 outline-none focus:border-primary focus:bg-background placeholder:text-muted-foreground/30 transition-colors"
                           />
                         ) : subject ? (
                           <div title={changed ? '컴시간 실시간 변경' : undefined}
-                            className={`relative h-14 px-1.5 rounded-lg border text-center flex flex-col items-center justify-center gap-0.5 hover:scale-105 transition-all ${subjectColor(subject)} ${isToday?'shadow-sm':''} ${changed?'ring-2 ring-amber-500/70':''}`}>
+                            className={`relative h-14 pl-2.5 pr-1.5 rounded-lg border border-border/40 bg-card text-center flex flex-col items-center justify-center gap-0.5 overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all ${isToday?'ring-1 ring-primary/15':''} ${changed?'ring-2 ring-amber-500/60':''}`}>
+                            <span className={`absolute inset-y-0 left-0 w-1 ${subjectColor(subject).bar}`} />
                             {changed && <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-500" />}
-                            <span className="text-[11px] font-black leading-tight line-clamp-1">{subject}</span>
-                            {teacher && <span className="text-[9px] opacity-55 leading-tight">{teacher}</span>}
+                            <span className={`text-[11px] font-black leading-tight line-clamp-1 ${subjectColor(subject).text}`}>{subject}</span>
+                            {teacher && <span className="text-[9px] text-muted-foreground leading-tight">{teacher}</span>}
                           </div>
                         ) : (
                           <div className="h-14 rounded-lg bg-muted/10 border border-transparent" />
