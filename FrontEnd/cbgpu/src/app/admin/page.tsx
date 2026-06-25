@@ -6,7 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAlert } from '@/lib/alert';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
-import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2 } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2, KeyRound } from 'lucide-react';
+import Link from 'next/link';
 
 export default function AdminPage() {
   const { isAdmin, isLoading: authLoading } = useAuth();
@@ -127,6 +128,11 @@ export default function AdminPage() {
             <p className="text-muted-foreground font-bold uppercase text-xs tracking-widest opacity-60">Review and manage GPU reservation requests</p>
           </div>
           <div className="h-1 flex-grow bg-muted rounded-full hidden md:block opacity-20"></div>
+          <Link href="/admin/study">
+            <Button variant="outline" className="font-black text-xs uppercase tracking-widest gap-1.5">
+              <KeyRound className="size-3.5" /> 자습신청 토큰 관리
+            </Button>
+          </Link>
         </div>
 
         <div className="border-2 rounded-3xl bg-card overflow-hidden shadow-2xl transition-all">
