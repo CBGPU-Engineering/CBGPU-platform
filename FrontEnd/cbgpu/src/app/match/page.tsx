@@ -33,7 +33,7 @@ function PostCard({
   const full   = cnt >= post.max_members;
 
   return (
-    <div className="border border-border/50 rounded-2xl bg-card transition-all hover:bg-muted/10 hover:-translate-y-0.5 hover:shadow-md">
+    <div className="border border-border/50 rounded-2xl bg-card transition-all hover:bg-muted/10 tilt-3d">
       <div className="p-4 cursor-pointer" onClick={() => setOpen(o => !o)}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">

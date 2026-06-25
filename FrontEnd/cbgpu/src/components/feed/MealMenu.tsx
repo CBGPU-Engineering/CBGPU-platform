@@ -78,7 +78,7 @@ export default function MealMenu() {
           <div
             key={i}
             style={{ animationDelay: `${i * 60}ms` }}
-            className="p-4 rounded-2xl border border-border/40 bg-card space-y-2 hover:-translate-y-0.5 hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+            className="p-4 rounded-2xl border border-border/40 bg-card space-y-2 tilt-3d transition-all animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
           >
             <div className="flex items-center gap-2">
               <Badge className={MEAL_COLOR[meal.type] ?? 'bg-muted text-muted-foreground'}>{meal.type}</Badge>

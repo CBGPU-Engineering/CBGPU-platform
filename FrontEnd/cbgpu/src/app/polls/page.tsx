@@ -620,7 +620,7 @@ export default function PollsPage() {
               <div
                 key={poll.id}
                 style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
-                className="p-4 border border-border/50 rounded-2xl bg-card hover:bg-muted/20 hover:-translate-y-0.5 hover:shadow-md transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                className="p-4 border border-border/50 rounded-2xl bg-card hover:bg-muted/20 tilt-3d transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
                 onClick={() => openPoll(poll)}
               >
                 <div className="flex items-start justify-between gap-3">

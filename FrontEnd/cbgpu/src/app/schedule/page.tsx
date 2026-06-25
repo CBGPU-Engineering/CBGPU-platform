@@ -184,7 +184,7 @@ export default function SchedulePage() {
                   selectedDayReservations.map((res) => {
                     const c = GPU_COLORS[res.gpu_id];
                     return (
-                      <div key={res.id} className="relative pl-4 pr-3 py-3 rounded-2xl border border-border/40 bg-card overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all">
+                      <div key={res.id} className="relative pl-4 pr-3 py-3 rounded-2xl border border-border/40 bg-card overflow-hidden tilt-3d transition-all">
                         <span className={cn('absolute inset-y-0 left-0 w-1', c.dot)} />
                         <div className={cn('text-xs font-black mb-1.5', c.text)}>GPU #{res.gpu_id}</div>
                         <div className="text-[11px] font-bold space-y-0.5 text-foreground">
