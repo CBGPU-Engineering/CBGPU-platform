@@ -1,21 +1,134 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
-import { DoorOpen, ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Search, ExternalLink, RefreshCw, AlertTriangle, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getRooms, getSeatOccupations, getStudent, type Room } from '@/lib/eduset';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  getRooms, getRoomComposition, getSeatOccupations, getStudent,
+  type Room, type Seat, type Obstacle, type Student,
+} from '@/lib/eduset';
 
 const OFFICIAL_STUDY_URL = 'https://cbsh.edu-set.com';
+const MIN_PERIODS = 4;
 
-interface RoomSummary {
+function formatStudentLabel(student: Student): string {
+  const studentNumber = student.grade * 1000 + student.classNo * 100 + student.number;
+  return `${studentNumber} ${student.name}`;
+}
+
+interface Occupant {
+  label: string;
+  period: number;
+}
+
+interface RoomData {
   room: Room;
-  occupiedCount: number;
-  occupants: string[];
+  seats: Seat[];
+  obstacles: Obstacle[];
+  occupantsBySeat: Map<number, Occupant[]>;
+}
+
+function PeriodSelector({ periods, selectedPeriod, onSelect, className = '' }: {
+  periods: number[];
+  selectedPeriod: number;
+  onSelect: (period: number) => void;
+  className?: string;
+}) {
+  return (
+    <div className={`flex gap-1.5 overflow-x-auto pb-1 ${className}`}>
+      {periods.map((p) => (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onSelect(p)}
+          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-black uppercase tracking-widest border transition-colors ${
+            selectedPeriod === p
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-background border-border/60 text-muted-foreground hover:border-primary/50'
+          }`}
+        >
+          {p}교시
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod }: {
+  room: Room;
+  seats: Seat[];
+  obstacles: Obstacle[];
+  occupantsBySeat: Map<number, Occupant[]>;
+  selectedPeriod: number;
+}) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const cellSize = Math.max(18, Math.min(36, 480 / Math.max(room.width, 1)));
+  const selectedSeat = selected != null ? seats.find((s) => s.id === selected) : undefined;
+  const selectedOccupants = selected != null
+    ? occupantsBySeat.get(selected)?.filter((o) => o.period === selectedPeriod)
+    : undefined;
+
+  return (
+    <div className="space-y-2">
+      <div
+        className="relative rounded-xl border border-border/50 bg-muted/10 mx-auto overflow-hidden"
+        style={{ width: room.width * cellSize, height: room.height * cellSize }}
+      >
+        {obstacles.map((ob) => (
+          <div
+            key={`ob-${ob.id}`}
+            className="absolute rounded-sm bg-muted-foreground/20 border border-border/40 flex items-center justify-center text-[8px] text-muted-foreground font-bold overflow-hidden"
+            style={{ left: ob.x * cellSize, top: ob.y * cellSize, width: ob.w * cellSize, height: ob.h * cellSize }}
+            title={ob.name}
+          >
+            {ob.name}
+          </div>
+        ))}
+        {seats.map((seat) => {
+          const occupants = occupantsBySeat.get(seat.id)?.filter((o) => o.period === selectedPeriod);
+          const occupied = !!occupants?.length;
+          return (
+            <button
+              key={seat.id}
+              type="button"
+              onClick={() => setSelected(seat.id)}
+              title={
+                occupied
+                  ? `${seat.name}: ${occupants!.map((o) => o.label).join(', ')}`
+                  : `${seat.name}: 비어있음`
+              }
+              className={`absolute rounded-[4px] border text-[8px] font-bold flex items-center justify-center transition-colors ${
+                occupied
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background border-border/60 text-muted-foreground hover:border-primary/50'
+              } ${selected === seat.id ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+              style={{ left: seat.x * cellSize, top: seat.y * cellSize, width: cellSize - 2, height: cellSize - 2 }}
+            >
+              {seat.name}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="text-xs text-center text-muted-foreground min-h-[1.2em]">
+        {selectedSeat
+          ? selectedOccupants?.length
+            ? `${selectedSeat.name}: ${selectedOccupants.map((o) => o.label).join(', ')}`
+            : `${selectedSeat.name}: 비어있음`
+          : '좌석을 눌러 확인하세요'}
+      </div>
+    </div>
+  );
 }
 
 export default function StudyPage() {
-  const [roomSummaries, setRoomSummaries] = useState<RoomSummary[]>([]);
+  const [roomData, setRoomData] = useState<RoomData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [openRoomId, setOpenRoomId] = useState<number | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState(1);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -25,37 +138,47 @@ export default function StudyPage() {
       const rooms = await getRooms();
       const dateStr = new Date().toISOString().slice(0, 10);
 
-      const summaries = await Promise.all(
-        rooms.map(async (room) => {
+      const data = await Promise.all(
+        rooms.map(async (room): Promise<RoomData> => {
           if (!room.hasSeats) {
-            return { room, occupiedCount: 0, occupants: [] };
+            return { room, seats: [], obstacles: [], occupantsBySeat: new Map() };
           }
           try {
-            const occupations = await getSeatOccupations(room.id, dateStr);
-            const studentIds = [...new Set(occupations.map((item) => item.studentId))];
-            const names = (await Promise.all(
+            const [composition, occupations] = await Promise.all([
+              getRoomComposition(room.id),
+              getSeatOccupations(room.id, dateStr),
+            ]);
+
+            const studentIds = [...new Set(occupations.map((o) => o.studentId))];
+            const labelById = new Map<number, string>();
+            await Promise.all(
               studentIds.map(async (studentId) => {
                 try {
                   const student = await getStudent(studentId);
-                  return student.name;
+                  labelById.set(studentId, formatStudentLabel(student));
                 } catch {
-                  return null;
+                  // 정보를 못 가져오면 그 좌석은 비식별로 둔다
                 }
               })
-            )).filter(Boolean) as string[];
+            );
 
-            return {
-              room,
-              occupiedCount: occupations.length,
-              occupants: names,
-            };
+            const occupantsBySeat = new Map<number, Occupant[]>();
+            occupations.forEach((o) => {
+              const label = labelById.get(o.studentId);
+              if (!label) return;
+              const list = occupantsBySeat.get(o.seatId) ?? [];
+              list.push({ label, period: o.period });
+              occupantsBySeat.set(o.seatId, list);
+            });
+
+            return { room, seats: composition.seats, obstacles: composition.obstacles, occupantsBySeat };
           } catch {
-            return { room, occupiedCount: 0, occupants: [] };
+            return { room, seats: [], obstacles: [], occupantsBySeat: new Map() };
           }
         })
       );
 
-      setRoomSummaries(summaries);
+      setRoomData(data);
     } catch (err: any) {
       setError(err?.message ?? String(err) ?? '현황을 불러오지 못했습니다.');
     } finally {
@@ -67,34 +190,62 @@ export default function StudyPage() {
     void loadData();
   }, [loadData]);
 
+  const periods = useMemo(() => {
+    let maxObserved = 0;
+    roomData.forEach(({ occupantsBySeat }) => {
+      occupantsBySeat.forEach((list) => {
+        list.forEach((o) => {
+          if (o.period > maxObserved) maxObserved = o.period;
+        });
+      });
+    });
+    const count = Math.max(MIN_PERIODS, maxObserved);
+    return Array.from({ length: count }, (_, i) => i + 1);
+  }, [roomData]);
+
+  const filteredRoomData = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return roomData;
+    return roomData.filter(({ room }) => room.name.toLowerCase().includes(q));
+  }, [roomData, query]);
+
+  const openRoomData = openRoomId != null ? roomData.find((d) => d.room.id === openRoomId) : undefined;
+
   const openOfficialSite = () => {
     window.open(OFFICIAL_STUDY_URL, '_blank', 'noopener,noreferrer');
   };
 
   return (
-    <main className="px-4 py-8 space-y-6 max-w-5xl mx-auto">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black uppercase tracking-tighter italic">자습신청</h1>
-          <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">
-            자습실별 현황과 예약자 이름을 빠르게 확인하고 공식 사이트로 바로 이동합니다.
+    <main className="px-4 py-8 space-y-5 max-w-5xl mx-auto">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter italic">자습신청</h1>
+          <p className="hidden sm:block text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">
+            자습실별 현황을 확인하고 공식 사이트로 바로 이동합니다.
           </p>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center shrink-0">
           <Button variant="ghost" size="icon" className="size-8" onClick={() => loadData()} disabled={loading}>
             <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button onClick={openOfficialSite} className="font-black uppercase tracking-widest gap-2">
-            <ExternalLink className="size-4" /> 공식 사이트로 가기
+          <Button onClick={openOfficialSite} size="sm" className="font-black uppercase tracking-widest gap-1.5">
+            <ExternalLink className="size-4" />
+            <span className="hidden sm:inline">공식 사이트로 가기</span>
           </Button>
         </div>
       </div>
 
-      <div className="rounded-3xl border border-border/60 bg-muted/20 p-4 md:p-5 space-y-2">
-        <p className="text-sm text-muted-foreground font-medium">
-          현재 페이지는 자습실 현황 확인용입니다. 신청/취소는 공식 사이트에서 진행합니다.
-        </p>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="자습실 이름으로 검색"
+          className="pl-9"
+        />
       </div>
+
+      <PeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} className="-mx-1 px-1" />
 
       {error && (
         <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 md:flex-row md:items-start md:justify-between">
@@ -112,44 +263,84 @@ export default function StudyPage() {
         <div className="flex justify-center py-12">
           <RefreshCw className="size-6 animate-spin text-muted-foreground" />
         </div>
-      ) : roomSummaries.length === 0 ? (
+      ) : filteredRoomData.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
-          아직 확인 가능한 자습실 데이터가 없습니다.
+          {roomData.length === 0 ? '아직 확인 가능한 자습실 데이터가 없습니다.' : '검색 결과가 없습니다.'}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {roomSummaries.map(({ room, occupiedCount, occupants }) => (
-            <div key={room.id} className="rounded-3xl border border-border/50 bg-background/70 p-4 space-y-3 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-black text-sm">{room.name}</p>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
-                    {room.hasSeats ? `${room.width} x ${room.height}` : '좌석 없음'}
-                  </p>
-                </div>
-                {room.hasSeats && (
-                  <div className="rounded-full border border-border/50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest">
-                    {occupiedCount}명 예약
+          {filteredRoomData.map(({ room, seats, occupantsBySeat }) => {
+            const occupiedCount = [...occupantsBySeat.values()].filter((list) =>
+              list.some((o) => o.period === selectedPeriod)
+            ).length;
+            return (
+              <div key={room.id} className="rounded-3xl border border-border/50 bg-background/70 p-4 space-y-3 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-black text-sm">{room.name}</p>
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                      {room.hasSeats ? `${room.width} x ${room.height}` : '좌석 없음'}
+                    </p>
                   </div>
+                  {room.hasSeats && (
+                    <div className="rounded-full border border-border/50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest shrink-0">
+                      {occupiedCount}명 예약
+                    </div>
+                  )}
+                </div>
+
+                {room.hasSeats ? (
+                  seats.length > 0 ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full font-bold text-xs gap-1.5"
+                      onClick={() => setOpenRoomId(room.id)}
+                    >
+                      <LayoutGrid className="size-3.5" /> 좌석 배치 보려면 누르세요
+                    </Button>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">좌석 배치 정보를 불러오지 못했습니다.</p>
+                  )
+                ) : (
+                  <p className="text-sm text-muted-foreground">좌석 없이 정원으로 운영되는 자습실입니다.</p>
                 )}
               </div>
-
-              {room.hasSeats && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <DoorOpen className="size-4" />
-                  <span>{occupants.length > 0 ? occupants.join(', ') : '현재 예약자가 없습니다.'}</span>
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
+      <Dialog open={openRoomId != null} onOpenChange={(open) => !open && setOpenRoomId(null)}>
+        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
+          {openRoomData && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{openRoomData.room.name} 좌석 배치</DialogTitle>
+                <DialogDescription>
+                  {selectedPeriod}교시 기준입니다. 좌석을 눌러 예약자(학번/이름)를 확인하세요.
+                </DialogDescription>
+              </DialogHeader>
+              <PeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} />
+              <SeatMap
+                room={openRoomData.room}
+                seats={openRoomData.seats}
+                obstacles={openRoomData.obstacles}
+                occupantsBySeat={openRoomData.occupantsBySeat}
+                selectedPeriod={selectedPeriod}
+              />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Button
         onClick={openOfficialSite}
-        className="fixed bottom-4 right-4 z-20 rounded-full px-4 py-3 font-black uppercase tracking-widest shadow-lg"
+        size="sm"
+        className="fixed bottom-4 right-4 z-20 rounded-full px-4 py-3 font-black uppercase tracking-widest shadow-lg gap-1.5"
       >
-        <ExternalLink className="size-4" /> 자습신청 사이트
+        <ExternalLink className="size-4" />
+        <span className="hidden sm:inline">자습신청 사이트</span>
       </Button>
     </main>
   );
