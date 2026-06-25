@@ -68,6 +68,19 @@ export interface SeatOccupation {
   state?: string;
 }
 
+export type SelfStudyStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface SelfStudyEntry {
+  id: number;
+  type: string;
+  date: string;
+  period: number;
+  status: SelfStudyStatus;
+  student: Student;
+  room: { id: number; name: string };
+  seat?: { id: number; name: string } | null;
+}
+
 export interface SelfStudyPolicy {
   timetable: {
     presets: Record<string, unknown[]>;
@@ -227,6 +240,18 @@ export function getRoomComposition(roomId: number): Promise<RoomComposition> {
 
 export function getSeatOccupations(roomId: number, dateStr: string): Promise<SeatOccupation[]> {
   return apiFetch(`/rooms/${roomId}/seats/occupations?date=${dateStr}`);
+}
+
+/**
+ * 좌석 점유 상태(occupations)와 달리 승인 대기중인 신청까지 포함한다.
+ * 학생 권한으로 studentId/teacherId 필터 없이도 전체가 조회되는지는 확인되지 않았으므로
+ * 실패 시 호출부에서 빈 배열로 대체해야 한다.
+ */
+export function searchSelfStudy(params: { date: string }): Promise<SelfStudyEntry[]> {
+  return apiFetch('/selfstudy/search', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
 }
 
 export function occupySeat(roomId: number, seatId: number, period: number, date: string): Promise<void> {
