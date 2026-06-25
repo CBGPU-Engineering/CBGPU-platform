@@ -351,7 +351,8 @@ export default function Dashboard() {
             ))}
           </div>
         ) : myReservations.length === 0 ? (
-          <div className="text-center py-20 border-2 border-dashed rounded-3xl text-muted-foreground transition-colors duration-500 font-medium bg-muted/10">
+          <div className="text-center py-20 border-2 border-dashed rounded-3xl text-muted-foreground transition-colors duration-500 font-medium bg-muted/10 pop-in-3d">
+            <img src="/3d-icons/computer.webp" alt="" className="size-20 mx-auto mb-3 opacity-90" />
             No active reservations found.
           </div>
         ) : (
