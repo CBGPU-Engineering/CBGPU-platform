@@ -5,8 +5,10 @@
  * 브라우저에서 직접 호출 가능하다. 그래서 우리 서버를 거치지 않고 클라이언트에서 바로
  * api.cbsh.edu-set.com을 호출한다 — 학생 비밀번호가 우리 서버를 지나가지 않는다.
  */
-const BASE_URL = 'https://api.cbsh.edu-set.com';
+const BASE_URL = '/api/study/proxy';
 const TOKEN_KEY = 'eduset_token';
+const TOKEN_EXPIRES_KEY = 'eduset_token_expires_at';
+const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 export const TURNSTILE_SITE_KEY = '0x4AAAAAAAhSoZoG7Vi6-ALf';
 
 export type Role = 'ADMIN' | 'TEACHER' | 'STUDENT' | 'PARENT' | 'HR_TEACHER';
@@ -66,17 +68,41 @@ export interface SeatOccupation {
   state?: string;
 }
 
-export function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+function clearTokenStorage() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_EXPIRES_KEY);
 }
 
-function setToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
+export function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  const token = localStorage.getItem(TOKEN_KEY);
+  const expiresAt = Number(localStorage.getItem(TOKEN_EXPIRES_KEY) ?? '0');
+
+  if (!token) {
+    clearTokenStorage();
+    return null;
+  }
+
+  if (expiresAt && Date.now() > expiresAt) {
+    clearTokenStorage();
+    return null;
+  }
+
+  return token;
+}
+
+export function setToken(token: string) {
+  if (typeof window === 'undefined') return;
+  const expiresAt = Date.now() + TOKEN_TTL_MS;
+  const normalized = token.startsWith('Bearer ') ? token.slice(7) : token;
+  localStorage.setItem(TOKEN_KEY, normalized);
+  localStorage.setItem(TOKEN_EXPIRES_KEY, String(expiresAt));
 }
 
 export function signOut() {
-  localStorage.removeItem(TOKEN_KEY);
+  if (typeof window === 'undefined') return;
+  clearTokenStorage();
 }
 
 /** JWT payload(base64url)를 디코드해서 userId를 꺼낸다 */
@@ -95,12 +121,16 @@ function decodeUserId(token: string): number {
 class EdusetError extends Error {}
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getToken();
+  const rawToken = getToken();
+  const token = rawToken?.startsWith('Bearer ') ? rawToken.slice(7) : rawToken;
   const res = await fetch(BASE_URL + path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(token ? {
+        Authorization: `Bearer ${token}`,
+        'x-jwt': token,
+      } : {}),
       ...init?.headers,
     },
   });
@@ -120,20 +150,25 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function signIn(id: string, password: string, turnstileResponse?: string): Promise<void> {
-  const body = EMAIL_RE.test(id)
-    ? { email: id, password, turnstileResponse }
-    : { username: id, password, turnstileResponse };
+  const response = await fetch('/api/study/auth', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id, password, turnstileResponse }),
+  });
 
-  const headers: Record<string, string> = {};
-  if (turnstileResponse) {
-    headers['X-Turnstile-Response'] = turnstileResponse;
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(data?.message ?? '토큰 발급에 실패했습니다.');
   }
 
-  const { accessToken } = await apiFetch<{ accessToken: string }>('/auth/signin', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
+  const accessToken = data?.accessToken;
+  if (!accessToken) {
+    throw new Error('토큰 응답이 비어 있습니다.');
+  }
+
   setToken(accessToken);
 }
 
