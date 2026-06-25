@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 
 const TABS = [
   { id: 'notice',   label: '공지사항' },
@@ -46,16 +47,11 @@ export default function SchoolNews() {
   return (
     <div className="w-full space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex gap-1.5">
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`px-3 py-1.5 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all ${
-                tab === t.id ? 'bg-primary text-primary-foreground shadow-md' : 'bg-muted text-muted-foreground hover:bg-muted/70'
-              }`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          items={TABS.map(t => ({ value: t.id, label: t.label }))}
+          value={tab}
+          onChange={(v) => setTab(v as TabId)}
+        />
         <div className="flex items-center gap-2">
           {updated && <span className="text-[10px] text-muted-foreground">{updated.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' })}</span>}
           <Button variant="ghost" size="icon" className="size-7" onClick={() => load(tab)} disabled={loading}>

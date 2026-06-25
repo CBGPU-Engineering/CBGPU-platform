@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
 import { Plus, Users, X, Trash2, Lock } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { Badge } from '@/components/ui/badge';
 
 interface StudyPost {
   id: string; created_at: string; user_id: string;
@@ -31,14 +33,14 @@ function PostCard({
   const full   = cnt >= post.max_members;
 
   return (
-    <div className="border border-border/50 rounded-2xl bg-card transition-all hover:bg-muted/10">
+    <div className="border border-border/50 rounded-2xl bg-card transition-all hover:bg-muted/10 hover:-translate-y-0.5 hover:shadow-md">
       <div className="p-4 cursor-pointer" onClick={() => setOpen(o => !o)}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase tracking-wide">{post.subject}</span>
-              {!post.is_open && <span className="text-[9px] font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex items-center gap-1"><Lock className="size-2.5" />마감</span>}
-              {joined && <span className="text-[9px] font-black text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">참여 중</span>}
+              <Badge>{post.subject}</Badge>
+              {!post.is_open && <Badge variant="muted" icon={<Lock className="size-2.5" />}>마감</Badge>}
+              {joined && <Badge variant="success">참여 중</Badge>}
             </div>
             <h3 className="font-black text-sm">{post.title}</h3>
             {post.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{post.description}</p>}
@@ -56,7 +58,7 @@ function PostCard({
           </div>
         </div>
         <div className="flex gap-1 mt-2 flex-wrap">
-          {post.tags.map(t => <span key={t} className="text-[9px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{t}</span>)}
+          {post.tags.map(t => <Badge key={t} variant="muted">{t}</Badge>)}
         </div>
       </div>
 
@@ -232,14 +234,11 @@ export default function MatchPage() {
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex gap-1.5">
-          {(['all','mine'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`px-3 py-1.5 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all ${tab===t?'bg-primary text-primary-foreground shadow-md':'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
-              {t === 'all' ? '전체' : '참여 중'}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          items={[{ value: 'all', label: '전체' }, { value: 'mine', label: '참여 중' }]}
+          value={tab}
+          onChange={(v) => setTab(v as 'all' | 'mine')}
+        />
         <div className="flex gap-1 flex-wrap">
           <button onClick={() => setFilter('')}
             className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all ${!filter?'bg-primary/10 text-primary':'bg-muted text-muted-foreground'}`}>전체</button>
@@ -255,11 +254,13 @@ export default function MatchPage() {
         <div className="py-20 text-center border-2 border-dashed rounded-3xl text-muted-foreground font-medium">스터디 그룹이 없습니다.</div>
       ) : (
         <div className="space-y-3">
-          {shown.map(post => (
-            <PostCard key={post.id} post={post}
-              members={members} myUserId={user?.id ?? ''}
-              onJoin={() => join(post.id)} onLeave={() => leave(post.id)}
-              onDelete={() => setConfirmDeleteId(post.id)} onClose={() => close(post.id)} />
+          {shown.map((post, i) => (
+            <div key={post.id} style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }} className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards">
+              <PostCard post={post}
+                members={members} myUserId={user?.id ?? ''}
+                onJoin={() => join(post.id)} onLeave={() => leave(post.id)}
+                onDelete={() => setConfirmDeleteId(post.id)} onClose={() => close(post.id)} />
+            </div>
           ))}
         </div>
       )}

@@ -19,10 +19,10 @@ interface MealData {
   error?: string;
 }
 
-const TYPE_CARD: Record<string, string> = {
-  '조식': 'border-amber-500/30 bg-amber-500/5',
-  '중식': 'border-green-500/30 bg-green-500/5',
-  '석식': 'border-indigo-500/30 bg-indigo-500/5',
+const TYPE_ACCENT: Record<string, string> = {
+  '조식': 'bg-amber-500',
+  '중식': 'bg-green-500',
+  '석식': 'bg-indigo-500',
 };
 const TYPE_BADGE: Record<string, string> = {
   '조식': 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
@@ -114,8 +114,13 @@ export default function MealPage() {
         />
       ) : (
         <div className="space-y-4">
-          {data.meals.map((meal) => (
-            <div key={meal.type} className={`border rounded-2xl p-5 ${TYPE_CARD[meal.type] ?? 'border-border/50 bg-card'}`}>
+          {data.meals.map((meal, i) => (
+            <div
+              key={meal.type}
+              style={{ animationDelay: `${i * 60}ms` }}
+              className="relative pl-6 pr-5 py-5 rounded-2xl border border-border/40 bg-card overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+            >
+              <span className={`absolute inset-y-0 left-0 w-1 ${TYPE_ACCENT[meal.type] ?? 'bg-primary'}`} />
               <div className="flex items-center justify-between mb-3">
                 <span className={`text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wide ${TYPE_BADGE[meal.type] ?? 'bg-primary/10 text-primary'}`}>
                   {meal.type}
@@ -125,8 +130,8 @@ export default function MealPage() {
                 )}
               </div>
               <ul className="space-y-1.5">
-                {meal.items.map((item, i) => (
-                  <li key={i} className="text-sm font-medium text-foreground/90 flex items-start gap-1.5">
+                {meal.items.map((item, j) => (
+                  <li key={j} className="text-sm font-medium text-foreground/90 flex items-start gap-1.5">
                     <span className="opacity-30 mt-0.5 shrink-0">·</span>
                     {item}
                   </li>

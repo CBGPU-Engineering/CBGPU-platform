@@ -10,6 +10,8 @@ import {
   CheckSquare, Circle, Type, AlignLeft, Star, List, Lock, CheckCircle2,
 } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { Badge } from '@/components/ui/badge';
 
 // ─── types ────────────────────────────────────────────────────────────────────
 type QType = 'choice' | 'checkbox' | 'text' | 'paragraph' | 'scale' | 'dropdown';
@@ -595,14 +597,14 @@ export default function PollsPage() {
         {isAdmin && <Button onClick={() => setView({ type: 'builder' })} className="font-black uppercase tracking-widest gap-2"><Plus className="size-4" />투표 만들기</Button>}
       </div>
 
-      <div className="flex gap-1.5">
-        {(['active', 'closed'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-3 py-1.5 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all ${tab === t ? 'bg-primary text-primary-foreground shadow-md' : 'bg-muted text-muted-foreground hover:bg-muted/70'}`}>
-            {t === 'active' ? '진행 중' : '마감'} ({polls.filter(p => t === 'active' ? (p.is_active && (!p.ends_at || new Date(p.ends_at) >= new Date())) : isClosed(p)).length})
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        items={(['active', 'closed'] as const).map(t => ({
+          value: t,
+          label: `${t === 'active' ? '진행 중' : '마감'} (${polls.filter(p => t === 'active' ? (p.is_active && (!p.ends_at || new Date(p.ends_at) >= new Date())) : isClosed(p)).length})`,
+        }))}
+        value={tab}
+        onChange={(v) => setTab(v as 'active' | 'closed')}
+      />
 
       {loading ? <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted/50 animate-pulse rounded-2xl" />)}</div>
       : shown.length === 0 ? (
@@ -611,17 +613,22 @@ export default function PollsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {shown.map(poll => {
+          {shown.map((poll, i) => {
             const voted   = myResponses.includes(poll.id);
             const closed  = isClosed(poll);
             return (
-              <div key={poll.id} className="p-4 border border-border/50 rounded-2xl bg-card hover:bg-muted/20 transition-all cursor-pointer" onClick={() => openPoll(poll)}>
+              <div
+                key={poll.id}
+                style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+                className="p-4 border border-border/50 rounded-2xl bg-card hover:bg-muted/20 hover:-translate-y-0.5 hover:shadow-md transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                onClick={() => openPoll(poll)}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-black text-sm leading-tight">{poll.title}</h3>
-                      {voted  && <span className="text-[9px] font-black text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="size-2.5" />참여완료</span>}
-                      {closed && <span className="text-[9px] font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex items-center gap-1"><Lock className="size-2.5" />마감</span>}
+                      {voted  && <Badge variant="success" icon={<CheckCircle2 className="size-2.5" />}>참여완료</Badge>}
+                      {closed && <Badge variant="muted" icon={<Lock className="size-2.5" />}>마감</Badge>}
                     </div>
                     {poll.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{poll.description}</p>}
                     {poll.ends_at && <p className="text-[10px] text-muted-foreground mt-1">~{fmtDate(poll.ends_at)}</p>}

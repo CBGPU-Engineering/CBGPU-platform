@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
 import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2, KeyRound } from 'lucide-react';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
 
 export default function AdminPage() {
   const { isAdmin, isLoading: authLoading } = useAuth();
@@ -181,21 +182,9 @@ export default function AdminPage() {
                           </div>
                         </TableCell>
                         <TableCell className="py-5">
-                          {res.status === 'pending' && (
-                            <div className="flex items-center gap-1.5 text-amber-500 font-black text-[10px] uppercase bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
-                              <Clock className="size-3" /> Pending
-                            </div>
-                          )}
-                          {res.status === 'approved' && (
-                            <div className="flex items-center gap-1.5 text-emerald-500 font-black text-[10px] uppercase bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-                              <CheckCircle2 className="size-3" /> Approved
-                            </div>
-                          )}
-                          {res.status === 'rejected' && (
-                            <div className="flex items-center gap-1.5 text-red-500 font-black text-[10px] uppercase bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/20">
-                              <XCircle className="size-3" /> Rejected
-                            </div>
-                          )}
+                          {res.status === 'pending' && <Badge variant="warning" icon={<Clock className="size-3" />}>Pending</Badge>}
+                          {res.status === 'approved' && <Badge variant="success" icon={<CheckCircle2 className="size-3" />}>Approved</Badge>}
+                          {res.status === 'rejected' && <Badge variant="danger" icon={<XCircle className="size-3" />}>Rejected</Badge>}
                         </TableCell>
                         <TableCell className="text-right py-5 px-6">
                           <div className="flex justify-end gap-2">

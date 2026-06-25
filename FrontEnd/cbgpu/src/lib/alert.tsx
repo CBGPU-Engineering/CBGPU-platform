@@ -1,7 +1,8 @@
 'use client';
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { CheckCircle2 } from 'lucide-react';
 
 type AlertType = 'success' | 'error' | 'info';
 
@@ -12,24 +13,37 @@ interface AlertState {
   type: AlertType;
 }
 
+interface Toast {
+  id: number;
+  message: string;
+}
+
 interface AlertCtx {
   showAlert: (msg: string, type?: AlertType, title?: string) => void;
   showError: (msg: string, title?: string) => void;
-  showSuccess: (msg: string, title?: string) => void;
+  /** 가벼운 자동 닫힘 토스트로 뜬다 — 일상적인 성공 피드백은 "확인"을 누르게 막지 않는다 */
+  showSuccess: (msg: string) => void;
 }
 
 const Ctx = createContext<AlertCtx | null>(null);
 
 export function AlertProvider({ children }: { children: ReactNode }) {
   const [s, setS] = useState<AlertState>({ open: false, title: '', message: '', type: 'info' });
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastId = useRef(0);
 
   const showAlert = useCallback((msg: string, type: AlertType = 'info', title?: string) => {
     const titles = { success: '완료', error: '오류', info: '알림' };
     setS({ open: true, message: msg, type, title: title ?? titles[type] });
   }, []);
 
-  const showError   = useCallback((msg: string, title = '오류')  => showAlert(msg, 'error',   title), [showAlert]);
-  const showSuccess = useCallback((msg: string, title = '완료') => showAlert(msg, 'success', title), [showAlert]);
+  const showError = useCallback((msg: string, title = '오류') => showAlert(msg, 'error', title), [showAlert]);
+
+  const showSuccess = useCallback((msg: string) => {
+    const id = ++toastId.current;
+    setToasts(prev => [...prev, { id, message: msg }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 2500);
+  }, []);
 
   return (
     <Ctx.Provider value={{ showAlert, showError, showSuccess }}>
@@ -39,7 +53,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
           <DialogHeader>
             <DialogTitle className={`font-black uppercase tracking-tight ${
               s.type === 'error'   ? 'text-destructive' :
-              s.type === 'success' ? 'text-green-600 dark:text-green-400' : ''
+              s.type === 'success' ? 'text-success' : ''
             }`}>
               {s.title}
             </DialogTitle>
@@ -56,6 +70,18 @@ export function AlertProvider({ children }: { children: ReactNode }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <div className="fixed bottom-4 left-0 right-0 z-[100] flex flex-col items-center gap-2 px-4 pointer-events-none sm:items-end sm:right-4 sm:left-auto">
+        {toasts.map(t => (
+          <div
+            key={t.id}
+            className="flex items-center gap-2 rounded-xl bg-foreground text-background px-4 py-2.5 text-sm font-bold shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-200 ease-[var(--ease-spring)]"
+          >
+            <CheckCircle2 className="size-4 text-success shrink-0" />
+            {t.message}
+          </div>
+        ))}
+      </div>
     </Ctx.Provider>
   );
 }

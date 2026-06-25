@@ -9,6 +9,8 @@ import { useAuth } from '@/lib/useAuth';
 import { useAlert } from '@/lib/alert';
 import { RefreshCw, Trash2, Copy, Key, AlertTriangle, StopCircle, Bell, BellOff, Download, Wifi, WifiOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { Badge } from '@/components/ui/badge';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -279,24 +281,15 @@ export default function Dashboard() {
 
       <section className="pb-20">
         <div className="flex justify-end mb-6">
-          <div className="bg-muted p-1 rounded-lg flex gap-1 shadow-inner border border-border/50">
-            <Button 
-              variant={connectionMode === 'internal' ? 'default' : 'ghost'} 
-              size="sm" 
-              className={`text-[10px] h-8 font-black transition-all px-4 ${connectionMode === 'internal' ? 'shadow-sm' : 'opacity-60'}`}
-              onClick={() => setConnectionMode('internal')}
-            >
-              INTERNAL (Local)
-            </Button>
-            <Button 
-              variant={connectionMode === 'public' ? 'default' : 'ghost'} 
-              size="sm" 
-              className={`text-[10px] h-8 font-black transition-all px-4 ${connectionMode === 'public' ? 'shadow-sm' : 'opacity-60'}`}
-              onClick={() => setConnectionMode('public')}
-            >
-              PUBLIC (Global)
-            </Button>
-          </div>
+          <SegmentedTabs
+            items={[
+              { value: 'internal', label: 'Internal (Local)' },
+              { value: 'public', label: 'Public (Global)' },
+            ]}
+            value={connectionMode}
+            onChange={(v) => setConnectionMode(v as 'internal' | 'public')}
+            className="bg-muted p-1 rounded-lg shadow-inner border border-border/50"
+          />
         </div>
 
         <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
@@ -382,11 +375,11 @@ export default function Dashboard() {
                     <div className="space-y-2 mb-4 md:mb-0 w-full md:w-auto">
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="text-lg md:text-xl font-black text-primary italic tracking-tighter">GPU #{res.gpu_id}</span>
-                        {isPending && <span className="bg-amber-500/10 text-amber-600 text-[9px] font-black uppercase px-2 py-0.5 rounded border border-amber-500/20">Pending</span>}
-                        {isRejected && <span className="bg-destructive/10 text-destructive text-[9px] font-black uppercase px-2 py-0.5 rounded border border-destructive/20">Rejected</span>}
-                        {isApproved && !isStarted && <span className="bg-blue-500/10 text-blue-600 text-[9px] font-black uppercase px-2 py-0.5 rounded border border-blue-500/20">Upcoming</span>}
-                        {isApproved && isStarted && !isEnded && <span className="bg-emerald-500/10 text-emerald-600 text-[9px] font-black uppercase px-2 py-0.5 rounded border border-emerald-500/20">Active Now</span>}
-                        {isApproved && isEnded && <span className="bg-slate-500/10 text-slate-600 text-[9px] font-black uppercase px-2 py-0.5 rounded border border-slate-500/20">Finished</span>}
+                        {isPending && <Badge variant="warning">Pending</Badge>}
+                        {isRejected && <Badge variant="danger">Rejected</Badge>}
+                        {isApproved && !isStarted && <Badge variant="default">Upcoming</Badge>}
+                        {isApproved && isStarted && !isEnded && <Badge variant="success">Active Now</Badge>}
+                        {isApproved && isEnded && <Badge variant="muted">Finished</Badge>}
                       </div>
                       <p className="text-xs md:text-sm text-muted-foreground font-bold bg-muted/50 inline-block px-2 py-1 rounded-md">
                         {start.toLocaleString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}

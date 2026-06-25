@@ -9,6 +9,7 @@ import MemoryMatch from '@/components/games/MemoryMatch';
 import Minesweeper from '@/components/games/Minesweeper';
 import WordleKR from '@/components/games/WordleKR';
 import PolyBridge from '@/components/games/PolyBridge';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 
 const GAMES = [
   { id: 'flappy',     label: 'Flappy',     emoji: '🐦', desc: 'Tap to fly — touch friendly',  tag: 'touch' },
@@ -33,24 +34,22 @@ export default function GamesPage() {
         <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">AI 학습 대기 중 한 판 하세요</p>
       </div>
 
-      <div className="flex gap-1.5 flex-wrap justify-center max-w-lg">
-        {GAMES.map(g => (
-          <button
-            key={g.id}
-            onClick={() => setActive(g.id)}
-            className={`flex flex-col items-center px-3 py-2 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
-              active === g.id
-                ? 'bg-primary text-primary-foreground shadow-md'
-                : 'bg-muted text-muted-foreground hover:bg-muted/70'
-            }`}
-          >
-            <span>{g.emoji} {g.label}</span>
-            <span className={`text-[8px] font-bold mt-0.5 ${g.tag === 'touch' ? 'text-green-500/70' : 'text-blue-500/70'} ${active === g.id ? 'opacity-80' : ''}`}>
-              {g.tag === 'touch' ? '👆 touch' : '⌨️ keys'}
+      <SegmentedTabs
+        items={GAMES.map(g => ({
+          value: g.id,
+          label: (
+            <span className="flex flex-col items-center gap-0.5">
+              <span>{g.emoji} {g.label}</span>
+              <span className={`text-[8px] font-bold ${g.tag === 'touch' ? 'text-green-500/70' : 'text-blue-500/70'}`}>
+                {g.tag === 'touch' ? '👆 touch' : '⌨️ keys'}
+              </span>
             </span>
-          </button>
-        ))}
-      </div>
+          ),
+        }))}
+        value={active}
+        onChange={(v) => setActive(v as GameId)}
+        className="max-w-lg justify-center"
+      />
 
       <div className={`w-full flex flex-col items-center ${active === 'polybridge' ? 'max-w-2xl' : 'max-w-lg'}`}>
         {active === 'flappy'     && <FlappyBird />}
