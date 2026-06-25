@@ -97,6 +97,28 @@ export default function Snake() {
     draw();
   }, [placePiece, draw]);
 
+  const setNextDir = useCallback((nd: Dir) => {
+    const g = gRef.current;
+    if (g.dir !== OPPOSITE[nd]) g.nextDir = nd;
+  }, []);
+
+  const touchOrigin = useRef<{ x: number; y: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    const t = e.touches[0];
+    touchOrigin.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    const origin = touchOrigin.current;
+    touchOrigin.current = null;
+    if (!origin) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - origin.x;
+    const dy = t.clientY - origin.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 16) return;
+    if (Math.abs(dx) > Math.abs(dy)) setNextDir(dx > 0 ? 'RIGHT' : 'LEFT');
+    else setNextDir(dy > 0 ? 'DOWN' : 'UP');
+  };
+
   useEffect(() => {
     draw();
     const onKey = (e: KeyboardEvent) => {
@@ -104,12 +126,11 @@ export default function Snake() {
       const nd = map[e.key];
       if (!nd) return;
       e.preventDefault();
-      const g = gRef.current;
-      if (g.dir !== OPPOSITE[nd]) g.nextDir = nd;
+      setNextDir(nd);
     };
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [draw]);
+  }, [draw, setNextDir]);
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -117,14 +138,20 @@ export default function Snake() {
         <span className="text-sm font-black uppercase tracking-widest">Score: {score}</span>
         {started && !gameOver && <Button variant="outline" size="sm" onClick={() => { if (intervalRef.current) clearInterval(intervalRef.current); setGameOver(true); }}>Stop</Button>}
       </div>
-      <canvas ref={canvasRef} width={COLS * CELL} height={ROWS * CELL} className="border border-border rounded-xl shadow-lg" />
+      <canvas
+        ref={canvasRef} width={COLS * CELL} height={ROWS * CELL}
+        className="border border-border rounded-xl shadow-lg touch-none select-none"
+        style={{ maxWidth: '100%', height: 'auto' }}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      />
       {(!started || gameOver) && (
         <div className="flex flex-col items-center gap-2">
           {gameOver && <p className="text-destructive font-black uppercase tracking-widest">Game Over!</p>}
           <Button onClick={start} className="font-black uppercase tracking-widest">{gameOver ? 'Restart' : 'Start Game'}</Button>
         </div>
       )}
-      <p className="text-xs text-muted-foreground font-medium">Arrow keys or WASD to move</p>
+      <p className="text-xs text-muted-foreground font-medium">화살표/WASD 또는 화면에서 스와이프로 이동</p>
     </div>
   );
 }

@@ -1,17 +1,32 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import { supabase } from '@/lib/supabase';
 import GPUCard from '@/components/GPUCard';
 import WeeklyGPUCard from '@/components/WeeklyGPUCard';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/useAuth';
 import { useAlert } from '@/lib/alert';
-import { RefreshCw, Trash2, Copy, Key, AlertTriangle, StopCircle, Bell, BellOff, Download, Wifi, WifiOff } from 'lucide-react';
+import { RefreshCw, Trash2, Copy, Key, AlertTriangle, StopCircle, Bell, BellOff, Download, Wifi, WifiOff, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import {
+  startOfMonth, endOfMonth, startOfWeek, endOfWeek,
+  addDays, addMonths, subMonths, isSameMonth, isSameDay,
+  format, parseISO,
+} from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+
+const GPU_COLORS: Record<number, { bg: string; text: string; border: string; dot: string }> = {
+  1: { bg: 'bg-blue-500/15',    text: 'text-blue-600',    border: 'border-blue-500/30',    dot: 'bg-blue-500' },
+  2: { bg: 'bg-violet-500/15',  text: 'text-violet-600',  border: 'border-violet-500/30',  dot: 'bg-violet-500' },
+  3: { bg: 'bg-emerald-500/15', text: 'text-emerald-600', border: 'border-emerald-500/30', dot: 'bg-emerald-500' },
+  4: { bg: 'bg-orange-500/15',  text: 'text-orange-600',  border: 'border-orange-500/30',  dot: 'bg-orange-500' },
+};
+const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -30,11 +45,54 @@ export default function Dashboard() {
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
   const [statsData, setStatsData] = useState<{gpu_id: number; hours: number}[]>([]);
 
+  // ── 캘린더 (구 /schedule 통합) ────────────────────────────────────────────
+  const [selectedGpuId, setSelectedGpuId] = useState(1);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarReservations, setCalendarReservations] = useState<any[]>([]);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [clientToday, setClientToday] = useState<Date | null>(null);
+  const [calendarLoading, setCalendarLoading] = useState(true);
+  const [calendarJustFinished, setCalendarJustFinished] = useState(false);
+
+  useEffect(() => {
+    setClientToday(new Date());
+    const fetchCalendar = async () => {
+      const { data } = await supabase
+        .from('reservations')
+        .select('id, gpu_id, start_time, end_time, status, profiles:user_id(full_name, student_id)')
+        .eq('status', 'approved')
+        .order('start_time', { ascending: true });
+      if (data) setCalendarReservations(data);
+      setCalendarLoading(false);
+      setCalendarJustFinished(true);
+      setTimeout(() => setCalendarJustFinished(false), 600);
+    };
+    fetchCalendar();
+  }, []);
+
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const calendarDays: Date[] = [];
+  for (let cursor = gridStart; cursor <= gridEnd; cursor = addDays(cursor, 1)) calendarDays.push(cursor);
+
+  const getReservationsForDay = (day: Date) => {
+    const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(day); dayEnd.setHours(23, 59, 59, 999);
+    return calendarReservations.filter(res => {
+      const s = parseISO(res.start_time);
+      const e = parseISO(res.end_time);
+      return s <= dayEnd && e >= dayStart;
+    });
+  };
+  const selectedDayReservations = selectedDay ? getReservationsForDay(selectedDay) : [];
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       const isIP = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostname);
-      
+
       if (isIP) {
         setCurrentHost(hostname);
         setConnectionMode('internal');
@@ -49,10 +107,10 @@ export default function Dashboard() {
   const stableHost = 'cbshoj.tail0701ea.ts.net'; // 변경된 실제 Tailscale 도메인 주소
 
   const gpus = [
-    { 
-      id: 1, 
-      name: "RTX5000", 
-      username: "gpu1", 
+    {
+      id: 1,
+      name: "RTX5000",
+      username: "gpu1",
       jupyterhubUrl: connectionMode === 'public' ? `https://bbb1f73aa6bd31.lhr.life` : `http://${effectiveHost}:8001`
     },
     {
@@ -230,24 +288,17 @@ export default function Dashboard() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'gpus' }, () => fetchGpuPasswords())
         .subscribe();
       return () => { supabase.removeChannel(subscription); };
+    } else {
+      checkGpuStatus();
     }
   }, [user]);
-
-  if (!user && !loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
-        <h2 className="text-2xl font-black uppercase italic">Authentication Required</h2>
-        <p className="text-muted-foreground">Please sign in to view your reservations.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-12 md:space-y-20 transition-colors duration-500">
       <section>
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
           <div className="flex flex-col gap-2">
-            <h1 className="text-3xl md:text-4xl font-black tracking-tighter italic uppercase">GPU Clusters</h1>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tighter italic uppercase">GPU</h1>
             <div className="h-1 w-20 bg-primary rounded-full"></div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -272,17 +323,166 @@ export default function Dashboard() {
             </Button>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-          {gpus.map((gpu) => (
-            gpu.id === 1
-              ? <GPUCard key={gpu.id} id={gpu.id} name={gpu.name} />
-              : <WeeklyGPUCard key={gpu.id} id={gpu.id} name={gpu.name} />
-          ))}
+
+        {/* 전체 GPU 예약 현황 캘린더 — 구 /schedule, 누구나 볼 수 있게 항상 공개 */}
+        {calendarLoading ? (
+          <div className="py-16 flex items-center justify-center">
+            <LoadingSpinner done={calendarJustFinished} size={56} label="예약 현황 불러오는 중" />
+          </div>
+        ) : (
+          <div className="flex flex-col md:flex-row gap-4 items-start">
+            <div className="w-full md:flex-1 md:min-w-0 border-2 rounded-3xl overflow-hidden bg-card shadow-xl">
+              <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b-2">
+                <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <h2 className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
+                  <CalendarDays className="size-4 opacity-50" />
+                  {format(currentMonth, 'yyyy년 M월', { locale: ko })}
+                </h2>
+                <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 px-4 md:px-6 py-2 border-b bg-muted/20">
+                {[1, 2, 3, 4].map(id => (
+                  <button
+                    key={id}
+                    onClick={() => setSelectedGpuId(id)}
+                    className={cn('flex items-center gap-1.5 text-[10px] font-black px-2 py-0.5 rounded-full border transition-all',
+                      GPU_COLORS[id].bg, GPU_COLORS[id].text, GPU_COLORS[id].border,
+                      selectedGpuId === id && 'ring-2 ring-offset-1 ring-primary/40')}
+                  >
+                    <span className={cn('size-1.5 rounded-full', GPU_COLORS[id].dot)} />
+                    GPU #{id}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 border-b">
+                {WEEKDAYS.map(d => (
+                  <div key={d} className="py-2 text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7">
+                {calendarDays.map((day, i) => {
+                  const dayRes = getReservationsForDay(day);
+                  const isCurrentMonth = isSameMonth(day, currentMonth);
+                  const isSelected = selectedDay?.toDateString() === day.toDateString();
+                  const isTodayDate = clientToday ? isSameDay(day, clientToday) : false;
+
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedDay(isSelected ? null : day)}
+                      className={cn(
+                        'min-h-[56px] md:min-h-[80px] p-1 md:p-2 text-left border-b border-r transition-all',
+                        !isCurrentMonth && 'opacity-25',
+                        isSelected && 'bg-primary/5 ring-2 ring-inset ring-primary/30',
+                        !isSelected && 'hover:bg-muted/30',
+                        (i + 1) % 7 === 0 && 'border-r-0',
+                      )}
+                    >
+                      <span className={cn(
+                        'text-[10px] md:text-xs font-black inline-flex items-center justify-center w-5 h-5 md:w-6 md:h-6 rounded-full mb-1',
+                        isTodayDate && 'bg-primary text-primary-foreground',
+                        !isTodayDate && isCurrentMonth && 'text-foreground',
+                      )}>
+                        {format(day, 'd')}
+                      </span>
+                      <div className="flex flex-wrap gap-0.5">
+                        {dayRes.map((res, j) => {
+                          const c = GPU_COLORS[res.gpu_id];
+                          return (
+                            <Fragment key={j}>
+                              <span className={cn('md:hidden size-1.5 rounded-full mt-0.5', c.dot)} />
+                              <span className={cn('hidden md:inline text-[9px] font-black px-1.5 py-0.5 rounded-md border', c.bg, c.text, c.border)}>
+                                #{res.gpu_id}
+                              </span>
+                            </Fragment>
+                          );
+                        })}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className={cn(
+              'w-full md:w-64 md:shrink-0 border-2 rounded-3xl bg-card shadow-xl transition-all duration-300 overflow-hidden',
+              selectedDay ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            )}>
+              {selectedDay && (
+                <>
+                  <div className="px-5 py-4 border-b-2">
+                    <p className="font-black uppercase tracking-tighter text-sm">
+                      {format(selectedDay, 'M월 d일 (eee)', { locale: ko })}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-bold opacity-60 uppercase tracking-widest">예약 현황</p>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {selectedDayReservations.length === 0 ? (
+                      <p className="text-muted-foreground font-bold text-xs opacity-50 py-4 text-center">예약 없음</p>
+                    ) : (
+                      selectedDayReservations.map((res) => {
+                        const c = GPU_COLORS[res.gpu_id];
+                        return (
+                          <div key={res.id} className="relative pl-4 pr-3 py-3 rounded-2xl border border-border/40 bg-card overflow-hidden tilt-3d transition-all">
+                            <span className={cn('absolute inset-y-0 left-0 w-1', c.dot)} />
+                            <div className={cn('text-xs font-black mb-1.5', c.text)}>GPU #{res.gpu_id}</div>
+                            <div className="text-[11px] font-bold space-y-0.5 text-foreground">
+                              <p>{res.profiles?.full_name || '—'}</p>
+                              <p className="opacity-60">{res.profiles?.student_id || '—'}</p>
+                              <p className="opacity-40 text-[10px]">
+                                {format(parseISO(res.start_time), 'M/d')} – {format(parseISO(res.end_time), 'M/d')}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <hr className="border-border transition-colors duration-500" />
+
+      {/* GPU 예약 — 4개를 동시에 띄우는 박스 그리드 대신, 하나씩 골라서 집중해서 예약 */}
+      <section>
+        <div className="flex flex-col gap-2 mb-6">
+          <h2 className="text-xl md:text-2xl font-black tracking-tight uppercase italic">예약하기</h2>
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">GPU를 선택하고 예약을 신청하세요</p>
+        </div>
+        <SegmentedTabs
+          items={[1,2,3,4].map(id => ({ value: String(id), label: `GPU #${id}` }))}
+          value={String(selectedGpuId)}
+          onChange={(v) => setSelectedGpuId(Number(v))}
+          className="mb-6"
+        />
+        <div className="max-w-md">
+          {selectedGpuId === 1
+            ? <GPUCard key={1} id={1} name="RTX5000" />
+            : <WeeklyGPUCard key={selectedGpuId} id={selectedGpuId} name="RTX5000" />}
         </div>
       </section>
 
       <hr className="border-border transition-colors duration-500" />
 
+      {!user ? (
+        <div className="flex flex-col items-center justify-center min-h-[30vh] text-center space-y-4">
+          <h2 className="text-2xl font-black uppercase italic">Authentication Required</h2>
+          <p className="text-muted-foreground">Please sign in to view your reservations.</p>
+        </div>
+      ) : (
       <section className="pb-20">
         <div className="flex justify-end mb-6">
           <SegmentedTabs
@@ -463,6 +663,7 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+      )}
 
       <Dialog open={!!endTarget} onOpenChange={(open) => { if (!open) setEndTarget(null); }}>
         <DialogContent className="max-w-sm rounded-2xl">

@@ -11,7 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
-      url: `${siteUrl}/schedule`,
+      url: `${siteUrl}/dashboard`,
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 0.8,

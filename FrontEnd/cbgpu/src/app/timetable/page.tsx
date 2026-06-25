@@ -28,11 +28,21 @@ function subjectColor(n: string) {
   return cc[n];
 }
 
+/** 학번은 학년(1자리)+반(1자리)+번호(2자리) 형식. 선생님은 이 필드를 학번이 아니라
+ * 로그인용 아이디처럼 쓰기 때문에, 4자리 숫자이고 학년이 1~3인 경우에만 학생으로 간주한다. */
+function parseStudentGradeClass(studentId?: string | null): { grade: number; cls: number } | null {
+  if (!studentId || !/^\d{4}$/.test(studentId)) return null;
+  const grade = +studentId[0];
+  const cls = +studentId[1];
+  if (grade < 1 || grade > 3 || cls < 1) return null;
+  return { grade, cls };
+}
+
 type Cell = { subject: string; teacher: string; changed?: boolean };
 type Grid = Record<number, Record<number, Cell>>;
 
 export default function TimetablePage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, profile, isLoading: authLoading } = useAuth();
   const { showAlert, showError, showSuccess } = useAlert();
   const [grade,   setGrade]   = useState(1);
   const [cls,     setCls]     = useState(1);
@@ -82,7 +92,12 @@ export default function TimetablePage() {
     setGrid(g2); setSource('manual');
   }, []);
 
-  useEffect(() => { loadComcigan(1, 1); }, []); // eslint-disable-line
+  useEffect(() => {
+    if (authLoading) return;
+    const own = parseStudentGradeClass(profile?.student_id);
+    if (own) { setGrade(own.grade); setCls(own.cls); loadComcigan(own.grade, own.cls); }
+    else loadComcigan(1, 1);
+  }, [authLoading]); // eslint-disable-line
 
   const switchTo = (g: number, c: number) => {
     if (editing) { showAlert('편집 중에는 변경할 수 없습니다.', 'info'); return; }
