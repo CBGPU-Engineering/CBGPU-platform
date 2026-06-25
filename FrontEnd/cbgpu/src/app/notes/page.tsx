@@ -292,7 +292,8 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
 
       {loading ? <div className="space-y-2">{[1,2,3].map(i=><div key={i} className="h-16 bg-muted/40 animate-pulse rounded-xl"/>)}</div>
       : shown.length === 0 ? (
-        <div className="py-16 text-center text-muted-foreground border-2 border-dashed rounded-3xl animate-in fade-in duration-300">
+        <div className="py-16 text-center text-muted-foreground border-2 border-dashed rounded-3xl animate-in fade-in duration-300 pop-in-3d">
+          <img src="/3d-icons/notebook.webp" alt="" className="size-20 mx-auto mb-3 opacity-90" />
           <p className="font-medium">{tab==='mine'?'노트를 만들어 보세요.':'공유된 노트가 없습니다.'}</p>
         </div>
       ) : (

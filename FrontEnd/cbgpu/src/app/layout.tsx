@@ -12,11 +12,11 @@ const schoolLogo = 'https://i.namu.wiki/i/qMgg10XRSaTorhAnQaV-bKbUWK_xIlq2socc7p
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'CBGPU | 충북과학고 GPU 대여 시스템',
+    default: 'CBGPU | 충북과학고 학생 생활 플랫폼',
     template: '%s | CBGPU',
   },
-  description: '충북과학고등학교 학생을 위한 AI 학습용 GPU 대여 서비스. RTX5000 GPU 4대를 간편하게 예약하고 JupyterHub로 바로 접속하세요.',
-  keywords: ['충북과학고', '충북과학고등학교', 'GPU 대여', 'GPU 렌탈', 'AI 학습', 'JupyterHub', 'RTX5000', 'CBGPU', '딥러닝', '머신러닝'],
+  description: '충북과학고등학교 학생을 위한 올인원 플랫폼. GPU 대여, 자습신청, 시간표, 급식, 투표, 연구노트, 스터디 매칭까지 학교생활에 필요한 모든 것.',
+  keywords: ['충북과학고', '충북과학고등학교', 'CBGPU', '학생 플랫폼', 'GPU 대여', '자습신청', '시간표', '급식', '스터디 매칭', 'AI 학습'],
   authors: [{ name: 'CBGPU', url: siteUrl }],
   creator: 'CBGPU',
   publisher: '충북과학고등학교',
@@ -28,14 +28,14 @@ export const metadata: Metadata = {
     locale: 'ko_KR',
     url: siteUrl,
     siteName: 'CBGPU',
-    title: 'CBGPU | 충북과학고 GPU 대여 시스템',
-    description: '충북과학고등학교 학생을 위한 AI 학습용 GPU 대여 서비스. RTX5000 GPU 4대를 간편하게 예약하고 JupyterHub로 바로 접속하세요.',
+    title: 'CBGPU | 충북과학고 학생 생활 플랫폼',
+    description: '충북과학고등학교 학생을 위한 올인원 플랫폼. GPU 대여, 자습신청, 시간표, 급식, 투표, 연구노트, 스터디 매칭까지.',
     images: [{ url: schoolLogo, width: 512, height: 512, alt: '충북과학고등학교 로고' }],
   },
   twitter: {
     card: 'summary',
-    title: 'CBGPU | 충북과학고 GPU 대여 시스템',
-    description: '충북과학고등학교 학생을 위한 AI 학습용 GPU 대여 서비스.',
+    title: 'CBGPU | 충북과학고 학생 생활 플랫폼',
+    description: '충북과학고등학교 학생을 위한 올인원 플랫폼.',
     images: [schoolLogo],
   },
   robots: {
@@ -55,7 +55,7 @@ const jsonLd = {
   '@type': 'WebSite',
   name: 'CBGPU',
   url: siteUrl,
-  description: '충북과학고등학교 학생을 위한 AI 학습용 GPU 대여 서비스',
+  description: '충북과학고등학교 학생을 위한 올인원 학생 생활 플랫폼',
   publisher: {
     '@type': 'EducationalOrganization',
     name: '충북과학고등학교',
@@ -83,7 +83,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthProvider>
             <AlertProvider>
               <Navbar />
-              <main className="flex-grow container mx-auto px-4 md:px-6 py-10">
+              <main className="flex-grow container mx-auto px-4 md:px-6 py-10 pb-28 md:pb-10">
                 {children}
               </main>
               <footer className="border-t py-12 bg-muted/20 text-center text-sm text-muted-foreground transition-all">

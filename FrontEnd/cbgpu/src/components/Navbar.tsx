@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
-import { Menu, X, ChevronDown } from 'lucide-react';
+import { Menu, X, ChevronDown, Cpu, Calendar, BookOpen, Wrench } from 'lucide-react';
 import { useState, useRef, useLayoutEffect } from 'react';
 
 interface NavLink { href: string; label: string; }
@@ -38,6 +38,14 @@ const GROUPS: NavGroup[] = [
 ];
 
 const PILL = 'relative z-10 shrink-0 text-xs font-black px-3 py-1.5 rounded-lg uppercase tracking-widest transition-colors';
+
+/** 모바일 하단 플로팅 탭바 — 바(컨테이너)는 3D로 띄우고, 안의 아이콘은 단순한 2D 라인 아이콘(회색/흰색)으로 */
+const BOTTOM_TABS = [
+  { href: '/dashboard', label: 'GPU', Icon: Cpu },
+  { href: '/schedule', label: '일정', Icon: Calendar },
+  { href: '/study', label: '자습', Icon: BookOpen },
+  { href: '/tools', label: '도구', Icon: Wrench },
+];
 
 export default function Navbar() {
   const { user, profile, isAdmin, isLoading } = useAuth();
@@ -75,15 +83,16 @@ export default function Navbar() {
   };
 
   return (
+    <>
     <nav className="flex items-center justify-between px-6 md:px-10 py-4 bg-background/50 border-b border-border sticky top-0 z-50 backdrop-blur-md">
       <div className="flex items-center gap-4 md:gap-8">
         <Link href="/" className="flex items-center gap-2 group transition-transform active:scale-95">
           <img
             src="https://i.namu.wiki/i/qMgg10XRSaTorhAnQaV-bKbUWK_xIlq2socc7pVyw1SJmovke8gEWfeofFitiIJ1VBMngGy4o1NuAnjrOA0m1w.webp"
             alt="Logo"
-            className="w-8 h-8 object-contain group-hover:rotate-12 transition-transform duration-500"
+            className="w-8 h-8 object-contain grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 group-hover:rotate-12 transition-all duration-500"
           />
-          <span className="text-xl md:text-2xl font-black text-primary tracking-tighter italic">
+          <span className="text-xl md:text-2xl font-black text-foreground/70 group-hover:text-primary tracking-tighter italic transition-colors duration-500">
             CBGPU
           </span>
         </Link>
@@ -257,5 +266,34 @@ export default function Navbar() {
         </div>
       )}
     </nav>
+
+    {user && !isLoading && (
+      <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50 flex items-center justify-between gap-1 rounded-[28px] bg-background/85 backdrop-blur-xl ring-1 ring-foreground/10 shadow-2xl px-2 py-2 tilt-3d">
+        {BOTTOM_TABS.map(({ href, label, Icon }) => {
+          const active = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-1 rounded-2xl transition-all duration-300 ${active ? '-translate-y-1.5' : ''}`}
+            >
+              <Icon className={`size-5 transition-colors duration-300 ${active ? 'text-primary' : 'text-muted-foreground'}`} strokeWidth={active ? 2.5 : 2} />
+              <span className={`text-[9px] font-black uppercase tracking-wide ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+                {label}
+              </span>
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setIsMenuOpen(o => !o)}
+          className="flex flex-1 flex-col items-center gap-0.5 py-1 rounded-2xl text-muted-foreground active:scale-95 transition-transform"
+        >
+          {isMenuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
+          <span className="text-[9px] font-black uppercase tracking-wide">더보기</span>
+        </button>
+      </nav>
+    )}
+    </>
   );
 }
