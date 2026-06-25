@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   getRooms, getRoomComposition, getSeatOccupations, getStudent, getStudents,
-  getSelfStudyPolicy, getPeriodCountForDate, localDateStr,
-  type Room, type Seat, type Obstacle, type Student,
+  getSelfStudyPolicy, getPeriodCountForDate, localDateStr, searchSelfStudy,
+  type Room, type Seat, type Obstacle, type Student, type SelfStudyStatus,
 } from '@/lib/eduset';
 
 const OFFICIAL_STUDY_URL = 'https://cbsh.edu-set.com';
@@ -22,6 +22,7 @@ function formatStudentLabel(student: Student): string {
 interface Occupant {
   label: string;
   period: number;
+  status: SelfStudyStatus;
 }
 
 interface OccupancyEntry {
@@ -31,6 +32,7 @@ interface OccupancyEntry {
   period: number;
   label: string;
   studentId: number;
+  status: SelfStudyStatus;
 }
 
 interface RoomData {
@@ -95,14 +97,21 @@ function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod }: {
         {seats.map((seat) => {
           const occupants = occupantsBySeat.get(seat.id)?.filter((o) => o.period === selectedPeriod);
           const occupied = !!occupants?.length;
+          const pending = occupied && occupants!.every((o) => o.status === 'PENDING');
           return (
             <div
               key={seat.id}
-              title={occupied ? occupants!.map((o) => o.label).join(', ') : `${seat.name}: 비어있음`}
-              className={`absolute rounded border flex flex-col items-center justify-center gap-0.5 overflow-hidden leading-tight px-0.5 ${
+              title={
                 occupied
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background border-border/60 text-muted-foreground'
+                  ? occupants!.map((o) => `${o.label}${o.status === 'PENDING' ? ' (대기)' : ''}`).join(', ')
+                  : `${seat.name}: 비어있음`
+              }
+              className={`absolute rounded border flex flex-col items-center justify-center gap-0.5 overflow-hidden leading-tight px-0.5 ${
+                pending
+                  ? 'bg-amber-500 text-white border-amber-500'
+                  : occupied
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background border-border/60 text-muted-foreground'
               }`}
               style={{ left: seat.x * cellSize, top: seat.y * cellSize, width: cellSize - 4, height: cellSize - 4 }}
             >
@@ -110,6 +119,7 @@ function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod }: {
               {occupied && (
                 <span className="text-[8px] font-bold truncate w-full text-center">
                   {occupants!.map((o) => o.label).join(', ')}
+                  {pending ? ' (대기)' : ''}
                 </span>
               )}
             </div>
@@ -146,48 +156,60 @@ export default function StudyPage() {
       const today = new Date();
       const dateStr = localDateStr(today);
 
+      // /selfstudy/search는 승인 대기중인 신청까지 한 번에 보여준다. 막혀 있으면 null로 떨어지고
+      // 방별 occupations(승인된 것만)로 대체한다.
+      const selfStudyEntries = await searchSelfStudy({ date: dateStr }).catch(() => null);
+
       const data = await Promise.all(
         rooms.map(async (room): Promise<RoomData> => {
           if (!room.hasSeats) {
             return { room, seats: [], obstacles: [], occupantsBySeat: new Map(), occupancy: [] };
           }
           try {
-            const [composition, occupations] = await Promise.all([
-              getRoomComposition(room.id),
-              getSeatOccupations(room.id, dateStr),
-            ]);
-
+            const composition = await getRoomComposition(room.id);
             const seatNameById = new Map(composition.seats.map((s) => [s.id, s.name]));
-            const studentIds = [...new Set(occupations.map((o) => o.studentId))];
-            const labelById = new Map<number, string>();
-            await Promise.all(
-              studentIds.map(async (studentId) => {
-                try {
-                  const student = await getStudent(studentId);
-                  labelById.set(studentId, formatStudentLabel(student));
-                } catch {
-                  // 정보를 못 가져오면 그 좌석은 비식별로 둔다
-                }
-              })
-            );
-
             const occupantsBySeat = new Map<number, Occupant[]>();
             const occupancy: OccupancyEntry[] = [];
-            occupations.forEach((o) => {
-              const label = labelById.get(o.studentId);
-              if (!label) return;
-              const list = occupantsBySeat.get(o.seatId) ?? [];
-              list.push({ label, period: o.period });
-              occupantsBySeat.set(o.seatId, list);
-              occupancy.push({
-                roomId: room.id,
-                roomName: room.name,
-                seatName: seatNameById.get(o.seatId) ?? '',
-                period: o.period,
-                label,
-                studentId: o.studentId,
+
+            const addEntry = (
+              seatId: number, seatName: string, period: number,
+              studentId: number, label: string, status: SelfStudyStatus
+            ) => {
+              const list = occupantsBySeat.get(seatId) ?? [];
+              list.push({ label, period, status });
+              occupantsBySeat.set(seatId, list);
+              occupancy.push({ roomId: room.id, roomName: room.name, seatName, period, label, studentId, status });
+            };
+
+            const roomEntries = selfStudyEntries?.filter(
+              (e) => e.room.id === room.id && e.type === 'selfstudy' && e.status !== 'REJECTED' && e.seat
+            );
+
+            if (selfStudyEntries && roomEntries) {
+              roomEntries.forEach((e) => {
+                if (!e.seat) return;
+                addEntry(e.seat.id, e.seat.name, e.period, e.student.id, formatStudentLabel(e.student), e.status);
               });
-            });
+            } else {
+              const occupations = await getSeatOccupations(room.id, dateStr);
+              const studentIds = [...new Set(occupations.map((o) => o.studentId))];
+              const labelById = new Map<number, string>();
+              await Promise.all(
+                studentIds.map(async (studentId) => {
+                  try {
+                    const student = await getStudent(studentId);
+                    labelById.set(studentId, formatStudentLabel(student));
+                  } catch {
+                    // 정보를 못 가져오면 그 좌석은 비식별로 둔다
+                  }
+                })
+              );
+              occupations.forEach((o) => {
+                const label = labelById.get(o.studentId);
+                if (!label) return;
+                addEntry(o.seatId, seatNameById.get(o.seatId) ?? '', o.period, o.studentId, label, 'APPROVED');
+              });
+            }
 
             return { room, seats: composition.seats, obstacles: composition.obstacles, occupantsBySeat, occupancy };
           } catch {
@@ -239,6 +261,18 @@ export default function StudyPage() {
     if (!q) return roomData;
     return roomData.filter(({ room }) => room.name.toLowerCase().includes(q));
   }, [roomData, query]);
+
+  /** 신청자 많은 실이 맨 위로 오도록 정렬 */
+  const sortedRoomData = useMemo(() => {
+    return filteredRoomData
+      .map((d) => {
+        const occupiedCount = [...d.occupantsBySeat.values()].filter((list) =>
+          list.some((o) => o.period === selectedPeriod)
+        ).length;
+        return { ...d, occupiedCount };
+      })
+      .sort((a, b) => b.occupiedCount - a.occupiedCount);
+  }, [filteredRoomData, selectedPeriod]);
 
   const studentMatches = useMemo(() => {
     const q = studentQuery.trim().toLowerCase();
@@ -310,7 +344,9 @@ export default function StudyPage() {
           <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/10 p-3">
             <p className="text-sm">
               {selectedStudentEntry
-                ? `${selectedPeriod}교시: ${selectedStudentEntry.roomName} ${selectedStudentEntry.seatName}번 자리에 신청했습니다.`
+                ? `${selectedPeriod}교시: ${selectedStudentEntry.roomName} ${selectedStudentEntry.seatName}번 자리에 신청했습니다.${
+                    selectedStudentEntry.status === 'PENDING' ? ' (승인 대기중)' : ''
+                  }`
                 : `${selectedPeriod}교시: 아직 신청하지 않았습니다.`}
             </p>
             {selectedStudentEntry && (
@@ -375,16 +411,13 @@ export default function StudyPage() {
         <div className="flex justify-center py-12">
           <RefreshCw className="size-6 animate-spin text-muted-foreground" />
         </div>
-      ) : filteredRoomData.length === 0 ? (
+      ) : sortedRoomData.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
           {roomData.length === 0 ? '아직 확인 가능한 자습실 데이터가 없습니다.' : '검색 결과가 없습니다.'}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredRoomData.map(({ room, seats, occupantsBySeat }) => {
-            const occupiedCount = [...occupantsBySeat.values()].filter((list) =>
-              list.some((o) => o.period === selectedPeriod)
-            ).length;
+          {sortedRoomData.map(({ room, seats, occupiedCount }) => {
             const highlighted = room.hasSeats && occupiedCount > 0;
             return (
               <div
