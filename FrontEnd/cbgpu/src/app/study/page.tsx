@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, ExternalLink, RefreshCw, AlertTriangle, LayoutGrid } from 'lucide-react';
+import { Search, ExternalLink, RefreshCw, AlertTriangle, LayoutGrid, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -24,11 +24,20 @@ interface Occupant {
   period: number;
 }
 
+interface OccupancyEntry {
+  roomId: number;
+  roomName: string;
+  seatName: string;
+  period: number;
+  label: string;
+}
+
 interface RoomData {
   room: Room;
   seats: Seat[];
   obstacles: Obstacle[];
   occupantsBySeat: Map<number, Occupant[]>;
+  occupancy: OccupancyEntry[];
 }
 
 function PeriodSelector({ periods, selectedPeriod, onSelect, className = '' }: {
@@ -116,6 +125,7 @@ export default function StudyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const [occupantQuery, setOccupantQuery] = useState('');
   const [openRoomId, setOpenRoomId] = useState<number | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState(1);
 
@@ -134,7 +144,7 @@ export default function StudyPage() {
       const data = await Promise.all(
         rooms.map(async (room): Promise<RoomData> => {
           if (!room.hasSeats) {
-            return { room, seats: [], obstacles: [], occupantsBySeat: new Map() };
+            return { room, seats: [], obstacles: [], occupantsBySeat: new Map(), occupancy: [] };
           }
           try {
             const [composition, occupations] = await Promise.all([
@@ -142,6 +152,7 @@ export default function StudyPage() {
               getSeatOccupations(room.id, dateStr),
             ]);
 
+            const seatNameById = new Map(composition.seats.map((s) => [s.id, s.name]));
             const studentIds = [...new Set(occupations.map((o) => o.studentId))];
             const labelById = new Map<number, string>();
             await Promise.all(
@@ -156,17 +167,25 @@ export default function StudyPage() {
             );
 
             const occupantsBySeat = new Map<number, Occupant[]>();
+            const occupancy: OccupancyEntry[] = [];
             occupations.forEach((o) => {
               const label = labelById.get(o.studentId);
               if (!label) return;
               const list = occupantsBySeat.get(o.seatId) ?? [];
               list.push({ label, period: o.period });
               occupantsBySeat.set(o.seatId, list);
+              occupancy.push({
+                roomId: room.id,
+                roomName: room.name,
+                seatName: seatNameById.get(o.seatId) ?? '',
+                period: o.period,
+                label,
+              });
             });
 
-            return { room, seats: composition.seats, obstacles: composition.obstacles, occupantsBySeat };
+            return { room, seats: composition.seats, obstacles: composition.obstacles, occupantsBySeat, occupancy };
           } catch {
-            return { room, seats: [], obstacles: [], occupantsBySeat: new Map() };
+            return { room, seats: [], obstacles: [], occupantsBySeat: new Map(), occupancy: [] };
           }
         })
       );
@@ -215,7 +234,21 @@ export default function StudyPage() {
     return roomData.filter(({ room }) => room.name.toLowerCase().includes(q));
   }, [roomData, query]);
 
+  const occupantMatches = useMemo(() => {
+    const q = occupantQuery.trim().toLowerCase();
+    if (!q) return [];
+    return roomData
+      .flatMap((d) => d.occupancy)
+      .filter((entry) => entry.label.toLowerCase().includes(q))
+      .sort((a, b) => a.period - b.period);
+  }, [roomData, occupantQuery]);
+
   const openRoomData = openRoomId != null ? roomData.find((d) => d.room.id === openRoomId) : undefined;
+
+  const jumpToOccupancy = (entry: OccupancyEntry) => {
+    setSelectedPeriod(entry.period);
+    setOpenRoomId(entry.roomId);
+  };
 
   const openOfficialSite = () => {
     window.open(OFFICIAL_STUDY_URL, '_blank', 'noopener,noreferrer');
@@ -249,6 +282,42 @@ export default function StudyPage() {
           placeholder="자습실 이름으로 검색"
           className="pl-9"
         />
+      </div>
+
+      <div className="relative">
+        <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <Input
+          value={occupantQuery}
+          onChange={(e) => setOccupantQuery(e.target.value)}
+          placeholder="이름 또는 학번으로 예약자 검색"
+          className="pl-9"
+        />
+        {occupantQuery.trim() && (
+          <div className="absolute z-10 mt-1 w-full rounded-2xl border border-border/60 bg-background shadow-lg divide-y divide-border/40 overflow-hidden max-h-72 overflow-y-auto">
+            {occupantMatches.length === 0 ? (
+              <p className="p-3 text-sm text-muted-foreground text-center">일치하는 예약자가 없습니다.</p>
+            ) : (
+              occupantMatches.map((entry, i) => (
+                <button
+                  key={`${entry.roomId}-${entry.seatName}-${entry.period}-${i}`}
+                  type="button"
+                  onClick={() => jumpToOccupancy(entry)}
+                  className="w-full flex items-center justify-between gap-3 p-3 text-left hover:bg-muted/40 transition-colors"
+                >
+                  <div>
+                    <p className="font-bold text-sm">{entry.label}</p>
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                      {entry.roomName} · {entry.seatName} 좌석
+                    </p>
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-widest text-muted-foreground shrink-0">
+                    {entry.period}교시
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {periods.length > 0 && (
