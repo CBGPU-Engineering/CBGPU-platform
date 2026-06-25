@@ -64,7 +64,7 @@ export default function Signup() {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-10 p-8 bg-card border border-border rounded-2xl shadow-xl transition-colors duration-500">
+    <div className="tilt-3d max-w-md mx-auto mt-10 p-8 bg-card ring-1 ring-foreground/5 rounded-[28px] shadow-lg">
       <h2 className="text-3xl font-black mb-6 text-center text-foreground uppercase tracking-tighter italic">Join CBGPU</h2>
       <form onSubmit={handleSignup} className="space-y-4">
         <div className="space-y-1">

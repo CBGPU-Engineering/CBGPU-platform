@@ -55,7 +55,7 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl mx-auto mt-10 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row items-center gap-6 bg-card border-2 p-8 rounded-[2.5rem] shadow-2xl">
+      <div className="tilt-3d flex flex-col md:flex-row items-center gap-6 bg-card ring-1 ring-foreground/5 p-8 rounded-[2.5rem] shadow-lg">
         <div className="bg-primary/10 p-6 rounded-full ring-8 ring-primary/5">
           <UserCircle2 className="w-16 h-16 text-primary" />
         </div>
@@ -67,7 +67,7 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="bg-card border-2 p-10 rounded-[2.5rem] shadow-2xl space-y-8">
+      <div className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase text-primary ml-1 tracking-widest flex items-center gap-1.5">

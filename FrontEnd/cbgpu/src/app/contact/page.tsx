@@ -58,7 +58,7 @@ export default function ContactPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5 border-2 rounded-3xl p-6 md:p-8 bg-card shadow-xl">
+      <form onSubmit={handleSubmit} className="tilt-3d space-y-5 ring-1 ring-foreground/5 rounded-[28px] p-6 md:p-8 bg-card shadow-lg">
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">이름 *</label>
