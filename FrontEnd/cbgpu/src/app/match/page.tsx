@@ -30,8 +30,10 @@ function PostCard({
 }) {
   const [open, setOpen] = useState(false);
   const postMembers = members.filter(m => m.post_id === post.id);
-  const cnt    = postMembers.length;
-  const joined = postMembers.some(m => m.user_id === myUserId);
+  // 글쓴이도 자기 스터디의 멤버다 — study_members엔 따로 들어가지 않으니 항상 합쳐서 센다
+  const allMemberIds = [post.user_id, ...postMembers.map(m => m.user_id).filter(id => id !== post.user_id)];
+  const cnt    = allMemberIds.length;
+  const joined = allMemberIds.includes(myUserId);
   const isOwner = post.user_id === myUserId;
   const full   = cnt >= post.max_members;
 
@@ -70,18 +72,14 @@ function PostCard({
           {post.description && <p className="text-sm text-muted-foreground">{post.description}</p>}
           <div className="space-y-1.5">
             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">참여 멤버 ({cnt}/{post.max_members})</p>
-            {postMembers.length === 0 ? (
-              <p className="text-xs text-muted-foreground/60">아직 참여한 사람이 없습니다.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {postMembers.map(m => (
-                  <span key={m.user_id} className="flex items-center gap-1 text-[11px] font-bold bg-muted px-2 py-1 rounded-lg">
-                    {profileMap.get(m.user_id)?.full_name || '익명'}
-                    {m.user_id === post.user_id && <span className="text-[9px] text-primary font-black uppercase">장</span>}
-                  </span>
-                ))}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-1.5">
+              {allMemberIds.map(id => (
+                <span key={id} className="flex items-center gap-1 text-[11px] font-bold bg-muted px-2 py-1 rounded-lg">
+                  {profileMap.get(id)?.full_name || '익명'}
+                  {id === post.user_id && <span className="text-[9px] text-primary font-black uppercase">장</span>}
+                </span>
+              ))}
+            </div>
           </div>
           {post.is_open && !isOwner && (
             joined
