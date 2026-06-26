@@ -17,19 +17,21 @@ interface StudyPost {
   tags: string[]; max_members: number; is_open: boolean;
 }
 interface Member { post_id: string; user_id: string; joined_at: string }
+interface Profile { id: string; full_name: string | null; student_id: string | null }
 
 const SUBJECTS = ['수학', '물리', '화학', '생물', '지구과학', '정보', 'AI/ML', '프로그래밍', '영어', '국어', '기타'];
 
 function PostCard({
-  post, members, myUserId, onJoin, onLeave, onDelete, onClose,
+  post, members, myUserId, profileMap, onJoin, onLeave, onDelete, onClose,
 }: {
-  post: StudyPost; members: Member[]; myUserId: string;
+  post: StudyPost; members: Member[]; myUserId: string; profileMap: Map<string, Profile>;
   onJoin: () => void; onLeave: () => void;
   onDelete: () => void; onClose: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const cnt    = members.filter(m => m.post_id === post.id).length;
-  const joined = members.some(m => m.post_id === post.id && m.user_id === myUserId);
+  const postMembers = members.filter(m => m.post_id === post.id);
+  const cnt    = postMembers.length;
+  const joined = postMembers.some(m => m.user_id === myUserId);
   const isOwner = post.user_id === myUserId;
   const full   = cnt >= post.max_members;
 
@@ -66,7 +68,21 @@ function PostCard({
       {open && (
         <div className="border-t border-border/20 p-4 space-y-3">
           {post.description && <p className="text-sm text-muted-foreground">{post.description}</p>}
-          <p className="text-xs text-muted-foreground">최대 {post.max_members}명 · 현재 {cnt}명 참여 중</p>
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">참여 멤버 ({cnt}/{post.max_members})</p>
+            {postMembers.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60">아직 참여한 사람이 없습니다.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {postMembers.map(m => (
+                  <span key={m.user_id} className="flex items-center gap-1 text-[11px] font-bold bg-muted px-2 py-1 rounded-lg">
+                    {profileMap.get(m.user_id)?.full_name || '익명'}
+                    {m.user_id === post.user_id && <span className="text-[9px] text-primary font-black uppercase">장</span>}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
           {post.is_open && !isOwner && (
             joined
               ? <Button variant="outline" size="sm" onClick={onLeave} className="font-black text-xs uppercase gap-1.5"><X className="size-3" />탈퇴</Button>
@@ -157,6 +173,7 @@ export default function MatchPage() {
   const { showError, showSuccess } = useAlert();
   const [posts,   setPosts]   = useState<StudyPost[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [profileMap, setProfileMap] = useState<Map<string, Profile>>(new Map());
   const [tab,     setTab]     = useState<'all'|'mine'>('all');
   const [filter,  setFilter]  = useState('');
   const [creating,setCreating]= useState(false);
@@ -168,11 +185,20 @@ export default function MatchPage() {
   const load = useCallback(async () => {
     const [{ data: p, error }, { data: m }] = await Promise.all([
       supabase.from('study_posts').select('*').order('created_at', { ascending: false }),
-      supabase.from('study_members').select('*'),
+      supabase.from('study_members').select('post_id, user_id, joined_at'),
     ]);
     if (error?.message?.includes('does not exist')) { setDbMissing(true); setLoading(false); return; }
     setPosts((p ?? []) as StudyPost[]);
     setMembers((m ?? []) as Member[]);
+
+    // study_members.user_id는 auth.users를 참조해서 profiles 임베드가 안 되니, 멤버로
+    // 등장하는 user_id들 + 글쓴이들의 프로필을 따로 가져와서 클라이언트에서 매칭한다
+    const ids = [...new Set([...(m ?? []).map((x: any) => x.user_id), ...(p ?? []).map((x: any) => x.user_id)])];
+    if (ids.length > 0) {
+      const { data: profs } = await supabase.from('profiles').select('id, full_name, student_id').in('id', ids);
+      setProfileMap(new Map((profs ?? []).map((pr: any) => [pr.id, pr as Profile])));
+    }
+
     setLoading(false);
     setJustFinished(true);
     setTimeout(() => setJustFinished(false), 600);
@@ -261,7 +287,7 @@ export default function MatchPage() {
           {shown.map((post, i) => (
             <div key={post.id} style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }} className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards">
               <PostCard post={post}
-                members={members} myUserId={user?.id ?? ''}
+                members={members} myUserId={user?.id ?? ''} profileMap={profileMap}
                 onJoin={() => join(post.id)} onLeave={() => leave(post.id)}
                 onDelete={() => setConfirmDeleteId(post.id)} onClose={() => close(post.id)} />
             </div>
