@@ -28,7 +28,7 @@ export default function GamesPage() {
   const [active, setActive] = useState<GameId>('flappy');
 
   return (
-    <main className="min-h-screen px-4 py-10 flex flex-col items-center gap-6">
+    <main className="min-h-screen max-w-full overflow-x-hidden px-4 py-10 flex flex-col items-center gap-6">
       <div className="text-center space-y-1">
         <h1 className="text-3xl font-black uppercase tracking-tighter italic">Arcade</h1>
         <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">AI 학습 대기 중 한 판 하세요</p>
@@ -37,21 +37,17 @@ export default function GamesPage() {
       <SegmentedTabs
         items={GAMES.map(g => ({
           value: g.id,
-          label: (
-            <span className="flex flex-col items-center gap-0.5">
-              <span>{g.emoji} {g.label}</span>
-              <span className={`text-[8px] font-bold ${g.tag === 'touch' ? 'text-green-500/70' : 'text-blue-500/70'}`}>
-                {g.tag === 'touch' ? '👆 touch' : '⌨️ keys'}
-              </span>
-            </span>
-          ),
+          label: <span>{g.emoji}</span>,
         }))}
         value={active}
         onChange={(v) => setActive(v as GameId)}
-        className="max-w-lg"
+        className="max-w-full"
       />
+      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+        {GAMES.find(g => g.id === active)?.label} · {GAMES.find(g => g.id === active)?.tag === 'touch' ? '👆 touch' : '⌨️ keys'}
+      </p>
 
-      <div className={`w-full flex flex-col items-center ${active === 'polybridge' ? 'max-w-2xl' : 'max-w-lg'}`}>
+      <div className={`w-full max-w-full flex flex-col items-center ${active === 'polybridge' ? 'max-w-2xl' : 'max-w-lg'}`}>
         {active === 'flappy'     && <FlappyBird />}
         {active === 'memory'     && <MemoryMatch />}
         {active === 'mines'      && <Minesweeper />}
