@@ -76,7 +76,7 @@ export default function MemoryMatch() {
   const fmt = (s: number) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 
   const cols = pairs <= 6 ? 4 : 6;
-  const cardSize = pairs <= 6 ? 72 : 58;
+  const maxBoardPx = pairs <= 6 ? 312 : 396;
 
   return (
     <div className="flex flex-col items-center gap-5">
@@ -100,17 +100,17 @@ export default function MemoryMatch() {
         <Button variant="outline" size="sm" onClick={() => start()} className="font-black text-xs uppercase">Reset</Button>
       </div>
 
-      {/* grid */}
+      {/* grid — 뷰포트 너비에 맞춰 카드 크기가 줄어들도록 vw로 상한을 둔다 */}
       <div
         className="grid gap-2 touch-none"
-        style={{ gridTemplateColumns: `repeat(${cols}, ${cardSize}px)` }}
+        style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, width: `min(${maxBoardPx}px, 90vw)` }}
       >
         {cards.map((card, i) => (
           <div
             key={card.id}
             onClick={() => flip(i)}
             onTouchStart={e => { e.preventDefault(); flip(i); }}
-            style={{ width: cardSize, height: cardSize, perspective: 600, cursor: 'pointer' }}
+            style={{ aspectRatio: '1 / 1', perspective: 600, cursor: 'pointer' }}
           >
             <div style={{
               width: '100%', height: '100%',
@@ -124,7 +124,7 @@ export default function MemoryMatch() {
                 borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                fontSize: 22, userSelect: 'none',
+                fontSize: 'min(22px, 7vw)', userSelect: 'none',
               }}>❓</div>
               {/* front */}
               <div style={{
@@ -134,7 +134,7 @@ export default function MemoryMatch() {
                 background: card.matched ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
                 border: card.matched ? '2px solid rgba(34,197,94,0.4)' : '2px solid rgba(255,255,255,0.1)',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                fontSize: cardSize * 0.45, userSelect: 'none',
+                fontSize: `min(${maxBoardPx / cols * 0.45}px, ${90 / cols * 0.45}vw)`, userSelect: 'none',
                 filter: card.matched ? 'none' : undefined,
               }}>{card.emoji}</div>
             </div>

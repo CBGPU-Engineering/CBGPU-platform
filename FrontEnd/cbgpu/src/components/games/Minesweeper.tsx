@@ -120,7 +120,7 @@ export default function Minesweeper() {
     else reveal(r, c);
   }, [flagMode, flag, reveal]);
 
-  const cellSize = level === 'hard' ? 28 : level === 'medium' ? 32 : 38;
+  const maxBoardPx = (level === 'hard' ? 28 : level === 'medium' ? 32 : 38) * cfg.cols;
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -147,10 +147,10 @@ export default function Minesweeper() {
         {flagMode ? '🚩 깃발 모드 ON' : '👆 클릭 모드'}
       </button>
 
-      {/* board */}
+      {/* board — 뷰포트보다 넓어지면 cols당 폭이 줄어들도록 vw로 상한을 둔다 */}
       <div
-        className="inline-grid border-2 border-border/50 rounded-xl overflow-hidden shadow-lg"
-        style={{ gridTemplateColumns: `repeat(${cfg.cols}, ${cellSize}px)` }}
+        className="grid border-2 border-border/50 rounded-xl overflow-hidden shadow-lg"
+        style={{ gridTemplateColumns: `repeat(${cfg.cols}, 1fr)`, width: `min(${maxBoardPx}px, 94vw)` }}
         onContextMenu={e => e.preventDefault()}
       >
         {grid.map((row, r) => row.map((cell, c) => {
@@ -160,7 +160,7 @@ export default function Minesweeper() {
           return (
             <div
               key={`${r}-${c}`}
-              style={{ width: cellSize, height: cellSize, fontSize: cellSize * 0.45 }}
+              style={{ aspectRatio: '1 / 1', fontSize: `min(${maxBoardPx / cfg.cols * 0.45}px, ${94 / cfg.cols * 0.45}vw)` }}
               className={`flex items-center justify-center font-black border border-border/20 cursor-pointer select-none transition-colors touch-none ${bg}`}
               onClick={e => handleCell(e, r, c)}
               onTouchStart={e => handleCell(e, r, c)}

@@ -420,7 +420,7 @@ export default function StudyPage() {
         </div>
       ) : sortedRoomData.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground pop-in-3d">
-          <img src="/3d-icons/calendar.webp" alt="" className="size-16 mx-auto mb-3 opacity-90" />
+          <p style={{ fontFamily: 'Tossface', fontSize: 52, lineHeight: 1 }} className="mb-3">📅</p>
           {roomData.length === 0 ? '아직 확인 가능한 자습실 데이터가 없습니다.' : '검색 결과가 없습니다.'}
         </div>
       ) : (
