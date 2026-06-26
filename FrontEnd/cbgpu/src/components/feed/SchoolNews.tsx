@@ -69,13 +69,13 @@ export default function SchoolNews() {
 
       {error && <p className="text-destructive text-xs font-bold p-3 bg-destructive/10 rounded-lg">{error}</p>}
 
-      {loading && items.length === 0 && (
+      {(loading || justFinished) && (
         <div className="py-10 flex items-center justify-center">
           <LoadingSpinner done={justFinished} size={48} label="공지사항 불러오는 중" />
         </div>
       )}
 
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${loading || justFinished ? 'hidden' : ''}`}>
         {items.map((item, i) => (
           <a key={i} href={item.link} target="_blank" rel="noopener noreferrer"
             className="flex gap-3 items-start p-3 rounded-xl border border-border/40 hover:bg-muted/40 hover:border-border transition-all group">

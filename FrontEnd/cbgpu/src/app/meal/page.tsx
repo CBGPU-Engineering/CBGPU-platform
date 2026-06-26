@@ -121,7 +121,7 @@ export default function MealPage() {
       )}
 
       {/* Content */}
-      {loading ? (
+      {loading || justLoaded ? (
         <div className="py-16 flex items-center justify-center">
           <LoadingSpinner done={justLoaded} size={64} label="급식 정보 불러오는 중" />
         </div>

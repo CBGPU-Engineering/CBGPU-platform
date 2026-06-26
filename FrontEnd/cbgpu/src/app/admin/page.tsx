@@ -153,7 +153,7 @@ export default function AdminPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {loading || justFinished ? (
                   <TableRow><TableCell colSpan={5} className="py-16"><div className="flex items-center justify-center"><LoadingSpinner done={justFinished} size={48} label="예약 내역 불러오는 중" /></div></TableCell></TableRow>
                 ) : reservations.length === 0 ? (
                   <TableRow><TableCell colSpan={5} className="text-center py-20 font-bold text-muted-foreground opacity-50">No pending requests found.</TableCell></TableRow>

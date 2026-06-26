@@ -325,7 +325,7 @@ export default function Dashboard() {
         </div>
 
         {/* 전체 GPU 예약 현황 캘린더 — 구 /schedule, 누구나 볼 수 있게 항상 공개 */}
-        {calendarLoading ? (
+        {calendarLoading || calendarJustFinished ? (
           <div className="py-16 flex items-center justify-center">
             <LoadingSpinner done={calendarJustFinished} size={56} label="예약 현황 불러오는 중" />
           </div>
@@ -456,34 +456,33 @@ export default function Dashboard() {
 
       <hr className="border-border transition-colors duration-500" />
 
-      {/* GPU 예약 — 4개를 동시에 띄우는 박스 그리드 대신, 하나씩 골라서 집중해서 예약 */}
-      <section>
-        <div className="flex flex-col gap-2 mb-6">
-          <h2 className="text-xl md:text-2xl font-black tracking-tight uppercase italic">예약하기</h2>
-          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">GPU를 선택하고 예약을 신청하세요</p>
+      {/* 예약하기 + My Reservations를 나란히 — 박스 그리드 대신 하나씩 집중해서 예약하고,
+          넓은 화면의 가로 공간을 살려 예약 폼 옆에서 바로 내 예약 현황을 확인한다 */}
+      <section className="lg:flex lg:gap-10 lg:items-start pb-20">
+        <div className="lg:w-[420px] lg:shrink-0 space-y-6 mb-10 lg:mb-0">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-xl md:text-2xl font-black tracking-tight uppercase italic">예약하기</h2>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">GPU를 선택하고 예약을 신청하세요</p>
+          </div>
+          <SegmentedTabs
+            items={[1,2,3,4].map(id => ({ value: String(id), label: `GPU #${id}` }))}
+            value={String(selectedGpuId)}
+            onChange={(v) => setSelectedGpuId(Number(v))}
+          />
+          <div>
+            {selectedGpuId === 1
+              ? <GPUCard key={1} id={1} name="RTX5000" />
+              : <WeeklyGPUCard key={selectedGpuId} id={selectedGpuId} name="RTX5000" />}
+          </div>
         </div>
-        <SegmentedTabs
-          items={[1,2,3,4].map(id => ({ value: String(id), label: `GPU #${id}` }))}
-          value={String(selectedGpuId)}
-          onChange={(v) => setSelectedGpuId(Number(v))}
-          className="mb-6"
-        />
-        <div className="max-w-md">
-          {selectedGpuId === 1
-            ? <GPUCard key={1} id={1} name="RTX5000" />
-            : <WeeklyGPUCard key={selectedGpuId} id={selectedGpuId} name="RTX5000" />}
-        </div>
-      </section>
-
-      <hr className="border-border transition-colors duration-500" />
 
       {!user ? (
-        <div className="flex flex-col items-center justify-center min-h-[30vh] text-center space-y-4">
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[30vh] text-center space-y-4">
           <h2 className="text-2xl font-black uppercase italic">Authentication Required</h2>
           <p className="text-muted-foreground">Please sign in to view your reservations.</p>
         </div>
       ) : (
-      <section className="pb-20">
+      <div className="flex-1 min-w-0">
         <div className="flex justify-end mb-6">
           <SegmentedTabs
             items={[
@@ -548,7 +547,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {loading ? (
+        {loading || justFinished ? (
           <div className="py-16 flex items-center justify-center">
             <LoadingSpinner done={justFinished} size={56} label="예약 내역 불러오는 중" />
           </div>
@@ -662,8 +661,9 @@ export default function Dashboard() {
             })}
           </div>
         )}
-      </section>
+      </div>
       )}
+      </section>
 
       <Dialog open={!!endTarget} onOpenChange={(open) => { if (!open) setEndTarget(null); }}>
         <DialogContent className="max-w-sm rounded-2xl">

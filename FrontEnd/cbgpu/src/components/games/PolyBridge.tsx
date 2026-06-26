@@ -19,6 +19,8 @@ interface Vehicle {
   x: number; y: number;
   vx: number; vy: number;
   w: number; h: number;
+  weight: number;
+  kind: 'car' | 'truck';
   onGround: boolean;
   done: boolean;
   fell: boolean;
@@ -26,6 +28,22 @@ interface Vehicle {
 type NodeSnapshot = { id: number; x: number; y: number }[];
 type Material = 'road' | 'wood' | 'steel' | 'cable';
 type Phase = 'build' | 'test' | 'win' | 'lose';
+
+interface LevelConfig {
+  name: string;
+  gap: number;       // 절벽 사이 거리(px)
+  budget: number;
+  anchorYs: number[]; // 각 절벽에 둘 앵커의 y 위치들
+  vehicles: { kind: 'car' | 'truck'; weight: number }[]; // 순서대로 건너야 할 차량들
+}
+
+const LEVELS: LevelConfig[] = [
+  { name: '1. 첫 다리',   gap: 260, budget: 380, anchorYs: [200, 240, 280], vehicles: [{ kind: 'car', weight: 1 }] },
+  { name: '2. 무게감',    gap: 310, budget: 300, anchorYs: [200, 260],      vehicles: [{ kind: 'car', weight: 1.3 }] },
+  { name: '3. 두 번째 차', gap: 350, budget: 280, anchorYs: [200, 260],      vehicles: [{ kind: 'car', weight: 1.2 }, { kind: 'truck', weight: 2.2 }] },
+  { name: '4. 외팔보',    gap: 390, budget: 230, anchorYs: [200],           vehicles: [{ kind: 'truck', weight: 2 }, { kind: 'truck', weight: 2.4 }] },
+  { name: '5. 극한 화물', gap: 420, budget: 210, anchorYs: [200],           vehicles: [{ kind: 'car', weight: 1.2 }, { kind: 'truck', weight: 2.4 }, { kind: 'truck', weight: 3 }] },
+];
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MAT: Record<Material, { color: string; maxStress: number; stiffness: number; tensionOnly: boolean; cost: number; label: string }> = {
@@ -37,27 +55,29 @@ const MAT: Record<Material, { color: string; maxStress: number; stiffness: numbe
 
 const GRAVITY    = 600;
 const SUBSTEPS   = 8;
-const MAX_BUDGET = 300;
 const W = 640; const H = 420;
-
-const LEFT_CLIFF  = { x: 0,   y: 200, w: 110, h: H - 200 };
-const RIGHT_CLIFF = { x: 530, y: 200, w: W - 530, h: H - 200 };
 const WATER_Y = H - 60;
-
-const ANCHORS: { x: number; y: number }[] = [
-  { x: 110, y: 200 }, { x: 110, y: 240 }, { x: 110, y: 280 },
-  { x: 530, y: 200 }, { x: 530, y: 240 }, { x: 530, y: 280 },
-];
+const CLIFF_W = 110;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function dist(a: Vec2, b: Vec2) { return Math.hypot(b.x - a.x, b.y - a.y); }
 function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
+function clamp01(t: number) { return Math.max(0, Math.min(1, t)); }
 
 function stressColor(s: number, broken: boolean): string {
   if (broken) return '#ef4444';
   if (s < 0.4) return '#22c55e';
   if (s < 0.7) return `hsl(${lerp(120, 45, (s - 0.4) / 0.3)}, 80%, 50%)`;
   return `hsl(${lerp(45, 0, (s - 0.7) / 0.3)}, 90%, 50%)`;
+}
+
+function makeVehicle(kind: 'car' | 'truck', weight: number, startX: number, startY: number): Vehicle {
+  const isTruck = kind === 'truck';
+  return {
+    x: startX, y: startY, vx: 0, vy: 0,
+    w: isTruck ? 58 : 44, h: isTruck ? 30 : 24,
+    weight, kind, onGround: false, done: false, fell: false,
+  };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -67,45 +87,66 @@ export default function PolyBridge() {
     nodes:        [] as PhysNode[],
     edges:        [] as Edge[],
     vehicle:      null as Vehicle | null,
+    vehicleQueue: [] as { kind: 'car' | 'truck'; weight: number }[],
+    crossedCount: 0,
     phase:        'build' as Phase,
     mat:          'road' as Material,
-    budget:       MAX_BUDGET,
+    budget:       0,
     hoverNode:    -1,
     dragFrom:     -1,
     mouseX:       0,
     mouseY:       0,
     nextNodeId:   0,
     nextEdgeId:   0,
-    nodeSnapshot: [] as NodeSnapshot,  // positions captured before test
+    nodeSnapshot: [] as NodeSnapshot,
+    leftCliff:    { x: 0, y: 200, w: CLIFF_W, h: H - 200 },
+    rightCliff:   { x: 0, y: 200, w: CLIFF_W, h: H - 200 },
   });
   const rafRef  = useRef<number>(0);
   const lastRef = useRef<number>(0);
 
+  const [levelIdx, setLevelIdx] = useState(0);
   const [phase,  setPhase]  = useState<Phase>('build');
   const [mat,    setMat]    = useState<Material>('road');
-  const [budget, setBudget] = useState(MAX_BUDGET);
+  const [budget, setBudget] = useState(0);
+  const [vehiclesDone, setVehiclesDone] = useState(0);
+  const [vehiclesTotal, setVehiclesTotal] = useState(1);
 
   useEffect(() => { s.current.mat = mat; }, [mat]);
 
   // ── Init ──────────────────────────────────────────────────────────────────
-  const initLevel = useCallback(() => {
+  const initLevel = useCallback((idx: number) => {
+    const level = LEVELS[idx];
     const r = s.current;
-    r.nodes = ANCHORS.map((a, i) => ({
-      id: i, x: a.x, y: a.y, px: a.x, py: a.y, pinned: true,
-    }));
+
+    const leftCliffRight = CLIFF_W; // 좌측 절벽이 캔버스 맨 왼쪽(x=0)에서 시작
+    const leftCliff  = { x: leftCliffRight - CLIFF_W, y: 200, w: CLIFF_W, h: H - 200 };
+    const rightCliff = { x: leftCliffRight + level.gap, y: 200, w: W - (leftCliffRight + level.gap), h: H - 200 };
+
+    const anchors: { x: number; y: number }[] = [];
+    for (const y of level.anchorYs) anchors.push({ x: leftCliff.x + leftCliff.w, y });
+    for (const y of level.anchorYs) anchors.push({ x: rightCliff.x, y });
+
+    r.leftCliff = leftCliff;
+    r.rightCliff = rightCliff;
+    r.nodes = anchors.map((a, i) => ({ id: i, x: a.x, y: a.y, px: a.x, py: a.y, pinned: true }));
     r.edges = [];
     r.vehicle = null;
+    r.vehicleQueue = level.vehicles.slice();
+    r.crossedCount = 0;
     r.phase = 'build';
-    r.budget = MAX_BUDGET;
-    r.nextNodeId = ANCHORS.length;
+    r.budget = level.budget;
+    r.nextNodeId = anchors.length;
     r.nextEdgeId = 0;
     r.dragFrom = -1;
     r.nodeSnapshot = [];
     setPhase('build');
-    setBudget(MAX_BUDGET);
+    setBudget(level.budget);
+    setVehiclesDone(0);
+    setVehiclesTotal(level.vehicles.length);
   }, []);
 
-  useEffect(() => { initLevel(); }, [initLevel]);
+  useEffect(() => { initLevel(levelIdx); }, [levelIdx, initLevel]);
 
   // ── Node helpers ──────────────────────────────────────────────────────────
   const nearestNode = (x: number, y: number, maxD = 18): number => {
@@ -146,6 +187,24 @@ export default function PolyBridge() {
   const physicsStep = (dt: number) => {
     const r = s.current;
     if (r.phase !== 'test') return;
+    const { leftCliff, rightCliff } = r;
+
+    const v = r.vehicle;
+    // 차량이 현재 어느 도로 변(edge) 위에 있는지 미리 찾아서, 그 변의 두 끝점에 무게를 분산해서 싣는다
+    let loadEdge: Edge | null = null;
+    let loadT = 0;
+    if (v && !v.done && !v.fell) {
+      let bestLeft = -Infinity;
+      for (const e of r.edges) {
+        if (e.broken || e.mat !== 'road') continue;
+        const na = r.nodes.find(n => n.id === e.a)!;
+        const nb = r.nodes.find(n => n.id === e.b)!;
+        const left  = Math.min(na.x, nb.x);
+        const right = Math.max(na.x, nb.x);
+        if (v.x < left || v.x > right) continue;
+        if (left > bestLeft) { bestLeft = left; loadEdge = e; loadT = clamp01((v.x - na.x) / ((nb.x - na.x) || 0.001)); }
+      }
+    }
 
     const sub = dt / SUBSTEPS;
 
@@ -158,6 +217,15 @@ export default function PolyBridge() {
         n.px = n.x; n.py = n.y;
         n.x += vx;
         n.y += vy + GRAVITY * sub * sub;
+      }
+
+      // 차량 하중 — 도로 위를 지날 때 그 구간의 두 노드에 무게를 나눠서 누른다
+      if (v && loadEdge) {
+        const na = r.nodes.find(n => n.id === loadEdge!.a)!;
+        const nb = r.nodes.find(n => n.id === loadEdge!.b)!;
+        const force = v.weight * GRAVITY * sub * sub * 0.9;
+        if (!na.pinned) na.y += force * (1 - loadT);
+        if (!nb.pinned) nb.y += force * loadT;
       }
 
       // Constraint solving
@@ -180,13 +248,13 @@ export default function PolyBridge() {
       // Cliff surface constraint
       for (const n of r.nodes) {
         if (n.pinned) continue;
-        if (n.x < LEFT_CLIFF.x + LEFT_CLIFF.w && n.y > LEFT_CLIFF.y) {
+        if (n.x < leftCliff.x + leftCliff.w && n.y > leftCliff.y) {
           const vy = n.y - n.py;
-          n.y = LEFT_CLIFF.y; n.py = n.y + vy * 0.3;
+          n.y = leftCliff.y; n.py = n.y + vy * 0.3;
         }
-        if (n.x > RIGHT_CLIFF.x && n.y > RIGHT_CLIFF.y) {
+        if (n.x > rightCliff.x && n.y > rightCliff.y) {
           const vy = n.y - n.py;
-          n.y = RIGHT_CLIFF.y; n.py = n.y + vy * 0.3;
+          n.y = rightCliff.y; n.py = n.y + vy * 0.3;
         }
       }
     }
@@ -196,14 +264,12 @@ export default function PolyBridge() {
       r.phase = 'lose'; setPhase('lose'); return;
     }
 
-    // Vehicle update
-    const v = r.vehicle;
     if (!v || v.done || v.fell) return;
 
     v.vx = Math.min(v.vx + 70 * dt, 150);
     v.vy += GRAVITY * dt;
 
-    // Ground detection from road edges
+    // Ground detection from road edges (다시 계산 — 이번 프레임에서 갱신된 노드 위치 기준)
     let groundY = Infinity;
     for (const e of r.edges) {
       if (e.broken || e.mat !== 'road') continue;
@@ -212,13 +278,12 @@ export default function PolyBridge() {
       const left  = Math.min(na.x, nb.x);
       const right = Math.max(na.x, nb.x);
       if (v.x + v.w / 2 < left || v.x - v.w / 2 > right) continue;
-      const t = Math.max(0, Math.min(1, (v.x - na.x) / ((nb.x - na.x) || 0.001)));
+      const t = clamp01((v.x - na.x) / ((nb.x - na.x) || 0.001));
       const ey = na.y + t * (nb.y - na.y);
       if (ey < groundY) groundY = ey;
     }
-    // Cliff tops
-    if (v.x - v.w / 2 < LEFT_CLIFF.x + LEFT_CLIFF.w)  groundY = Math.min(groundY, LEFT_CLIFF.y);
-    if (v.x + v.w / 2 > RIGHT_CLIFF.x)                  groundY = Math.min(groundY, RIGHT_CLIFF.y);
+    if (v.x - v.w / 2 < leftCliff.x + leftCliff.w)  groundY = Math.min(groundY, leftCliff.y);
+    if (v.x + v.w / 2 > rightCliff.x)                  groundY = Math.min(groundY, rightCliff.y);
 
     const vehicleBottom = v.y + v.h / 2;
     if (vehicleBottom >= groundY - 2 && v.vy >= 0) {
@@ -232,8 +297,18 @@ export default function PolyBridge() {
     v.x += v.vx * dt;
     v.y += v.vy * dt;
 
-    if (v.y > WATER_Y)                     { v.fell = true; r.phase = 'lose'; setPhase('lose'); }
-    if (v.x > RIGHT_CLIFF.x + RIGHT_CLIFF.w) { v.done = true; r.phase = 'win';  setPhase('win');  }
+    if (v.y > WATER_Y) { v.fell = true; r.phase = 'lose'; setPhase('lose'); }
+    if (v.x > rightCliff.x + rightCliff.w) {
+      v.done = true;
+      r.crossedCount++;
+      setVehiclesDone(r.crossedCount);
+      if (r.vehicleQueue.length > 0) {
+        const next = r.vehicleQueue.shift()!;
+        r.vehicle = makeVehicle(next.kind, next.weight, leftCliff.x + leftCliff.w - 10, leftCliff.y - 22);
+      } else {
+        r.phase = 'win'; setPhase('win');
+      }
+    }
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -242,10 +317,10 @@ export default function PolyBridge() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
     const r = s.current;
+    const { leftCliff, rightCliff } = r;
 
     ctx.clearRect(0, 0, W, H);
 
-    // Sky
     const sky = ctx.createLinearGradient(0, 0, 0, H);
     sky.addColorStop(0,   '#0f172a');
     sky.addColorStop(0.7, '#1e3a5f');
@@ -253,14 +328,12 @@ export default function PolyBridge() {
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, W, H);
 
-    // Water
     const water = ctx.createLinearGradient(0, WATER_Y, 0, H);
     water.addColorStop(0, 'rgba(56,189,248,0.7)');
     water.addColorStop(1, 'rgba(2,132,199,0.95)');
     ctx.fillStyle = water;
     ctx.fillRect(0, WATER_Y, W, H - WATER_Y);
 
-    // Water shimmer
     ctx.strokeStyle = 'rgba(255,255,255,0.12)';
     ctx.lineWidth = 1;
     for (let wy = WATER_Y + 8; wy < H; wy += 14) {
@@ -272,16 +345,13 @@ export default function PolyBridge() {
       ctx.stroke();
     }
 
-    // Cliffs
     ctx.fillStyle = '#334155';
-    ctx.fillRect(LEFT_CLIFF.x, LEFT_CLIFF.y, LEFT_CLIFF.w, LEFT_CLIFF.h);
-    ctx.fillRect(RIGHT_CLIFF.x, RIGHT_CLIFF.y, RIGHT_CLIFF.w, RIGHT_CLIFF.h);
-    // Top edge accent
+    ctx.fillRect(leftCliff.x, leftCliff.y, leftCliff.w, leftCliff.h);
+    ctx.fillRect(rightCliff.x, rightCliff.y, rightCliff.w, rightCliff.h);
     ctx.fillStyle = '#475569';
-    ctx.fillRect(LEFT_CLIFF.x,  LEFT_CLIFF.y, LEFT_CLIFF.w,  4);
-    ctx.fillRect(RIGHT_CLIFF.x, RIGHT_CLIFF.y, RIGHT_CLIFF.w, 4);
+    ctx.fillRect(leftCliff.x,  leftCliff.y, leftCliff.w,  4);
+    ctx.fillRect(rightCliff.x, rightCliff.y, rightCliff.w, 4);
 
-    // Edges
     for (const e of r.edges) {
       const na = r.nodes.find(n => n.id === e.a)!;
       const nb = r.nodes.find(n => n.id === e.b)!;
@@ -301,7 +371,6 @@ export default function PolyBridge() {
       ctx.setLineDash([]);
     }
 
-    // Ghost edge while dragging
     if (r.dragFrom >= 0 && r.phase === 'build') {
       const na = r.nodes.find(n => n.id === r.dragFrom);
       if (na) {
@@ -321,7 +390,6 @@ export default function PolyBridge() {
       }
     }
 
-    // Nodes
     for (const n of r.nodes) {
       const isHover = r.hoverNode === n.id && r.phase === 'build';
       ctx.beginPath();
@@ -336,7 +404,6 @@ export default function PolyBridge() {
       }
     }
 
-    // Ghost node at cursor when not near any existing node
     if (r.hoverNode < 0 && r.phase === 'build' && r.mouseX > 0) {
       ctx.beginPath();
       ctx.arc(r.mouseX, r.mouseY, 5, 0, Math.PI * 2);
@@ -344,22 +411,18 @@ export default function PolyBridge() {
       ctx.fill();
     }
 
-    // Vehicle
     const v = r.vehicle;
     if (v) {
       const vx = v.x - v.w / 2;
       const vy = v.y - v.h / 2;
-      // Body
       ctx.beginPath();
       ctx.roundRect(vx, vy, v.w, v.h, 5);
-      ctx.fillStyle = v.fell ? '#ef4444' : '#f97316';
+      ctx.fillStyle = v.fell ? '#ef4444' : v.kind === 'truck' ? '#7c3aed' : '#f97316';
       ctx.fill();
-      // Cabin
       ctx.beginPath();
       ctx.roundRect(vx + v.w * 0.3, vy - v.h * 0.5, v.w * 0.5, v.h * 0.6, 3);
-      ctx.fillStyle = v.fell ? '#dc2626' : '#ea580c';
+      ctx.fillStyle = v.fell ? '#dc2626' : v.kind === 'truck' ? '#6d28d9' : '#ea580c';
       ctx.fill();
-      // Wheels
       const wr = v.h * 0.42;
       for (const wx of [vx + wr, vx + v.w - wr]) {
         ctx.beginPath();
@@ -445,45 +508,63 @@ export default function PolyBridge() {
   // ── Phase controls ────────────────────────────────────────────────────────
   const startTest = () => {
     const r = s.current;
-    // Snapshot node positions for restore
     r.nodeSnapshot = r.nodes.map(n => ({ id: n.id, x: n.x, y: n.y }));
-    r.vehicle = {
-      x: LEFT_CLIFF.x + LEFT_CLIFF.w - 10, y: LEFT_CLIFF.y - 22,
-      vx: 0, vy: 0, w: 44, h: 24, onGround: false, done: false, fell: false,
-    };
+    const level = LEVELS[levelIdx];
+    r.vehicleQueue = level.vehicles.slice(1);
+    r.crossedCount = 0;
+    setVehiclesDone(0);
+    const first = level.vehicles[0];
+    r.vehicle = makeVehicle(first.kind, first.weight, r.leftCliff.x + r.leftCliff.w - 10, r.leftCliff.y - 22);
     r.phase = 'test';
     setPhase('test');
   };
 
   const backToBuild = () => {
     const r = s.current;
-    // Restore node positions from snapshot
     for (const snap of r.nodeSnapshot) {
       const n = r.nodes.find(nd => nd.id === snap.id);
       if (n) { n.x = snap.x; n.y = snap.y; n.px = snap.x; n.py = snap.y; }
     }
-    // Reset edge states
     for (const e of r.edges) { e.broken = false; e.stress = 0; }
     r.vehicle = null;
     r.phase = 'build';
     r.nodeSnapshot = [];
     setPhase('build');
+    setVehiclesDone(0);
   };
 
   const clearBridge = () => {
     const r = s.current;
     r.edges = [];
     r.nodes = r.nodes.filter(n => n.pinned);
-    r.budget = MAX_BUDGET;
-    setBudget(MAX_BUDGET);
+    r.budget = LEVELS[levelIdx].budget;
+    setBudget(LEVELS[levelIdx].budget);
   };
 
-  const resetAll = () => { initLevel(); };
+  const resetAll = () => { initLevel(levelIdx); };
+  const nextLevel = () => { setLevelIdx(i => Math.min(LEVELS.length - 1, i + 1)); };
 
-  const budgetPct = (budget / MAX_BUDGET) * 100;
+  const budgetPct = (budget / LEVELS[levelIdx].budget) * 100;
+  const isLastLevel = levelIdx === LEVELS.length - 1;
 
   return (
     <div className="flex flex-col items-center gap-3 w-full select-none">
+      {/* 레벨 선택 */}
+      <div className="w-full flex gap-1.5 overflow-x-auto" style={{ maxWidth: W }}>
+        {LEVELS.map((lv, i) => (
+          <button
+            key={lv.name}
+            onClick={() => setLevelIdx(i)}
+            disabled={phase === 'test'}
+            className={`shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              i === levelIdx ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
+            }`}
+          >
+            {lv.name}
+          </button>
+        ))}
+      </div>
+
       {/* Canvas */}
       <div className="relative w-full" style={{ maxWidth: W }}>
         <canvas
@@ -498,7 +579,12 @@ export default function PolyBridge() {
           onTouchEnd={onTouchEnd}
         />
 
-        {/* Win / Lose overlay */}
+        {phase === 'test' && vehiclesTotal > 1 && (
+          <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/50 text-white text-[10px] font-black uppercase tracking-widest">
+            차량 {Math.min(vehiclesDone + 1, vehiclesTotal)}/{vehiclesTotal}
+          </div>
+        )}
+
         {(phase === 'win' || phase === 'lose') && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 rounded-2xl bg-black/65 backdrop-blur-sm">
             <p className="text-5xl">{phase === 'win' ? '🎉' : '💧'}</p>
@@ -506,7 +592,9 @@ export default function PolyBridge() {
               {phase === 'win' ? '다리 완성!' : '다리 붕괴!'}
             </p>
             <p className="text-sm text-white/70 font-medium">
-              {phase === 'win' ? '차량이 무사히 건넜습니다!' : '차량이 강에 빠졌습니다.'}
+              {phase === 'win'
+                ? `차량 ${vehiclesTotal}대가 무사히 건넜습니다!`
+                : `${vehiclesDone}/${vehiclesTotal}대를 건넨 뒤 무너졌습니다.`}
             </p>
             <div className="flex gap-2">
               <button onClick={backToBuild}
@@ -514,9 +602,15 @@ export default function PolyBridge() {
                 수정하기
               </button>
               <button onClick={resetAll}
-                className="px-5 py-2 bg-primary text-primary-foreground rounded-xl font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-all">
+                className="px-4 py-2 bg-white/20 text-white rounded-xl font-black text-sm uppercase tracking-widest hover:bg-white/30 transition-all">
                 다시 시작
               </button>
+              {phase === 'win' && !isLastLevel && (
+                <button onClick={nextLevel}
+                  className="px-5 py-2 bg-primary text-primary-foreground rounded-xl font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-all">
+                  다음 레벨 →
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -526,7 +620,7 @@ export default function PolyBridge() {
       <div className="w-full" style={{ maxWidth: W }}>
         <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">
           <span>예산</span>
-          <span className={budgetPct < 15 ? 'text-red-500' : budgetPct < 40 ? 'text-amber-500' : ''}>{budget} / {MAX_BUDGET}</span>
+          <span className={budgetPct < 15 ? 'text-red-500' : budgetPct < 40 ? 'text-amber-500' : ''}>{budget} / {LEVELS[levelIdx].budget}</span>
         </div>
         <div className="h-2 bg-muted rounded-full overflow-hidden">
           <div className="h-full rounded-full transition-all duration-200" style={{
@@ -585,12 +679,12 @@ export default function PolyBridge() {
       {/* Hint text */}
       {phase === 'build' && (
         <p className="text-[10px] text-muted-foreground font-medium text-center max-w-sm">
-          노란 앵커에서 드래그해 자재를 연결하세요 · 빈 공간 클릭으로 새 노드 생성 · 테스트 버튼으로 차량 주행
+          노란 앵커에서 드래그해 자재를 연결하세요 · 빈 공간 클릭으로 새 노드 생성 · 차가 지날 때 그 무게가 다리를 누르니 충분히 튼튼하게 지지하세요
         </p>
       )}
       {phase === 'test' && (
         <p className="text-[10px] text-muted-foreground font-medium text-center">
-          스트레스: 초록 → 노랑 → 빨강 · 빨간 점선 = 파손됨
+          스트레스: 초록 → 노랑 → 빨강 · 빨간 점선 = 파손됨 {vehiclesTotal > 1 && '· 보라색 = 트럭(더 무거움)'}
         </p>
       )}
     </div>

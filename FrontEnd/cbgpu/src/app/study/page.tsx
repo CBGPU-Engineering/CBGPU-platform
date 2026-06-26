@@ -416,7 +416,7 @@ export default function StudyPage() {
 
       {loading || justFinished ? (
         <div className="flex justify-center py-12">
-          <LoadingSpinner done={justFinished} size={44} label={justFinished ? '불러왔습니다' : undefined} />
+          <LoadingSpinner done={justFinished} size={64} label={justFinished ? '불러왔습니다' : '자습 현황 불러오는 중'} />
         </div>
       ) : sortedRoomData.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground pop-in-3d">
@@ -424,8 +424,8 @@ export default function StudyPage() {
           {roomData.length === 0 ? '아직 확인 가능한 자습실 데이터가 없습니다.' : '검색 결과가 없습니다.'}
         </div>
       ) : (
-        <div className="space-y-2">
-          {sortedRoomData.map(({ room, seats, occupiedCount }) => {
+        <div key={selectedPeriod} className="space-y-2">
+          {sortedRoomData.map(({ room, seats, occupiedCount }, i) => {
             const total = seats.length;
             const ratio = room.hasSeats && total > 0 ? occupiedCount / total : 0;
             const highlighted = room.hasSeats && occupiedCount > 0;
@@ -436,7 +436,8 @@ export default function StudyPage() {
                 type="button"
                 disabled={!clickable}
                 onClick={() => clickable && setOpenRoomId(room.id)}
-                className={`tilt-3d w-full flex items-center gap-4 p-4 rounded-2xl bg-card ring-1 ring-foreground/5 shadow-sm text-left transition-opacity ${
+                style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}
+                className={`tilt-3d w-full flex items-center gap-4 p-4 rounded-2xl bg-card ring-1 ring-foreground/5 shadow-sm text-left transition-opacity animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards ${
                   clickable ? '' : 'opacity-60'
                 }`}
               >
