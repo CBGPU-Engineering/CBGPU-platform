@@ -123,6 +123,28 @@ function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod }: {
   );
 }
 
+/** 정원제(좌석 없는) 자습실용 — 좌석 배치 대신 해당 교시 신청자만 단순 목록으로 보여준다 */
+function CapacityList({ occupancy, selectedPeriod }: { occupancy: OccupancyEntry[]; selectedPeriod: number }) {
+  const entries = occupancy.filter((o) => o.period === selectedPeriod);
+
+  if (entries.length === 0) {
+    return <p className="text-sm text-muted-foreground text-center py-10">이 교시에 신청자가 없습니다.</p>;
+  }
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-muted/10 divide-y divide-border/30 max-h-[360px] overflow-y-auto">
+      {entries.map((e, i) => (
+        <div key={i} className="flex items-center justify-between px-4 py-2.5">
+          <span className="text-sm font-bold">{e.label}</span>
+          {e.status === 'PENDING' && (
+            <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">대기</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function StudyPage() {
   const [roomData, setRoomData] = useState<RoomData[]>([]);
   const [allStudents, setAllStudents] = useState<Student[]>([]);
@@ -159,7 +181,20 @@ export default function StudyPage() {
       const data = await Promise.all(
         rooms.map(async (room): Promise<RoomData> => {
           if (!room.hasSeats) {
-            return { room, seats: [], obstacles: [], occupantsBySeat: new Map(), occupancy: [] };
+            // 정원제 자습실은 좌석이 없어서 SeatMap은 못 그리지만, 신청자 명단 자체는
+            // /selfstudy/search 응답에 seat: null로 같이 들어있으니 그대로 모아서 보여준다.
+            const occupancy: OccupancyEntry[] = [];
+            const roomEntries = selfStudyEntries?.filter(
+              (e) => e.room.id === room.id && e.type === 'selfstudy' && e.status !== 'REJECTED'
+            );
+            roomEntries?.forEach((e) => {
+              occupancy.push({
+                roomId: room.id, roomName: room.name, seatName: '',
+                period: e.period, label: formatStudentLabel(e.student),
+                studentId: e.student.id, status: e.status,
+              });
+            });
+            return { room, seats: [], obstacles: [], occupantsBySeat: new Map(), occupancy };
           }
           try {
             const composition = await getRoomComposition(room.id);
@@ -264,9 +299,9 @@ export default function StudyPage() {
   const sortedRoomData = useMemo(() => {
     return filteredRoomData
       .map((d) => {
-        const occupiedCount = [...d.occupantsBySeat.values()].filter((list) =>
-          list.some((o) => o.period === selectedPeriod)
-        ).length;
+        const occupiedCount = d.room.hasSeats
+          ? [...d.occupantsBySeat.values()].filter((list) => list.some((o) => o.period === selectedPeriod)).length
+          : d.occupancy.filter((o) => o.period === selectedPeriod).length;
         return { ...d, occupiedCount };
       })
       .sort((a, b) => b.occupiedCount - a.occupiedCount);
@@ -354,9 +389,9 @@ export default function StudyPage() {
             <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/10 p-3">
               <p className="text-sm">
                 {selectedStudentEntry
-                  ? `${selectedPeriod}교시: ${selectedStudentEntry.roomName} ${selectedStudentEntry.seatName}번 자리에 신청했습니다.${
-                      selectedStudentEntry.status === 'PENDING' ? ' (승인 대기중)' : ''
-                    }`
+                  ? `${selectedPeriod}교시: ${selectedStudentEntry.roomName}${
+                      selectedStudentEntry.seatName ? ` ${selectedStudentEntry.seatName}번 자리` : ''
+                    }에 신청했습니다.${selectedStudentEntry.status === 'PENDING' ? ' (승인 대기중)' : ''}`
                   : `${selectedPeriod}교시: 아직 신청하지 않았습니다.`}
               </p>
               {selectedStudentEntry && (
@@ -366,7 +401,7 @@ export default function StudyPage() {
                   className="shrink-0 font-bold text-xs"
                   onClick={() => setOpenRoomId(selectedStudentEntry.roomId)}
                 >
-                  좌석 보기
+                  {selectedStudentEntry.seatName ? '좌석 보기' : '명단 보기'}
                 </Button>
               )}
             </div>
@@ -428,8 +463,8 @@ export default function StudyPage() {
           {sortedRoomData.map(({ room, seats, occupiedCount }, i) => {
             const total = seats.length;
             const ratio = room.hasSeats && total > 0 ? occupiedCount / total : 0;
-            const highlighted = room.hasSeats && occupiedCount > 0;
-            const clickable = room.hasSeats && total > 0;
+            const highlighted = occupiedCount > 0;
+            const clickable = room.hasSeats ? total > 0 : true;
             return (
               <button
                 key={room.id}
@@ -449,7 +484,9 @@ export default function StudyPage() {
                         {occupiedCount}/{total}
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest">정원제</span>
+                      <span className={`text-[11px] font-black shrink-0 ${highlighted ? 'text-primary' : 'text-muted-foreground'}`}>
+                        정원제 · {occupiedCount}명 신청
+                      </span>
                     )}
                   </div>
                   {room.hasSeats && (
@@ -473,17 +510,23 @@ export default function StudyPage() {
           {openRoomData && (
             <>
               <DialogHeader>
-                <DialogTitle>{openRoomData.room.name} 좌석 배치</DialogTitle>
-                <DialogDescription>좌석 번호 옆에 학번/이름이 표시됩니다.</DialogDescription>
+                <DialogTitle>{openRoomData.room.name} {openRoomData.room.hasSeats ? '좌석 배치' : '신청자 명단'}</DialogTitle>
+                <DialogDescription>
+                  {openRoomData.room.hasSeats ? '좌석 번호 옆에 학번/이름이 표시됩니다.' : '정원제 자습실이라 좌석 없이 신청자만 표시됩니다.'}
+                </DialogDescription>
               </DialogHeader>
               <PeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} />
-              <SeatMap
-                room={openRoomData.room}
-                seats={openRoomData.seats}
-                obstacles={openRoomData.obstacles}
-                occupantsBySeat={openRoomData.occupantsBySeat}
-                selectedPeriod={selectedPeriod}
-              />
+              {openRoomData.room.hasSeats ? (
+                <SeatMap
+                  room={openRoomData.room}
+                  seats={openRoomData.seats}
+                  obstacles={openRoomData.obstacles}
+                  occupantsBySeat={openRoomData.occupantsBySeat}
+                  selectedPeriod={selectedPeriod}
+                />
+              ) : (
+                <CapacityList occupancy={openRoomData.occupancy} selectedPeriod={selectedPeriod} />
+              )}
             </>
           )}
         </DialogContent>
