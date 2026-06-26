@@ -143,7 +143,7 @@ export default function WordleKR() {
             }}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }}
             placeholder="5글자 입력..."
-            className="h-10 px-3 text-sm bg-muted border border-border/50 rounded-xl outline-none focus:border-primary font-bold text-center w-36"
+            className="h-10 px-3 text-base bg-muted border border-border/50 rounded-xl outline-none focus:border-primary font-bold text-center w-36"
             autoFocus
             autoComplete="off"
             autoCorrect="off"

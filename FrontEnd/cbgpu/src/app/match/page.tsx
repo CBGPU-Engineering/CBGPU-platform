@@ -126,7 +126,7 @@ function CreateForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <p className="text-[9px] font-black text-muted-foreground uppercase mb-1">최대 인원</p>
-            <Input type="number" min={2} max={20} value={max} onChange={e => setMax(+e.target.value)} className="text-sm" />
+            <Input type="number" min={2} max={20} value={max} onChange={e => setMax(+e.target.value)} className="md:text-sm" />
           </div>
           <div className="flex-1">
             <p className="text-[9px] font-black text-muted-foreground uppercase mb-1">태그 (최대 5개)</p>

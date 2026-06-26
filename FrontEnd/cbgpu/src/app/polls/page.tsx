@@ -227,7 +227,7 @@ function QuestionBuilder({ q, idx, total, prevQs, onChange, onDelete, onMove }: 
           </div>
 
           <Input value={q.title} onChange={e => onChange({ ...q, title: e.target.value })} placeholder="질문 제목 *" className="font-bold" />
-          <Input value={q.description} onChange={e => onChange({ ...q, description: e.target.value })} placeholder="질문 설명 (선택)" className="text-sm text-muted-foreground" />
+          <Input value={q.description} onChange={e => onChange({ ...q, description: e.target.value })} placeholder="질문 설명 (선택)" className="md:text-sm text-muted-foreground" />
 
           {/* options */}
           {hasOptions && (
@@ -235,7 +235,7 @@ function QuestionBuilder({ q, idx, total, prevQs, onChange, onDelete, onMove }: 
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">선택지</p>
               {q.options.map((o, i) => (
                 <div key={o.id} className="flex gap-2">
-                  <Input value={o.text} onChange={e => setOptText(o.id, e.target.value)} placeholder={`선택지 ${i + 1}`} className="text-sm" />
+                  <Input value={o.text} onChange={e => setOptText(o.id, e.target.value)} placeholder={`선택지 ${i + 1}`} className="md:text-sm" />
                   {q.options.length > 1 && <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => delOption(o.id)}><X className="size-3" /></Button>}
                 </div>
               ))}
@@ -246,10 +246,10 @@ function QuestionBuilder({ q, idx, total, prevQs, onChange, onDelete, onMove }: 
           {/* scale config */}
           {isScale && (
             <div className="grid grid-cols-2 gap-2">
-              <div><p className="text-[9px] font-black text-muted-foreground uppercase mb-1">최솟값</p><Input type="number" value={q.config.min ?? 1} onChange={e => onChange({ ...q, config: { ...q.config, min: +e.target.value } })} className="text-sm" /></div>
-              <div><p className="text-[9px] font-black text-muted-foreground uppercase mb-1">최댓값</p><Input type="number" value={q.config.max ?? 5} onChange={e => onChange({ ...q, config: { ...q.config, max: +e.target.value } })} className="text-sm" /></div>
-              <div><p className="text-[9px] font-black text-muted-foreground uppercase mb-1">최솟값 라벨</p><Input value={q.config.minLabel ?? ''} onChange={e => onChange({ ...q, config: { ...q.config, minLabel: e.target.value } })} className="text-sm" /></div>
-              <div><p className="text-[9px] font-black text-muted-foreground uppercase mb-1">최댓값 라벨</p><Input value={q.config.maxLabel ?? ''} onChange={e => onChange({ ...q, config: { ...q.config, maxLabel: e.target.value } })} className="text-sm" /></div>
+              <div><p className="text-[9px] font-black text-muted-foreground uppercase mb-1">최솟값</p><Input type="number" value={q.config.min ?? 1} onChange={e => onChange({ ...q, config: { ...q.config, min: +e.target.value } })} className="md:text-sm" /></div>
+              <div><p className="text-[9px] font-black text-muted-foreground uppercase mb-1">최댓값</p><Input type="number" value={q.config.max ?? 5} onChange={e => onChange({ ...q, config: { ...q.config, max: +e.target.value } })} className="md:text-sm" /></div>
+              <div><p className="text-[9px] font-black text-muted-foreground uppercase mb-1">최솟값 라벨</p><Input value={q.config.minLabel ?? ''} onChange={e => onChange({ ...q, config: { ...q.config, minLabel: e.target.value } })} className="md:text-sm" /></div>
+              <div><p className="text-[9px] font-black text-muted-foreground uppercase mb-1">최댓값 라벨</p><Input value={q.config.maxLabel ?? ''} onChange={e => onChange({ ...q, config: { ...q.config, maxLabel: e.target.value } })} className="md:text-sm" /></div>
             </div>
           )}
 
@@ -358,7 +358,7 @@ function PollBuilder({ poll, onSaved, onBack }: { poll?: Poll; onSaved: () => vo
         <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="투표 제목 *" className="text-lg font-black" />
         <Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="설명 (선택)" className="font-medium text-muted-foreground" />
         <div className="flex gap-3 flex-wrap">
-          <div><p className="text-[9px] font-black text-muted-foreground uppercase mb-1">마감일</p><Input type="datetime-local" value={endsAt} onChange={e => setEndsAt(e.target.value)} className="text-xs" /></div>
+          <div><p className="text-[9px] font-black text-muted-foreground uppercase mb-1">마감일</p><Input type="datetime-local" value={endsAt} onChange={e => setEndsAt(e.target.value)} className="md:text-xs" /></div>
           <label className="flex items-center gap-2 mt-5 cursor-pointer">
             <div onClick={() => setShowRes(v => !v)} className={`w-8 h-4 rounded-full relative transition-all ${showRes ? 'bg-primary' : 'bg-muted'}`}>
               <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all ${showRes ? 'left-4' : 'left-0.5'}`} />

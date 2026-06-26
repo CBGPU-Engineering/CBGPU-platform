@@ -289,7 +289,7 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
           onChange={(v) => setTab(v as 'mine' | 'shared')}
         />
         <div className="flex gap-2">
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="검색..." className="h-8 w-32 text-xs" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="검색..." className="h-8 w-32 md:text-xs" />
           {tab === 'mine' && <Button onClick={() => onOpen(null)} size="sm" className="font-black text-xs gap-1.5 h-8 active:scale-95 transition-transform"><Plus className="size-3" />새 노트</Button>}
         </div>
       </div>
