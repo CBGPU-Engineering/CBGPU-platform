@@ -1,6 +1,5 @@
 import './globals.css';
 import Navbar from '@/components/Navbar';
-import LoginBanner from '@/components/LoginBanner';
 import AuthGate from '@/components/AuthGate';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/lib/useAuth';
@@ -86,7 +85,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <AuthProvider>
             <AlertProvider>
-              <LoginBanner />
               <Navbar />
               <main className="flex-grow container mx-auto px-4 md:px-6 py-10 pb-28 md:pb-10">
                 <AuthGate>{children}</AuthGate>
