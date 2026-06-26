@@ -12,6 +12,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const isPublic = PUBLIC_PATHS.includes(pathname);
   const blocked = !isLoading && !user && !isPublic;
 
+  // 공개 경로(로그인/회원가입 포함)는 auth 체크를 기다릴 필요가 전혀 없다 — 바로 렌더
+  if (isPublic) return <>{children}</>;
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -23,7 +26,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   if (blocked) {
     return (
       <div className="max-w-sm mx-auto mt-16 text-center space-y-6 pop-in-3d">
-        <img src="/3d-icons/lock.webp" alt="" className="size-24 mx-auto" />
+        <div className="flex items-center justify-center size-24 mx-auto rounded-full bg-primary/10">
+          <span style={{ fontFamily: 'Tossface', fontSize: 56, lineHeight: 1 }}>🔒</span>
+        </div>
         <div className="space-y-1.5">
           <p className="text-xl font-black tracking-tight">로그인이 필요해요</p>
           <p className="text-sm text-muted-foreground font-medium">이 페이지는 로그인한 학생만 볼 수 있어요</p>
