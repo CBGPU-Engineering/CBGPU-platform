@@ -17,7 +17,7 @@ interface StudyPost {
   tags: string[]; max_members: number; is_open: boolean;
 }
 interface Member { post_id: string; user_id: string; joined_at: string }
-interface Profile { id: string; full_name: string | null; student_id: string | null }
+interface Profile { id: string; full_name: string | null; student_id: string | null; avatar_url: string | null }
 
 const SUBJECTS = ['수학', '물리', '화학', '생물', '지구과학', '정보', 'AI/ML', '프로그래밍', '영어', '국어', '기타'];
 
@@ -73,12 +73,20 @@ function PostCard({
           <div className="space-y-1.5">
             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">참여 멤버 ({cnt}/{post.max_members})</p>
             <div className="flex flex-wrap gap-1.5">
-              {allMemberIds.map(id => (
-                <span key={id} className="flex items-center gap-1 text-[11px] font-bold bg-muted px-2 py-1 rounded-lg">
-                  {profileMap.get(id)?.full_name || '익명'}
-                  {id === post.user_id && <span className="text-[9px] text-primary font-black uppercase">장</span>}
-                </span>
-              ))}
+              {allMemberIds.map(id => {
+                const avatar = profileMap.get(id)?.avatar_url;
+                return (
+                  <span key={id} className="flex items-center gap-1.5 text-[11px] font-bold bg-muted pl-1 pr-2 py-1 rounded-lg">
+                    {avatar ? (
+                      <img src={avatar} alt="" className="size-5 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <span className="size-5 rounded-full bg-muted-foreground/20 shrink-0" />
+                    )}
+                    {profileMap.get(id)?.full_name || '익명'}
+                    {id === post.user_id && <span className="text-[9px] text-primary font-black uppercase">장</span>}
+                  </span>
+                );
+              })}
             </div>
           </div>
           {post.is_open && !isOwner && (
@@ -193,7 +201,7 @@ export default function MatchPage() {
     // 등장하는 user_id들 + 글쓴이들의 프로필을 따로 가져와서 클라이언트에서 매칭한다
     const ids = [...new Set([...(m ?? []).map((x: any) => x.user_id), ...(p ?? []).map((x: any) => x.user_id)])];
     if (ids.length > 0) {
-      const { data: profs } = await supabase.from('profiles').select('id, full_name, student_id').in('id', ids);
+      const { data: profs } = await supabase.from('profiles').select('id, full_name, student_id, avatar_url').in('id', ids);
       setProfileMap(new Map((profs ?? []).map((pr: any) => [pr.id, pr as Profile])));
     }
 
