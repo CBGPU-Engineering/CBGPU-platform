@@ -133,7 +133,9 @@ export default function Navbar() {
     const el = itemRefs.current.get(activeKey);
     if (!el) { setIndicator(null); return; }
     setIndicator({ left: el.offsetLeft, width: el.offsetWidth });
-  }, [activeKey]);
+  }, [activeKey, user, isLoading]); // user/isLoading도 의존성에 넣어야 함 — 레일 자체가
+  // user && !isLoading일 때만 마운트되는데, 새로고침 시 activeKey는 이미 정해져 있어서
+  // 레일이 처음 나타나는 그 순간엔 activeKey가 안 바뀌어 effect가 재실행되지 않았었음
 
   const handleLogout = async () => {
     try {
@@ -176,7 +178,7 @@ export default function Navbar() {
                 key={l.href}
                 href={l.href}
                 ref={(el) => { if (el) itemRefs.current.set(l.href, el); }}
-                className={`${PILL} ${pathname === l.href ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`${PILL} ${pathname === l.href ? `text-primary-foreground ${indicator ? '' : 'bg-primary shadow-md'}` : 'text-muted-foreground hover:text-foreground'}`}
               >
                 {l.label}
               </Link>
@@ -186,7 +188,7 @@ export default function Navbar() {
                 <DropdownMenuPrimitive.Trigger asChild>
                   <button
                     ref={(el) => { if (el) itemRefs.current.set(group.label, el); }}
-                    className={`${PILL} flex items-center gap-1 ${activeGroup?.label === group.label ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                    className={`${PILL} flex items-center gap-1 ${activeGroup?.label === group.label ? `text-primary-foreground ${indicator ? '' : 'bg-primary shadow-md'}` : 'text-muted-foreground hover:text-foreground'}`}
                   >
                     {group.label}
                     <ChevronDown className="size-3" />
@@ -343,8 +345,8 @@ export default function Navbar() {
     {user && !isLoading && (
       <>
         {openCat && <div className="md:hidden fixed inset-0 z-40" onClick={() => setOpenCat(null)} />}
-        <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50 flex items-end justify-between gap-1 rounded-[28px] bg-background/85 backdrop-blur-xl ring-1 ring-foreground/10 shadow-2xl px-2 py-2 tilt-3d">
-          <div className="flex items-end gap-1">
+        <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50 flex items-end gap-1 rounded-[28px] bg-background/85 backdrop-blur-xl ring-1 ring-foreground/10 shadow-2xl px-2 py-2 tilt-3d">
+          <div className="flex-1 flex items-end justify-evenly">
             {BOTTOM_CATEGORIES_LEFT.map(cat => (
               <BottomCategoryButton
                 key={cat.key}
@@ -356,7 +358,7 @@ export default function Navbar() {
             ))}
           </div>
 
-          <Link href="/" className="relative flex flex-col items-center shrink-0 -mt-7" onClick={() => setOpenCat(null)}>
+          <Link href="/" className="relative flex flex-col items-center shrink-0 px-2 -mt-7" onClick={() => setOpenCat(null)}>
             <span className={`flex items-center justify-center size-14 rounded-full shadow-lg ring-4 ring-background transition-all active:scale-95 ${
               pathname === '/' ? 'bg-primary text-primary-foreground' : 'bg-foreground text-background'
             }`}>
@@ -364,7 +366,7 @@ export default function Navbar() {
             </span>
           </Link>
 
-          <div className="flex items-end gap-1">
+          <div className="flex-1 flex items-end justify-evenly">
             {BOTTOM_CATEGORIES_RIGHT.map(cat => (
               <BottomCategoryButton
                 key={cat.key}
