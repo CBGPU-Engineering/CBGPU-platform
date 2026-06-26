@@ -183,9 +183,10 @@ export default function StudyPage() {
           if (!room.hasSeats) {
             // 정원제 자습실은 좌석이 없어서 SeatMap은 못 그리지만, 신청자 명단 자체는
             // /selfstudy/search 응답에 seat: null로 같이 들어있으니 그대로 모아서 보여준다.
+            // type 값이 좌석형과 다를 수 있어 room.id만으로 매칭한다 (좌석 없는 실이라 e.seat은 항상 비어있음).
             const occupancy: OccupancyEntry[] = [];
             const roomEntries = selfStudyEntries?.filter(
-              (e) => e.room.id === room.id && e.type === 'selfstudy' && e.status !== 'REJECTED'
+              (e) => e.room.id === room.id && e.status !== 'REJECTED'
             );
             roomEntries?.forEach((e) => {
               occupancy.push({
