@@ -181,7 +181,7 @@ export default function TechNews() {
         <p className="text-destructive text-xs font-bold p-3 bg-destructive/10 rounded-lg">{error}</p>
       )}
 
-      {loading && total === 0 && (
+      {(loading || justFinished) && (
         <div className="py-10 flex items-center justify-center">
           <LoadingSpinner done={justFinished} size={48} label="뉴스 불러오는 중" />
         </div>
@@ -189,7 +189,7 @@ export default function TechNews() {
 
       {/* HN stories */}
       {src === 'hn' && (
-        <div className="space-y-1.5">
+        <div className={`space-y-1.5 ${loading || justFinished ? 'hidden' : ''}`}>
           {stories.map((s, i) => (
             <a key={s.objectID}
               href={s.url || `https://news.ycombinator.com/item?id=${s.objectID}`}
@@ -214,7 +214,7 @@ export default function TechNews() {
 
       {/* Google News items */}
       {src === 'google' && (
-        <div className="space-y-1.5">
+        <div className={`space-y-1.5 ${loading || justFinished ? 'hidden' : ''}`}>
           {gnNews.map((item, i) => (
             <a key={item.link + i}
               href={item.link}

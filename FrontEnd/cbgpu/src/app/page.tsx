@@ -1,10 +1,23 @@
 'use client';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/useAuth';
 import {
   Cpu, CalendarDays, BookOpen, UtensilsCrossed, Vote,
   NotebookPen, Users, Gamepad2, Wrench, Newspaper,
 } from 'lucide-react';
+
+/** 서버/클라이언트 시각이 다를 수 있어 SSR에서는 중립적인 기본값만 쓰고,
+ * 마운트 후 클라이언트 시계로만 시간대 인사를 계산해 하이드레이션 불일치를 피한다 */
+function timeGreeting(hour: number): string {
+  if (hour >= 5 && hour < 9) return '좋은 아침이에요';
+  if (hour >= 9 && hour < 12) return '활기찬 오전이네요';
+  if (hour >= 12 && hour < 14) return '점심 맛있게 드셨나요';
+  if (hour >= 14 && hour < 18) return '나른한 오후네요';
+  if (hour >= 18 && hour < 21) return '편안한 저녁이에요';
+  if (hour >= 21 && hour < 24) return '늦은 밤이네요';
+  return '깊은 밤이네요';
+}
 
 /** 차가운 톤으로 통일한 은은한 팔레트 — 채도 낮은 400 톤 + 배경 /10 으로 너무 알록달록하지 않게 */
 const FEATURES = [
@@ -23,6 +36,11 @@ const FEATURES = [
 export default function Home() {
   const { user, profile } = useAuth();
   const firstName = profile?.full_name?.trim() || null;
+  const [greeting, setGreeting] = useState('안녕하세요');
+
+  useEffect(() => {
+    setGreeting(timeGreeting(new Date().getHours()));
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto space-y-10">
@@ -35,7 +53,7 @@ export default function Home() {
         )}
         <div className="space-y-0.5">
           <p className="text-2xl md:text-4xl font-black tracking-tight">
-            {firstName ? `${firstName}님,` : '안녕하세요,'}
+            {firstName ? `${firstName}님, ${greeting}` : `${greeting},`}
           </p>
           <p className="text-2xl md:text-4xl font-black tracking-tight text-muted-foreground">
             오늘은 뭘 도와드릴까요?

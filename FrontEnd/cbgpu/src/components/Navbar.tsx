@@ -8,8 +8,11 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
-import { Menu, X, ChevronDown, BookOpen, CalendarDays, UtensilsCrossed, Users, Home } from 'lucide-react';
-import { useState, useRef, useLayoutEffect } from 'react';
+import {
+  Menu, X, ChevronDown, Home, GraduationCap,
+  BookOpen, CalendarDays, UtensilsCrossed, Users, Cpu, Vote, NotebookPen, Wrench, Gamepad2, Newspaper,
+} from 'lucide-react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 
 interface NavLink { href: string; label: string; }
 interface NavGroup { label: string; links: NavLink[]; }
@@ -39,23 +42,83 @@ const GROUPS: NavGroup[] = [
 const PILL = 'relative z-10 shrink-0 text-xs font-black px-3 py-1.5 rounded-lg uppercase tracking-widest transition-colors';
 
 /** 모바일 하단 플로팅 탭바 — 바(컨테이너)는 3D로 띄우고, 안의 아이콘은 단순한 2D 라인 아이콘(회색/흰색)으로.
- * 가운데는 원형으로 띄운 홈 버튼. 학교생활에서 매일 쓰는 4가지(자습/시간표/급식/스터디)를 바로
- * 누르게 두고, GPU 대여 등 나머지는 홈 화면 타일과 상단 메뉴로 충분히 닿을 수 있게 둔다. */
-const BOTTOM_TABS_LEFT = [
-  { href: '/study', label: '자습', Icon: BookOpen },
-  { href: '/timetable', label: '시간표', Icon: CalendarDays },
+ * 4개 분류 버튼 + 가운데 원형 홈. 분류를 누르면 그 위로 작은 3D 플로팅 패널이 떠서 안의
+ * 탭들을 고르게 한다 — 한 번에 보이는 선택지는 4개뿐이라 힉의 법칙에 맞고, 그 안에 10개
+ * 탭이 다 들어가 있어서 어디든 두 번의 탭으로 닿는다. */
+interface BottomLink { href: string; label: string; Icon: typeof Home }
+interface BottomCategory { key: string; label: string; Icon: typeof Home; links: BottomLink[] }
+
+const BOTTOM_CATEGORIES_LEFT: BottomCategory[] = [
+  { key: 'school', label: '학교생활', Icon: GraduationCap, links: [
+    { href: '/study', label: '자습신청', Icon: BookOpen },
+    { href: '/timetable', label: '시간표', Icon: CalendarDays },
+    { href: '/meal', label: '급식', Icon: UtensilsCrossed },
+    { href: '/match', label: '스터디', Icon: Users },
+  ] },
+  { key: 'gpu', label: 'GPU', Icon: Cpu, links: [
+    { href: '/dashboard', label: 'GPU 예약', Icon: Cpu },
+  ] },
 ];
-const BOTTOM_TABS_RIGHT = [
-  { href: '/meal', label: '급식', Icon: UtensilsCrossed },
-  { href: '/match', label: '스터디', Icon: Users },
+const BOTTOM_CATEGORIES_RIGHT: BottomCategory[] = [
+  { key: 'tools', label: '도구', Icon: Wrench, links: [
+    { href: '/notes', label: '노트', Icon: NotebookPen },
+    { href: '/tools', label: '도구', Icon: Wrench },
+    { href: '/games', label: 'Arcade', Icon: Gamepad2 },
+  ] },
+  { key: 'info', label: '정보', Icon: Newspaper, links: [
+    { href: '/polls', label: '투표', Icon: Vote },
+    { href: '/feed', label: 'Feed', Icon: Newspaper },
+  ] },
 ];
+
+function BottomCategoryButton({ cat, isOpen, onToggle, pathname }: {
+  cat: BottomCategory;
+  isOpen: boolean;
+  onToggle: () => void;
+  pathname: string;
+}) {
+  const active = cat.links.some(l => l.href === pathname);
+  return (
+    <div className="relative flex flex-col items-center w-12 shrink-0">
+      {isOpen && (
+        <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex flex-col gap-1 p-2 rounded-2xl bg-background ring-1 ring-foreground/10 shadow-2xl pop-in-3d whitespace-nowrap">
+          {cat.links.map(l => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-black transition-colors ${
+                pathname === l.href ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <l.Icon className="size-4" />
+              {l.label}
+            </Link>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`flex flex-col items-center gap-0.5 py-1 w-12 rounded-2xl transition-all duration-300 ${(active || isOpen) ? '-translate-y-1.5' : ''}`}
+      >
+        <cat.Icon className={`size-5 transition-colors duration-300 ${active || isOpen ? 'text-primary' : 'text-muted-foreground'}`} strokeWidth={active || isOpen ? 2.5 : 2} />
+        <span className={`text-[9px] font-black uppercase tracking-wide ${active || isOpen ? 'text-primary' : 'text-muted-foreground'}`}>
+          {cat.label}
+        </span>
+      </button>
+    </div>
+  );
+}
 
 export default function Navbar() {
   const { user, profile, isAdmin, isLoading } = useAuth();
   const { showError, showSuccess } = useAlert();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [openCat, setOpenCat] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => { setOpenCat(null); }, [pathname]);
 
   const activeGroup = GROUPS.find(g => g.links.some(l => l.href === pathname));
   const activeKey = PRIMARY_LINKS.some(l => l.href === pathname) ? pathname : (activeGroup?.label ?? null);
@@ -278,47 +341,42 @@ export default function Navbar() {
     </nav>
 
     {user && !isLoading && (
-      <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50 flex items-end justify-between gap-1 rounded-[28px] bg-background/85 backdrop-blur-xl ring-1 ring-foreground/10 shadow-2xl px-2 py-2 tilt-3d">
-        {BOTTOM_TABS_LEFT.map(({ href, label, Icon }) => {
-          const active = pathname === href;
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-1 rounded-2xl transition-all duration-300 ${active ? '-translate-y-1.5' : ''}`}
-            >
-              <Icon className={`size-5 transition-colors duration-300 ${active ? 'text-primary' : 'text-muted-foreground'}`} strokeWidth={active ? 2.5 : 2} />
-              <span className={`text-[9px] font-black uppercase tracking-wide ${active ? 'text-primary' : 'text-muted-foreground'}`}>
-                {label}
-              </span>
-            </Link>
-          );
-        })}
+      <>
+        {openCat && <div className="md:hidden fixed inset-0 z-40" onClick={() => setOpenCat(null)} />}
+        <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50 flex items-end justify-between gap-1 rounded-[28px] bg-background/85 backdrop-blur-xl ring-1 ring-foreground/10 shadow-2xl px-2 py-2 tilt-3d">
+          <div className="flex items-end gap-1">
+            {BOTTOM_CATEGORIES_LEFT.map(cat => (
+              <BottomCategoryButton
+                key={cat.key}
+                cat={cat}
+                isOpen={openCat === cat.key}
+                onToggle={() => setOpenCat(o => o === cat.key ? null : cat.key)}
+                pathname={pathname}
+              />
+            ))}
+          </div>
 
-        <Link href="/" className="relative flex flex-1 flex-col items-center -mt-7">
-          <span className={`flex items-center justify-center size-14 rounded-full shadow-lg ring-4 ring-background transition-all active:scale-95 ${
-            pathname === '/' ? 'bg-primary text-primary-foreground' : 'bg-foreground text-background'
-          }`}>
-            <Home className="size-6" strokeWidth={2.5} />
-          </span>
-        </Link>
+          <Link href="/" className="relative flex flex-col items-center shrink-0 -mt-7" onClick={() => setOpenCat(null)}>
+            <span className={`flex items-center justify-center size-14 rounded-full shadow-lg ring-4 ring-background transition-all active:scale-95 ${
+              pathname === '/' ? 'bg-primary text-primary-foreground' : 'bg-foreground text-background'
+            }`}>
+              <Home className="size-6" strokeWidth={2.5} />
+            </span>
+          </Link>
 
-        {BOTTOM_TABS_RIGHT.map(({ href, label, Icon }) => {
-          const active = pathname === href;
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-1 rounded-2xl transition-all duration-300 ${active ? '-translate-y-1.5' : ''}`}
-            >
-              <Icon className={`size-5 transition-colors duration-300 ${active ? 'text-primary' : 'text-muted-foreground'}`} strokeWidth={active ? 2.5 : 2} />
-              <span className={`text-[9px] font-black uppercase tracking-wide ${active ? 'text-primary' : 'text-muted-foreground'}`}>
-                {label}
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
+          <div className="flex items-end gap-1">
+            {BOTTOM_CATEGORIES_RIGHT.map(cat => (
+              <BottomCategoryButton
+                key={cat.key}
+                cat={cat}
+                isOpen={openCat === cat.key}
+                onToggle={() => setOpenCat(o => o === cat.key ? null : cat.key)}
+                pathname={pathname}
+              />
+            ))}
+          </div>
+        </nav>
+      </>
     )}
     </>
   );

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,7 @@ type Cell = { subject: string; teacher: string; changed?: boolean };
 type Grid = Record<number, Record<number, Cell>>;
 
 export default function TimetablePage() {
-  const { isAdmin, profile, isLoading: authLoading } = useAuth();
+  const { isAdmin, user, profile, isLoading: authLoading } = useAuth();
   const { showAlert, showError, showSuccess } = useAlert();
   const [grade,   setGrade]   = useState(1);
   const [cls,     setCls]     = useState(1);
@@ -92,12 +92,16 @@ export default function TimetablePage() {
     setGrid(g2); setSource('manual');
   }, []);
 
+  const didInitRef = useRef(false);
   useEffect(() => {
+    if (didInitRef.current) return;
     if (authLoading) return;
+    if (user && !profile) return; // 로그인은 됐는데 프로필이 아직 백그라운드에서 로딩 중 — 기다린다
+    didInitRef.current = true;
     const own = parseStudentGradeClass(profile?.student_id);
     if (own) { setGrade(own.grade); setCls(own.cls); loadComcigan(own.grade, own.cls); }
     else loadComcigan(1, 1);
-  }, [authLoading]); // eslint-disable-line
+  }, [authLoading, user, profile]); // eslint-disable-line
 
   const switchTo = (g: number, c: number) => {
     if (editing) { showAlert('편집 중에는 변경할 수 없습니다.', 'info'); return; }
@@ -199,7 +203,7 @@ export default function TimetablePage() {
         </div>
       )}
 
-      {loading ? (
+      {loading || justFinished ? (
         <div className="py-16 flex items-center justify-center">
           <LoadingSpinner done={justFinished} size={56} label="시간표 불러오는 중" />
         </div>

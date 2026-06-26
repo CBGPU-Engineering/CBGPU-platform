@@ -294,7 +294,7 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
         </div>
       </div>
 
-      {loading ? <div className="py-16 flex items-center justify-center"><LoadingSpinner done={justFinished} size={56} label="노트 불러오는 중" /></div>
+      {loading || justFinished ? <div className="py-16 flex items-center justify-center"><LoadingSpinner done={justFinished} size={56} label="노트 불러오는 중" /></div>
       : shown.length === 0 ? (
         <div className="py-16 text-center text-muted-foreground border-2 border-dashed rounded-3xl animate-in fade-in duration-300 pop-in-3d">
           <img src="/3d-icons/notebook.webp" alt="" className="size-20 mx-auto mb-3 opacity-90" />

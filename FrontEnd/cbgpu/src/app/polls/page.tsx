@@ -610,7 +610,7 @@ export default function PollsPage() {
         onChange={(v) => setTab(v as 'active' | 'closed')}
       />
 
-      {loading ? <div className="py-16 flex items-center justify-center"><LoadingSpinner done={justFinished} size={56} label="투표 불러오는 중" /></div>
+      {loading || justFinished ? <div className="py-16 flex items-center justify-center"><LoadingSpinner done={justFinished} size={56} label="투표 불러오는 중" /></div>
       : shown.length === 0 ? (
         <div className="py-20 text-center border-2 border-dashed rounded-3xl text-muted-foreground font-medium">
           {tab === 'active' ? '진행 중인 투표가 없습니다.' : '마감된 투표가 없습니다.'}

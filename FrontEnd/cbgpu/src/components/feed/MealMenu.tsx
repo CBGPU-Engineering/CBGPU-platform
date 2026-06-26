@@ -68,20 +68,20 @@ export default function MealMenu() {
 
       {error && <p className="text-xs text-amber-600 bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl font-medium">{error}</p>}
 
-      {loading && (
+      {(loading || justFinished) && (
         <div className="py-10 flex items-center justify-center">
           <LoadingSpinner done={justFinished} size={48} label="급식 불러오는 중" />
         </div>
       )}
 
-      {!loading && meals.length === 0 && !error && (
+      {!loading && !justFinished && meals.length === 0 && !error && (
         <div className="py-16 text-center text-muted-foreground">
           <Utensils className="size-8 mx-auto mb-2 opacity-30" />
           <p className="font-medium text-sm">이 날의 급식 정보가 없습니다.</p>
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className={`space-y-3 ${loading || justFinished ? 'hidden' : ''}`}>
         {meals.map((meal, i) => (
           <div
             key={i}
