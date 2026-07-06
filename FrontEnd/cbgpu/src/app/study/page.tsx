@@ -17,8 +17,25 @@ const OFFICIAL_STUDY_URL = 'https://cbsh.edu-set.com';
 const FALLBACK_MIN_PERIODS = 4;
 
 function formatStudentLabel(student: Student): string {
+  if (!student || typeof student.grade !== 'number' || typeof student.classNo !== 'number' || typeof student.number !== 'number') {
+    return student?.name ?? '알 수 없음';
+  }
   const studentNumber = student.grade * 1000 + student.classNo * 100 + student.number;
   return `${studentNumber} ${student.name}`;
+}
+
+/** 일시적인 네트워크/서버 오류에 대비해 짧은 간격으로 재시도한다 */
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3, delayMs = 400): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, delayMs * (i + 1)));
+    }
+  }
+  throw lastErr;
 }
 
 interface Occupant {
@@ -43,6 +60,8 @@ interface RoomData {
   obstacles: Obstacle[];
   occupantsBySeat: Map<number, Occupant[]>;
   occupancy: OccupancyEntry[];
+  /** true면 "신청자 없음"이 아니라 조회 자체가 실패한 것 — 0명과 구분해서 보여줘야 한다 */
+  failed?: boolean;
 }
 
 function PeriodSelector({ periods, selectedPeriod, onSelect, className = '' }: {
@@ -124,8 +143,25 @@ function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod }: {
 }
 
 /** 정원제(좌석 없는) 자습실용 — 좌석 배치 대신 해당 교시 신청자만 단순 목록으로 보여준다 */
-function CapacityList({ occupancy, selectedPeriod }: { occupancy: OccupancyEntry[]; selectedPeriod: number }) {
+function CapacityList({ occupancy, selectedPeriod, failed, onRetry }: {
+  occupancy: OccupancyEntry[]; selectedPeriod: number; failed?: boolean; onRetry?: () => void;
+}) {
   const entries = occupancy.filter((o) => o.period === selectedPeriod);
+
+  if (failed) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-10 text-center">
+        <p className="text-sm text-amber-600 dark:text-amber-400 font-bold">
+          신청자 명단을 불러오지 못했습니다. 0명이 아니라 조회 실패일 수 있습니다.
+        </p>
+        {onRetry && (
+          <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+            다시 시도
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   if (entries.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-10">이 교시에 신청자가 없습니다.</p>;
@@ -174,9 +210,9 @@ export default function StudyPage() {
       const today = new Date();
       const dateStr = localDateStr(today);
 
-      // /selfstudy/search는 승인 대기중인 신청까지 한 번에 보여준다. 막혀 있으면 null로 떨어지고
-      // 방별 occupations(승인된 것만)로 대체한다.
-      const selfStudyEntries = await searchSelfStudy({ date: dateStr }).catch(() => null);
+      // /selfstudy/search는 승인 대기중인 신청까지 한 번에 보여준다. 정원제 방은 이 호출이
+      // 유일한 데이터 소스라 좌석형보다 훨씬 더 중요하다 — 일시적 오류에 대비해 재시도한다.
+      const selfStudyEntries = await withRetry(() => searchSelfStudy({ date: dateStr }), 3, 400).catch(() => null);
 
       const data = await Promise.all(
         rooms.map(async (room): Promise<RoomData> => {
@@ -184,18 +220,26 @@ export default function StudyPage() {
             // 정원제 자습실은 좌석이 없어서 SeatMap은 못 그리지만, 신청자 명단 자체는
             // /selfstudy/search 응답에 seat: null로 같이 들어있으니 그대로 모아서 보여준다.
             // type 값이 좌석형과 다를 수 있어 room.id만으로 매칭한다 (좌석 없는 실이라 e.seat은 항상 비어있음).
-            const occupancy: OccupancyEntry[] = [];
-            const roomEntries = selfStudyEntries?.filter(
-              (e) => e.room.id === room.id && e.status !== 'REJECTED'
-            );
-            roomEntries?.forEach((e) => {
-              occupancy.push({
-                roomId: room.id, roomName: room.name, seatName: '',
-                period: e.period, label: formatStudentLabel(e.student),
-                studentId: e.student.id, status: e.status,
+            // 이 방식은 유일한 데이터 소스라 폴백이 없다 — 실패 시 "0명"이 아니라 failed로 구분한다.
+            if (!selfStudyEntries) {
+              return { room, seats: [], obstacles: [], occupantsBySeat: new Map(), occupancy: [], failed: true };
+            }
+            try {
+              const occupancy: OccupancyEntry[] = [];
+              const roomEntries = selfStudyEntries.filter(
+                (e) => e.room.id === room.id && e.status !== 'REJECTED'
+              );
+              roomEntries.forEach((e) => {
+                occupancy.push({
+                  roomId: room.id, roomName: room.name, seatName: '',
+                  period: e.period, label: formatStudentLabel(e.student),
+                  studentId: e.student.id, status: e.status,
+                });
               });
-            });
-            return { room, seats: [], obstacles: [], occupantsBySeat: new Map(), occupancy };
+              return { room, seats: [], obstacles: [], occupantsBySeat: new Map(), occupancy };
+            } catch {
+              return { room, seats: [], obstacles: [], occupantsBySeat: new Map(), occupancy: [], failed: true };
+            }
           }
           try {
             const composition = await getRoomComposition(room.id);
@@ -461,7 +505,7 @@ export default function StudyPage() {
         </div>
       ) : (
         <div key={selectedPeriod} className="space-y-2">
-          {sortedRoomData.map(({ room, seats, occupiedCount }, i) => {
+          {sortedRoomData.map(({ room, seats, occupiedCount, failed }, i) => {
             const total = seats.length;
             const ratio = room.hasSeats && total > 0 ? occupiedCount / total : 0;
             const highlighted = occupiedCount > 0;
@@ -483,6 +527,10 @@ export default function StudyPage() {
                     {room.hasSeats ? (
                       <span className={`text-[11px] font-black shrink-0 ${highlighted ? 'text-primary' : 'text-muted-foreground'}`}>
                         {occupiedCount}/{total}
+                      </span>
+                    ) : failed ? (
+                      <span className="text-[11px] font-black shrink-0 text-amber-500 flex items-center gap-1">
+                        <AlertTriangle className="size-3" /> 조회 실패
                       </span>
                     ) : (
                       <span className={`text-[11px] font-black shrink-0 ${highlighted ? 'text-primary' : 'text-muted-foreground'}`}>
@@ -526,7 +574,12 @@ export default function StudyPage() {
                   selectedPeriod={selectedPeriod}
                 />
               ) : (
-                <CapacityList occupancy={openRoomData.occupancy} selectedPeriod={selectedPeriod} />
+                <CapacityList
+                  occupancy={openRoomData.occupancy}
+                  selectedPeriod={selectedPeriod}
+                  failed={openRoomData.failed}
+                  onRetry={() => loadData()}
+                />
               )}
             </>
           )}
