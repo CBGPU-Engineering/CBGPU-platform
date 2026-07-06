@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
-import { UserCircle2, Mail, Hash, Save, Loader2, Camera } from 'lucide-react';
+import { getURL } from '@/lib/utils';
+import { UserCircle2, Mail, Hash, Save, Loader2, Camera, KeyRound, Lock } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/spinner';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
@@ -15,8 +16,15 @@ export default function Profile() {
   const { showError, showSuccess } = useAlert();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [studentId, setStudentId] = useState('');
   const [fullName, setFullName] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [emailPassword, setEmailPassword] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -42,6 +50,73 @@ export default function Profile() {
       showError(error.message || '업데이트 실패');
     } finally {
       setIsUpdating(false);
+    }
+  }
+
+  async function changePassword() {
+    if (!user?.email) return;
+
+    if (newPassword.length < 6) {
+      showError('새 비밀번호는 6자 이상이어야 합니다.'); return;
+    }
+    if (newPassword !== confirmPassword) {
+      showError('새 비밀번호가 일치하지 않습니다.'); return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      if (verifyError) {
+        showError('현재 비밀번호가 올바르지 않습니다.'); return;
+      }
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+
+      showSuccess('비밀번호가 변경됐습니다!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      showError(error.message || '비밀번호 변경 실패');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  }
+
+  async function changeEmail() {
+    if (!user?.email) return;
+
+    if (!newEmail || newEmail === user.email) {
+      showError('현재와 다른 이메일 주소를 입력해 주세요.'); return;
+    }
+
+    setIsChangingEmail(true);
+    try {
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: emailPassword,
+      });
+      if (verifyError) {
+        showError('비밀번호가 올바르지 않습니다.'); return;
+      }
+
+      const { error } = await supabase.auth.updateUser(
+        { email: newEmail },
+        { emailRedirectTo: getURL() + 'auth/callback' }
+      );
+      if (error) throw error;
+
+      showSuccess('확인 메일을 보냈습니다. 기존/새 이메일의 인증 링크를 눌러 변경을 완료해 주세요.');
+      setNewEmail('');
+      setEmailPassword('');
+    } catch (error: any) {
+      showError(error.message || '이메일 변경 실패');
+    } finally {
+      setIsChangingEmail(false);
     }
   }
 
@@ -160,6 +235,102 @@ export default function Profile() {
         >
           {isUpdating ? <Loader2 className="size-6 animate-spin" /> : <Save className="size-6" />}
           {isUpdating ? "Saving Changes..." : "Save Profile"}
+        </Button>
+      </div>
+
+      <div className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-8">
+        <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+          <Mail className="size-5 text-primary" /> 이메일 변경
+        </h2>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase text-primary ml-1 tracking-widest flex items-center gap-1.5">
+              <Mail className="size-3" /> 새 이메일
+            </label>
+            <Input
+              type="email"
+              value={newEmail}
+              onChange={(e: any) => setNewEmail(e.target.value)}
+              className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
+              placeholder="new@email.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase text-primary ml-1 tracking-widest flex items-center gap-1.5">
+              <Lock className="size-3" /> 비밀번호 확인
+            </label>
+            <Input
+              type="password"
+              value={emailPassword}
+              onChange={(e: any) => setEmailPassword(e.target.value)}
+              className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
+              placeholder="••••••••"
+            />
+          </div>
+        </div>
+
+        <Button
+          onClick={changeEmail}
+          disabled={isChangingEmail || !newEmail || !emailPassword}
+          className="w-full h-16 rounded-2xl font-black text-xl uppercase tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-[0.98] gap-3"
+        >
+          {isChangingEmail ? <Loader2 className="size-6 animate-spin" /> : <Mail className="size-6" />}
+          {isChangingEmail ? "변경 중..." : "이메일 변경"}
+        </Button>
+      </div>
+
+      <div className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-8">
+        <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+          <KeyRound className="size-5 text-primary" /> 비밀번호 변경
+        </h2>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase text-primary ml-1 tracking-widest flex items-center gap-1.5">
+              <Lock className="size-3" /> 현재 비밀번호
+            </label>
+            <Input
+              type="password"
+              value={currentPassword}
+              onChange={(e: any) => setCurrentPassword(e.target.value)}
+              className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
+              placeholder="••••••••"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-primary ml-1 tracking-widest flex items-center gap-1.5">
+                <Lock className="size-3" /> 새 비밀번호
+              </label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e: any) => setNewPassword(e.target.value)}
+                className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
+                placeholder="••••••••"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-primary ml-1 tracking-widest flex items-center gap-1.5">
+                <Lock className="size-3" /> 새 비밀번호 확인
+              </label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e: any) => setConfirmPassword(e.target.value)}
+                className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+        </div>
+
+        <Button
+          onClick={changePassword}
+          disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
+          className="w-full h-16 rounded-2xl font-black text-xl uppercase tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-[0.98] gap-3"
+        >
+          {isChangingPassword ? <Loader2 className="size-6 animate-spin" /> : <KeyRound className="size-6" />}
+          {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
         </Button>
       </div>
     </div>

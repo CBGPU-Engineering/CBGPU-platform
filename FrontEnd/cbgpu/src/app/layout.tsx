@@ -6,6 +6,7 @@ import { AuthProvider } from '@/lib/useAuth';
 import { Metadata } from 'next';
 import { AlertProvider } from '@/lib/alert';
 import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const siteUrl = 'https://cbgpu.vercel.app';
 const schoolLogo = 'https://i.namu.wiki/i/qMgg10XRSaTorhAnQaV-bKbUWK_xIlq2socc7pVyw1SJmovke8gEWfeofFitiIJ1VBMngGy4o1NuAnjrOA0m1w.webp';
@@ -108,6 +109,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
               </footer>
               <Analytics />
+              <SpeedInsights />
             </AlertProvider>
           </AuthProvider>
         </ThemeProvider>
