@@ -202,13 +202,18 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-8">
+      <form
+        onSubmit={(e) => { e.preventDefault(); updateProfile(); }}
+        className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-8"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase text-primary ml-1 tracking-widest flex items-center gap-1.5">
               <UserCircle2 className="size-3" /> 이름 (Name)
             </label>
             <Input
+              name="name"
+              autoComplete="name"
               value={fullName}
               onChange={(e: any) => setFullName(e.target.value)}
               className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
@@ -220,6 +225,8 @@ export default function Profile() {
               <Hash className="size-3" /> 학번 (Student ID)
             </label>
             <Input
+              name="student-id"
+              autoComplete="off"
               value={studentId}
               onChange={(e: any) => setStudentId(e.target.value)}
               className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
@@ -229,16 +236,19 @@ export default function Profile() {
         </div>
 
         <Button
-          onClick={updateProfile}
+          type="submit"
           disabled={isUpdating}
           className="w-full h-16 rounded-2xl font-black text-xl uppercase tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-[0.98] gap-3"
         >
           {isUpdating ? <Loader2 className="size-6 animate-spin" /> : <Save className="size-6" />}
           {isUpdating ? "Saving Changes..." : "Save Profile"}
         </Button>
-      </div>
+      </form>
 
-      <div className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-8">
+      <form
+        onSubmit={(e) => { e.preventDefault(); changeEmail(); }}
+        className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-8"
+      >
         <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
           <Mail className="size-5 text-primary" /> 이메일 변경
         </h2>
@@ -249,6 +259,8 @@ export default function Profile() {
             </label>
             <Input
               type="email"
+              name="email"
+              autoComplete="email"
               value={newEmail}
               onChange={(e: any) => setNewEmail(e.target.value)}
               className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
@@ -261,6 +273,8 @@ export default function Profile() {
             </label>
             <Input
               type="password"
+              name="current-password"
+              autoComplete="current-password"
               value={emailPassword}
               onChange={(e: any) => setEmailPassword(e.target.value)}
               className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
@@ -270,16 +284,19 @@ export default function Profile() {
         </div>
 
         <Button
-          onClick={changeEmail}
+          type="submit"
           disabled={isChangingEmail || !newEmail || !emailPassword}
           className="w-full h-16 rounded-2xl font-black text-xl uppercase tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-[0.98] gap-3"
         >
           {isChangingEmail ? <Loader2 className="size-6 animate-spin" /> : <Mail className="size-6" />}
           {isChangingEmail ? "변경 중..." : "이메일 변경"}
         </Button>
-      </div>
+      </form>
 
-      <div className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-8">
+      <form
+        onSubmit={(e) => { e.preventDefault(); changePassword(); }}
+        className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-8"
+      >
         <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
           <KeyRound className="size-5 text-primary" /> 비밀번호 변경
         </h2>
@@ -290,6 +307,8 @@ export default function Profile() {
             </label>
             <Input
               type="password"
+              name="current-password"
+              autoComplete="current-password"
               value={currentPassword}
               onChange={(e: any) => setCurrentPassword(e.target.value)}
               className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
@@ -303,6 +322,8 @@ export default function Profile() {
               </label>
               <Input
                 type="password"
+                name="new-password"
+                autoComplete="new-password"
                 value={newPassword}
                 onChange={(e: any) => setNewPassword(e.target.value)}
                 className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
@@ -315,6 +336,8 @@ export default function Profile() {
               </label>
               <Input
                 type="password"
+                name="new-password-confirm"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e: any) => setConfirmPassword(e.target.value)}
                 className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
@@ -325,14 +348,14 @@ export default function Profile() {
         </div>
 
         <Button
-          onClick={changePassword}
+          type="submit"
           disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
           className="w-full h-16 rounded-2xl font-black text-xl uppercase tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-[0.98] gap-3"
         >
           {isChangingPassword ? <Loader2 className="size-6 animate-spin" /> : <KeyRound className="size-6" />}
           {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
         </Button>
-      </div>
+      </form>
     </div>
   );
 }
