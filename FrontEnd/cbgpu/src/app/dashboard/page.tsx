@@ -40,7 +40,7 @@ export default function Dashboard() {
   const [cancelTarget, setCancelTarget] = useState<{ id: string; status: string } | null>(null);
   const [endTarget, setEndTarget] = useState<string | null>(null);
   const [currentHost, setCurrentHost] = useState<string>('100.89.196.43');
-  const [connectionMode, setConnectionMode] = useState<'internal' | 'public'>('public');
+  const [connectionMode, setConnectionMode] = useState<'internal' | 'public'>('internal');
   const [gpuStatus, setGpuStatus] = useState<Record<number, 'online'|'offline'|'checking'>>({1:'checking',2:'checking',3:'checking',4:'checking'});
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
   const [statsData, setStatsData] = useState<{gpu_id: number; hours: number}[]>([]);
