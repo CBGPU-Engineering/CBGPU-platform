@@ -2,21 +2,21 @@
 """
 change_native_password.py
 
-JupyterHub NativeAuthenticator 사용자 비밀번호 변경 스크립트
-config.yaml의 native.command에 경로 설정 후 사용
+Password-change script for JupyterHub NativeAuthenticator users.
+Configure the path in config.yaml's native.command before use.
 
-사용법: python3 change_native_password.py <username> <new_password>
+Usage: python3 change_native_password.py <username> <new_password>
 
-의존성: pip install bcrypt
+Dependency: pip install bcrypt
 """
 
 import sys
 import sqlite3
 
-# JupyterHub 데이터베이스 경로 (환경에 맞게 수정)
+# JupyterHub database path (adjust to match your environment)
 DB_PATH = "/srv/jupyterhub/jupyterhub.sqlite"
 
-# NativeAuthenticator 유저 테이블명 (보통 "users", 버전에 따라 다를 수 있음)
+# NativeAuthenticator user table name (usually "users", may vary by version)
 TABLE_NAME = "users"
 USERNAME_COL = "user_name"
 PASSWORD_COL = "password"
