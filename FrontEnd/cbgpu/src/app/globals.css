@@ -197,14 +197,18 @@
 @utility tilt-3d {
   transform-style: preserve-3d;
   transition: transform 250ms var(--ease-spring), box-shadow 250ms var(--ease-quick);
-  &:hover {
-    transform: perspective(800px) rotateX(3deg) rotateY(-2deg) translateY(-3px) scale(1.015);
-  }
-  &:active {
-    transform: perspective(800px) rotateX(1deg) scale(0.99);
-  }
 }
 
 @utility pop-in-3d {
   animation: tilt-in 320ms var(--ease-spring);
+}
+
+/* tilt-3d hover/active — @utility 안의 중첩 pseudo가 일부 빌드에서 누락되어 별도 분리 */
+@layer utilities {
+  .tilt-3d:hover {
+    transform: perspective(800px) rotateX(3deg) rotateY(-2deg) translateY(-3px) scale(1.015);
+  }
+  .tilt-3d:active {
+    transform: perspective(800px) rotateX(1deg) scale(0.99);
+  }
 }

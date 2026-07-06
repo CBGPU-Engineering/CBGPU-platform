@@ -5,6 +5,7 @@ CBGPU Daemon
 역할:
   1. Supabase gpus 테이블 폴링 → 비밀번호 변경 감지 → 컨테이너 내 계정에 반영
   2. 예약 종료 시간 감지 → 컨테이너 리셋 (흔적 제거 + 접근 차단)
+  3. cpu_projects 테이블 폴링 → 승인된 프로젝트 배포 / 재배포 / 삭제 처리
 
 실행: python3 daemon.py [config.yaml 경로]
 """
@@ -176,6 +177,151 @@ def reset_container(cfg: dict, gpu_id: int):
     log.info("GPU #%d: 컨테이너 리셋 완료", gpu_id)
 
 
+# Git 모드 런타임별 Docker 베이스 이미지
+RUNTIME_IMAGES: dict[str, str] = {
+    "node20":     "node:20-alpine",
+    "node18":     "node:18-alpine",
+    "python311":  "python:3.11-slim",
+    "python39":   "python:3.9-slim",
+}
+
+
+def fetch_cpu_projects(cfg: dict) -> list[dict]:
+    """approved 또는 deleted 상태의 CPU 프로젝트 목록 조회"""
+    url = (
+        cfg["supabase_url"].rstrip("/")
+        + "/rest/v1/cpu_projects?select=*&status=in.(approved,deleted)"
+    )
+    resp = requests.get(url, headers=supabase_headers(cfg), timeout=10)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def update_cpu_deployed_at(cfg: dict, project_id: str):
+    """데몬이 배포 완료 후 deployed_at을 현재 시각으로 업데이트"""
+    url = cfg["supabase_url"].rstrip("/") + f"/rest/v1/cpu_projects?id=eq.{project_id}"
+    now = datetime.now(timezone.utc).isoformat()
+    headers = {
+        **supabase_headers(cfg),
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+    }
+    resp = requests.patch(url, headers=headers, json={"deployed_at": now}, timeout=10)
+    resp.raise_for_status()
+
+
+def cpu_container_name(project_id: str) -> str:
+    return f"cbcpu_{project_id[:8]}"
+
+
+def cpu_volume_name(project_id: str) -> str:
+    return f"cbcpu_{project_id[:8]}_data"
+
+
+def apply_firewall(port: int, scope: str, action: str = "allow"):
+    """ufw로 포트 접근 규칙 추가/제거. scope: school | public (private는 무시)"""
+    if scope == "private":
+        return
+    try:
+        if action == "allow":
+            if scope == "school":
+                subprocess.run(
+                    ["ufw", "allow", "from", "10.138.26.0/24", "to", "any", "port", str(port)],
+                    capture_output=True, text=True,
+                )
+            else:  # public
+                subprocess.run(["ufw", "allow", str(port)], capture_output=True, text=True)
+        elif action == "delete":
+            if scope == "school":
+                subprocess.run(
+                    ["ufw", "delete", "allow", "from", "10.138.26.0/24", "to", "any", "port", str(port)],
+                    capture_output=True, text=True,
+                )
+            else:
+                subprocess.run(["ufw", "delete", "allow", str(port)], capture_output=True, text=True)
+    except Exception as e:
+        log.warning("방화벽 규칙 적용 실패 (port=%d, scope=%s, action=%s): %s", port, scope, action, e)
+
+
+def start_cpu_container(project: dict):
+    """CPU 프로젝트 컨테이너 시작 (기존 컨테이너가 있으면 먼저 제거)"""
+    project_id = project["id"]
+    container  = cpu_container_name(project_id)
+    host_port  = project["host_port"]
+    ctr_port   = project["container_port"]
+
+    # 기존 컨테이너 제거
+    subprocess.run(["docker", "rm", "-f", container], capture_output=True, text=True)
+
+    cmd = [
+        "docker", "run", "-d",
+        "--name", container,
+        "--cpus", str(project["cpu_limit"]),
+        "-m", str(project["memory_limit"]),
+        "-p", f"{host_port}:{ctr_port}",
+        "--restart", "unless-stopped",
+    ]
+
+    # 환경변수
+    for k, v in (project.get("env_vars") or {}).items():
+        cmd += ["-e", f"{k}={v}"]
+
+    deploy_type = project.get("deploy_type", "docker")
+
+    if deploy_type == "docker":
+        image = project.get("docker_image")
+        if not image:
+            raise ValueError("docker_image가 비어 있습니다")
+        cmd.append(image)
+
+    elif deploy_type == "git":
+        git_url    = project.get("git_url", "")
+        git_branch = project.get("git_branch") or "main"
+        run_cmd    = project.get("run_command") or "npm start"
+        runtime    = project.get("runtime") or "node20"
+        base_image = RUNTIME_IMAGES.get(runtime, "node:20-alpine")
+        volume     = cpu_volume_name(project_id)
+
+        subprocess.run(["docker", "volume", "create", volume], capture_output=True, text=True)
+
+        if "python" in runtime:
+            # python:slim 이미지 → apt-get으로 git 설치
+            setup = (
+                f"apt-get update -qq && apt-get install -y -qq git 2>/dev/null && "
+                f"([ -d /app/.git ] || git clone {git_url} /app) && "
+                f"cd /app && git fetch && git checkout {git_branch} && git pull && "
+                f"([ -f requirements.txt ] && pip install -r requirements.txt -q 2>/dev/null || true) && "
+                f"{run_cmd}"
+            )
+        else:
+            # node:alpine 이미지 → apk로 git 설치
+            setup = (
+                f"apk add --no-cache git 2>/dev/null && "
+                f"([ -d /app/.git ] || git clone {git_url} /app) && "
+                f"cd /app && git fetch && git checkout {git_branch} && git pull && "
+                f"([ -f package.json ] && npm install --silent 2>/dev/null || true) && "
+                f"{run_cmd}"
+            )
+
+        cmd += ["-v", f"{volume}:/app", base_image, "sh", "-c", setup]
+
+    else:
+        raise ValueError(f"알 수 없는 deploy_type: {deploy_type}")
+
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"docker run 실패: {proc.stderr.strip()}")
+
+    log.info("CPU 프로젝트 '%s' 배포 완료 (container=%s, port=%d)", project.get("name"), container, host_port)
+
+
+def stop_cpu_container(project: dict):
+    """CPU 프로젝트 컨테이너 정지 및 제거 (볼륨은 보존)"""
+    container = cpu_container_name(project["id"])
+    subprocess.run(["docker", "rm", "-f", container], capture_output=True, text=True)
+    log.info("CPU 프로젝트 '%s' 컨테이너 제거 완료 (container=%s)", project.get("name"), container)
+
+
 def main():
     cfg_path = sys.argv[1] if len(sys.argv) > 1 else "config.yaml"
 
@@ -190,6 +336,7 @@ def main():
     # 변경 감지용 in-memory 상태
     applied_session_pass: dict[int, str] = {}   # gpu_id → 현재 예약 세션에서 적용된 마지막 비밀번호
     reset_done: set[str] = set()                # 이미 리셋 처리한 reservation id
+    cpu_cleaned: set[str] = set()               # 이미 컨테이너를 제거한 deleted 프로젝트 id
 
     while True:
         time.sleep(cfg["poll_interval_seconds"])
@@ -252,8 +399,45 @@ def main():
                     except Exception as e:
                         log.error("GPU #%d: 리셋 실패: %s", gpu_id, e)
 
-        # 3. (선택사항) 예약 시간이 아닌데 비밀번호가 적용되어 있는 경우 클리어링 로직 등을 추가할 수 있습니다.
-        # 현재는 예약 종료 시점에만 리셋을 수행합니다.
+        # 3. CPU 프로젝트 배포 처리
+        try:
+            cpu_projects = fetch_cpu_projects(cfg)
+        except Exception as e:
+            log.warning("CPU 프로젝트 조회 실패: %s. 현재 상태를 유지합니다.", e)
+            cpu_projects = []
+
+        for proj in cpu_projects:
+            proj_id = proj["id"]
+
+            # 삭제된 프로젝트 → 컨테이너 제거
+            if proj["status"] == "deleted":
+                if proj_id not in cpu_cleaned:
+                    log.info("CPU 프로젝트 '%s' 삭제 감지 → 컨테이너 제거", proj.get("name"))
+                    try:
+                        stop_cpu_container(proj)
+                        apply_firewall(proj["host_port"], proj.get("access_scope", "private"), "delete")
+                        cpu_cleaned.add(proj_id)
+                    except Exception as e:
+                        log.error("CPU 프로젝트 '%s' 컨테이너 제거 실패: %s", proj.get("name"), e)
+                continue
+
+            # 승인된 프로젝트 → 배포 또는 재배포 필요 여부 확인
+            deploy_requested = proj.get("deploy_requested_at")
+            deployed         = proj.get("deployed_at")
+
+            needs_deploy = deployed is None or (
+                deploy_requested is not None and deploy_requested > deployed
+            )
+
+            if needs_deploy:
+                log.info("CPU 프로젝트 '%s' %s 시작", proj.get("name"), "재배포" if deployed else "최초 배포")
+                try:
+                    start_cpu_container(proj)
+                    apply_firewall(proj["host_port"], proj.get("access_scope", "private"), "allow")
+                    update_cpu_deployed_at(cfg, proj_id)
+                    cpu_cleaned.discard(proj_id)
+                except Exception as e:
+                    log.error("CPU 프로젝트 '%s' 배포 실패: %s", proj.get("name"), e)
 
 
 if __name__ == "__main__":

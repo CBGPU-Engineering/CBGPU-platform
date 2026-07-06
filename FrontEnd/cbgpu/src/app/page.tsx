@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/useAuth';
 import {
   Cpu, CalendarDays, BookOpen, UtensilsCrossed, Vote,
-  NotebookPen, Users, Gamepad2, Wrench, Newspaper,
+  NotebookPen, Users, Gamepad2, Wrench, Newspaper, Server,
 } from 'lucide-react';
 
 /** 서버/클라이언트 시각이 다를 수 있어 SSR에서는 중립적인 기본값만 쓰고,
@@ -102,6 +102,7 @@ const FEATURES = [
   { href: '/notes', label: '연구노트', icon: NotebookPen, color: 'text-teal-400 bg-teal-400/10' },
   { href: '/match', label: '스터디 매칭', icon: Users, color: 'text-sky-400 bg-sky-400/10' },
   { href: '/dashboard', label: 'GPU 대여', icon: Cpu, color: 'text-slate-400 bg-slate-400/10' },
+  { href: '/server',    label: '서버 배포', icon: Server, color: 'text-emerald-400 bg-emerald-400/10' },
   { href: '/tools', label: '도구', icon: Wrench, color: 'text-cyan-400 bg-cyan-400/10' },
   { href: '/games', label: 'Arcade', icon: Gamepad2, color: 'text-violet-400 bg-violet-400/10' },
   { href: '/feed', label: 'Feed', icon: Newspaper, color: 'text-blue-400 bg-blue-400/10' },
