@@ -1,6 +1,6 @@
 """
-CBGPU Daemon 테스트
-실행: pytest test_daemon.py -v
+CBGPU Daemon tests
+Usage: pytest test_daemon.py -v
 """
 
 import pytest
@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 
 import yaml
 
-# 테스트 대상 함수들 import
+# Import the functions under test
 from daemon import (
     load_config,
     random_password,
@@ -22,7 +22,7 @@ from daemon import (
 )
 
 
-# ── 공통 픽스처 ────────────────────────────────────────────
+# ── Shared fixtures ────────────────────────────────────────
 
 VALID_CONFIG = {
     "supabase_url": "https://test.supabase.co",
@@ -32,7 +32,7 @@ VALID_CONFIG = {
         "image": "tensorflow/tensorflow:latest-gpu-jupyter",
         "container_port": 8888,
     },
-    # gpu_id는 DB와 동일하게 1,2,3,4 (1-indexed)
+    # gpu_id matches the DB: 1,2,3,4 (1-indexed)
     "gpus": {
         1: {"username": "gpu1", "container": "jupiterhub_gpu1", "device": "0", "host_port": 8001},
         2: {"username": "gpu2", "container": "jupiterhub_gpu2", "device": "1", "host_port": 8002},
@@ -42,7 +42,7 @@ VALID_CONFIG = {
 
 @pytest.fixture
 def config_file():
-    """임시 config.yaml 파일 생성"""
+    """Create a temporary config.yaml file"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         yaml.dump(VALID_CONFIG, f)
         path = f.name
@@ -50,7 +50,7 @@ def config_file():
     os.unlink(path)
 
 
-# ── load_config 테스트 ─────────────────────────────────────
+# ── load_config tests ─────────────────────────────────────
 
 class TestLoadConfig:
     def test_valid_config(self, config_file):
@@ -69,7 +69,7 @@ class TestLoadConfig:
     def test_missing_gpu_field(self, tmp_path):
         bad = {
             **VALID_CONFIG,
-            "gpus": {1: {"username": "gpu1", "container": "c1", "device": "0"}},  # host_port 누락
+            "gpus": {1: {"username": "gpu1", "container": "c1", "device": "0"}},  # host_port missing
         }
         path = tmp_path / "cfg.yaml"
         path.write_text(yaml.dump(bad))
@@ -84,7 +84,7 @@ class TestLoadConfig:
         assert cfg["poll_interval_seconds"] == 30
 
 
-# ── random_password 테스트 ─────────────────────────────────
+# ── random_password tests ─────────────────────────────────
 
 class TestRandomPassword:
     def test_default_length(self):
@@ -98,18 +98,18 @@ class TestRandomPassword:
     def test_alphanumeric_only(self):
         for _ in range(10):
             pw = random_password()
-            assert pw.isalnum(), f"특수문자 포함됨: {pw}"
+            assert pw.isalnum(), f"contains special characters: {pw}"
 
     def test_unique(self):
         passwords = {random_password() for _ in range(50)}
-        assert len(passwords) == 50  # 중복 없어야 함
+        assert len(passwords) == 50  # must have no duplicates
 
 
-# ── apply_password 테스트 ──────────────────────────────────
+# ── apply_password tests ──────────────────────────────────
 
 class TestApplyPassword:
     def test_success(self):
-        # hash 생성 → config 저장 → restart 순으로 3번 호출
+        # Called 3 times in order: generate hash -> save config -> restart
         hash_ok = MagicMock(returncode=0, stdout="argon2:abc123\n")
         config_ok = MagicMock(returncode=0)
         restart_ok = MagicMock(returncode=0)
@@ -117,13 +117,13 @@ class TestApplyPassword:
             apply_password("jupiterhub_gpu1", "testpass123")
 
         assert mock_run.call_count == 3
-        # 첫 번째 호출: python3 passwd 해시 생성
+        # First call: python3 passwd hash generation
         hash_cmd = mock_run.call_args_list[0][0][0]
         assert "docker" in hash_cmd
         assert "jupiterhub_gpu1" in hash_cmd
         assert "python3" in hash_cmd
-        assert "passwd" in hash_cmd[-1]  # 마지막 인자가 python 스크립트
-        # 세 번째 호출: docker restart
+        assert "passwd" in hash_cmd[-1]  # last arg is the python script
+        # Third call: docker restart
         restart_cmd = mock_run.call_args_list[2][0][0]
         assert "restart" in restart_cmd
         assert "jupiterhub_gpu1" in restart_cmd
@@ -131,13 +131,13 @@ class TestApplyPassword:
     def test_hash_failure_raises(self):
         hash_fail = MagicMock(returncode=1, stderr="ModuleNotFoundError", stdout="")
         with patch("daemon.subprocess.run", return_value=hash_fail):
-            with pytest.raises(RuntimeError, match="해시 생성 실패"):
+            with pytest.raises(RuntimeError, match="Hash generation failed"):
                 apply_password("jupiterhub_gpu1", "testpass123")
 
     def test_empty_hash_raises(self):
         hash_empty = MagicMock(returncode=0, stdout="")
         with patch("daemon.subprocess.run", return_value=hash_empty):
-            with pytest.raises(RuntimeError, match="비어 있습니다"):
+            with pytest.raises(RuntimeError, match="empty result"):
                 apply_password("jupiterhub_gpu1", "testpass123")
 
     def test_restart_failure_raises(self):
@@ -145,11 +145,11 @@ class TestApplyPassword:
         config_ok = MagicMock(returncode=0)
         restart_fail = MagicMock(returncode=1, stderr="No such container")
         with patch("daemon.subprocess.run", side_effect=[hash_ok, config_ok, restart_fail]):
-            with pytest.raises(RuntimeError, match="재시작 실패"):
+            with pytest.raises(RuntimeError, match="Failed to restart"):
                 apply_password("jupiterhub_gpu1", "testpass123")
 
 
-# ── reset_container 테스트 ────────────────────────────────
+# ── reset_container tests ────────────────────────────────
 
 class TestResetContainer:
     def test_runs_rm_then_run(self):
@@ -160,13 +160,13 @@ class TestResetContainer:
         assert mock_run.call_count == 2
         rm_call, run_call = mock_run.call_args_list
 
-        # docker rm -f 확인
+        # Verify docker rm -f
         rm_cmd = rm_call[0][0]
         assert "rm" in rm_cmd
         assert "-f" in rm_cmd
         assert "jupiterhub_gpu1" in rm_cmd
 
-        # docker run 확인
+        # Verify docker run
         run_cmd = run_call[0][0]
         assert "run" in run_cmd
         assert "jupiterhub_gpu1" in run_cmd
@@ -177,11 +177,11 @@ class TestResetContainer:
         rm_ok = MagicMock(returncode=0)
         run_fail = MagicMock(returncode=1, stderr="No such image")
         with patch("daemon.subprocess.run", side_effect=[rm_ok, run_fail]):
-            with pytest.raises(RuntimeError, match="docker run 실패"):
+            with pytest.raises(RuntimeError, match="docker run failed"):
                 reset_container(VALID_CONFIG, 1)
 
 
-# ── fetch_gpus 테스트 ─────────────────────────────────────
+# ── fetch_gpus tests ─────────────────────────────────────
 
 class TestFetchGpus:
     def test_returns_gpu_list(self):
@@ -208,7 +208,7 @@ class TestFetchGpus:
                 fetch_gpus(VALID_CONFIG)
 
 
-# ── fetch_active_reservations 테스트 ──────────────────────
+# ── fetch_active_reservations tests ──────────────────────
 
 class TestFetchActiveReservations:
     def test_returns_reservations(self):

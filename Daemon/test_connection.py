@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Supabase 연결 테스트
-실행: python3 test_connection.py
+Supabase connection test
+Usage: python3 test_connection.py
 """
 
 import sys
@@ -30,7 +30,7 @@ def main():
             resp = requests.get(endpoint, headers=headers, timeout=10)
             if resp.status_code == 200:
                 data = resp.json()
-                print(f"[OK] {name}: {len(data)}개 행 조회됨")
+                print(f"[OK] {name}: {len(data)} row(s) fetched")
             else:
                 print(f"[FAIL] {name}: HTTP {resp.status_code} - {resp.text}")
                 all_ok = False
@@ -40,9 +40,9 @@ def main():
 
     print()
     if all_ok:
-        print("연결 성공 - 데몬 실행 가능합니다.")
+        print("Connection succeeded - the daemon can run.")
     else:
-        print("연결 실패 - Supabase URL/Key 또는 RLS 설정을 확인하세요.")
+        print("Connection failed - check the Supabase URL/key or RLS settings.")
         sys.exit(1)
 
 
