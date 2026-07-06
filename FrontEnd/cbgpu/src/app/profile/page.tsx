@@ -90,7 +90,11 @@ export default function Profile() {
   async function changeEmail() {
     if (!user?.email) return;
 
-    if (!newEmail || newEmail === user.email) {
+    const email = newEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showError('올바른 이메일 주소를 입력해 주세요.'); return;
+    }
+    if (email === user.email) {
       showError('현재와 다른 이메일 주소를 입력해 주세요.'); return;
     }
 
@@ -105,7 +109,7 @@ export default function Profile() {
       }
 
       const { error } = await supabase.auth.updateUser(
-        { email: newEmail },
+        { email },
         { emailRedirectTo: getURL() + 'auth/callback' }
       );
       if (error) throw error;
@@ -259,8 +263,8 @@ export default function Profile() {
             </label>
             <Input
               type="email"
-              name="email"
-              autoComplete="email"
+              name="new-email"
+              autoComplete="off"
               value={newEmail}
               onChange={(e: any) => setNewEmail(e.target.value)}
               className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
