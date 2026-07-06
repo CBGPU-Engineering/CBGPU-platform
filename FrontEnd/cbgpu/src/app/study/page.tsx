@@ -220,22 +220,47 @@ export default function StudyPage() {
             // 정원제 자습실은 좌석이 없어서 SeatMap은 못 그리지만, 신청자 명단 자체는
             // /selfstudy/search 응답에 seat: null로 같이 들어있으니 그대로 모아서 보여준다.
             // type 값이 좌석형과 다를 수 있어 room.id만으로 매칭한다 (좌석 없는 실이라 e.seat은 항상 비어있음).
-            // 이 방식은 유일한 데이터 소스라 폴백이 없다 — 실패 시 "0명"이 아니라 failed로 구분한다.
-            if (!selfStudyEntries) {
-              return { room, seats: [], obstacles: [], occupantsBySeat: new Map(), occupancy: [], failed: true };
-            }
+            // /selfstudy/search가 이 계정 권한으로 아예 안 되는 경우, 좌석형 방과 동일하게
+            // 방별 occupations 엔드포인트로 폴백한다 — 좌석이 없어도 room+period+student 단위
+            // occupation 레코드 자체는 동일한 엔드포인트로 조회되는 경우가 많다.
             try {
               const occupancy: OccupancyEntry[] = [];
-              const roomEntries = selfStudyEntries.filter(
+              const roomEntries = selfStudyEntries?.filter(
                 (e) => e.room.id === room.id && e.status !== 'REJECTED'
               );
-              roomEntries.forEach((e) => {
-                occupancy.push({
-                  roomId: room.id, roomName: room.name, seatName: '',
-                  period: e.period, label: formatStudentLabel(e.student),
-                  studentId: e.student.id, status: e.status,
+
+              if (selfStudyEntries && roomEntries) {
+                roomEntries.forEach((e) => {
+                  occupancy.push({
+                    roomId: room.id, roomName: room.name, seatName: '',
+                    period: e.period, label: formatStudentLabel(e.student),
+                    studentId: e.student.id, status: e.status,
+                  });
                 });
-              });
+              } else {
+                const occupations = await getSeatOccupations(room.id, dateStr);
+                const studentIds = [...new Set(occupations.map((o) => o.studentId))];
+                const labelById = new Map<number, string>();
+                await Promise.all(
+                  studentIds.map(async (studentId) => {
+                    try {
+                      const student = await getStudent(studentId);
+                      labelById.set(studentId, formatStudentLabel(student));
+                    } catch {
+                      // 정보를 못 가져오면 그 신청자는 비식별로 둔다
+                    }
+                  })
+                );
+                occupations.forEach((o) => {
+                  const label = labelById.get(o.studentId);
+                  if (!label) return;
+                  occupancy.push({
+                    roomId: room.id, roomName: room.name, seatName: '',
+                    period: o.period, label, studentId: o.studentId, status: 'APPROVED',
+                  });
+                });
+              }
+
               return { room, seats: [], obstacles: [], occupantsBySeat: new Map(), occupancy };
             } catch {
               return { room, seats: [], obstacles: [], occupantsBySeat: new Map(), occupancy: [], failed: true };
