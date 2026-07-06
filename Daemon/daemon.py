@@ -61,7 +61,7 @@ def fetch_gpus(cfg: dict) -> list[dict]:
 
 
 def fetch_active_reservations(cfg: dict) -> list[dict]:
-    """Fetch reservations with status=approved"""
+    """Fetch reservations with status=approveds"""
     url = (
         cfg["supabase_url"].rstrip("/")
         + "/rest/v1/reservations?select=id,gpu_id,start_time,end_time,status&status=eq.approved"
