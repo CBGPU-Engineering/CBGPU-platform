@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ArrowLeft, RotateCcw, Trash2, Globe, School, Lock,
   Container, GitBranch, Cpu, MemoryStick, Plus, ExternalLink,
@@ -29,6 +30,9 @@ const RUNTIMES: { value: Runtime; label: string }[] = [
   { value: 'python311', label: 'Python 3.11' },
   { value: 'python39',  label: 'Python 3.9' },
 ];
+
+const MEMORY_OPTS = ['128m', '256m', '512m', '1g', '2g', '4g'] as const;
+type MemoryLimit = typeof MEMORY_OPTS[number];
 
 type EnvEntry = { key: string; value: string };
 
@@ -406,13 +410,14 @@ export default function ServerDetailPage() {
                     </div>
                     <div>
                       <label className={labelCls}>Runtime</label>
-                      <select
-                        value={form.runtime}
-                        onChange={e => set('runtime', e.target.value as Runtime)}
-                        className={inputCls}
-                      >
-                        {RUNTIMES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                      </select>
+                      <Select value={form.runtime} onValueChange={v => set('runtime', v as Runtime)}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {RUNTIMES.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <div>
@@ -463,7 +468,18 @@ export default function ServerDetailPage() {
                 </div>
                 <div>
                   <label className={labelCls}>Memory</label>
-                  <Input placeholder="512m" value={form.memoryLimit} onChange={e => set('memoryLimit', e.target.value)} />
+                  <Select value={form.memoryLimit} onValueChange={v => set('memoryLimit', v as MemoryLimit)}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MEMORY_OPTS.map(m => (
+                        <SelectItem key={m} value={m}>
+                          {m.endsWith('g') ? `${m.slice(0, -1)} GB` : `${m.slice(0, -1)} MB`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

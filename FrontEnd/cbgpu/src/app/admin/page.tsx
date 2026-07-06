@@ -75,7 +75,7 @@ export default function AdminPage() {
   const fetchCpuProjects = async () => {
     const { data, error } = await supabase
       .from('cpu_projects')
-      .select(`*, profiles:user_id (full_name, student_id)`)
+      .select('*')
       .neq('status', 'deleted')
       .order('created_at', { ascending: false });
     if (error) showError("서버 프로젝트 로드 실패.");
