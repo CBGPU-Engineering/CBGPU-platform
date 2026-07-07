@@ -179,12 +179,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
-  if (res.status === 401 && !path.startsWith('/auth/signin')) {
-    signOut();
-    throw new EdusetError('로그인이 만료되었습니다. 다시 로그인해주세요.');
-  }
   if (!res.ok) {
     const body = await res.json().catch(() => null);
+    if (res.status === 401 && !path.startsWith('/auth/signin')) signOut();
     throw new EdusetError(body?.message ?? `요청 실패 (HTTP ${res.status})`);
   }
   if (res.status === 204) return undefined as T;

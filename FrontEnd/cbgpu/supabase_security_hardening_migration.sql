@@ -11,10 +11,34 @@
 -- ============================================================
 
 -- ── 1. profiles: 본인 프로필은 수정 가능하되, is_admin/is_approved는
---    본인이 스스로 바꿀 수 없게 한다. 클라이언트(anon key)에서 직접z
+--    본인이 스스로 바꿀 수 없게 한다. 클라이언트(anon key)에서 직접
 --    supabase.from('profiles').update({is_admin:true})를 호출해도
 --    이 체크에 걸려서 거부된다. ────────────────────────────────────
 alter table profiles enable row level security;
+
+-- profiles를 보호하는 정책 안에서 profiles를 다시 select하면(설령 서브쿼리라도)
+-- Postgres가 "infinite recursion detected in policy for relation profiles" 에러를
+-- 낸다. 그래서 is_admin/is_approved 조회는 SECURITY DEFINER 함수로 감싸서 RLS를
+-- 우회한다 — 이 함수들은 profiles/cpu_projects/gpus 정책 전체에서 재사용한다.
+create or replace function public.is_admin(uid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((select p.is_admin from public.profiles p where p.id = uid), false);
+$$;
+
+create or replace function public.get_is_approved(uid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select (select p.is_approved from public.profiles p where p.id = uid);
+$$;
 
 -- is_admin/is_approved는 null일 수 있으므로 "=" 대신 "is not distinct from"으로 비교한다
 -- (null = null은 SQL에서 unknown이라 "="만 쓰면 null 값을 가진 본인 행도 update가 막힌다).
@@ -23,13 +47,13 @@ create policy "profiles_update_self" on profiles for update
   using (auth.uid() = id)
   with check (
     auth.uid() = id
-    and is_admin    is not distinct from (select p.is_admin    from profiles p where p.id = auth.uid())
-    and is_approved is not distinct from (select p.is_approved from profiles p where p.id = auth.uid())
+    and is_admin    is not distinct from public.is_admin(auth.uid())
+    and is_approved is not distinct from public.get_is_approved(auth.uid())
   );
 
 drop policy if exists "profiles_admin_all" on profiles;
 create policy "profiles_admin_all" on profiles for all
-  using (exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin = true));
+  using (public.is_admin(auth.uid()));
 
 -- 회원가입 직후 본인 행 삽입은 허용하되, is_admin은 항상 false, is_approved는 항상 null로
 -- 강제한다. null/true는 정상 이용 가능, 관리자가 학번/이름이 이상하다고 판단해 false로
@@ -44,17 +68,11 @@ alter table cpu_projects enable row level security;
 
 drop policy if exists "cpu_projects_owner_update" on cpu_projects;
 create policy "cpu_projects_owner_update" on cpu_projects for update
-  using (
-    user_id = auth.uid()
-    or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  using (user_id = auth.uid() or public.is_admin(auth.uid()));
 
 drop policy if exists "cpu_projects_owner_delete" on cpu_projects;
 create policy "cpu_projects_owner_delete" on cpu_projects for delete
-  using (
-    user_id = auth.uid()
-    or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  using (user_id = auth.uid() or public.is_admin(auth.uid()));
 
 -- ── 3. gpus: password 컬럼이 있는 테이블이므로 직접 SELECT는 관리자만
 --    가능하게 막고, 일반 사용자는 자신이 승인받은 예약의 GPU 비밀번호만
@@ -65,11 +83,11 @@ alter table gpus enable row level security;
 drop policy if exists "gpus_select_all" on gpus;
 drop policy if exists "gpus_admin_select" on gpus;
 create policy "gpus_admin_select" on gpus for select
-  using (exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin = true));
+  using (public.is_admin(auth.uid()));
 
 drop policy if exists "gpus_admin_write" on gpus;
 create policy "gpus_admin_write" on gpus for all
-  using (exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin = true));
+  using (public.is_admin(auth.uid()));
 
 create or replace function get_active_gpu_password(p_gpu_id int)
 returns text

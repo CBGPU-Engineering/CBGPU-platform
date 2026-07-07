@@ -106,6 +106,7 @@ export default function AdminPage() {
     const { data, error } = await supabase
       .from('profiles')
       .select('id, student_id, full_name, is_admin, is_approved')
+      .order('is_approved', { ascending: true, nullsFirst: true })
       .order('full_name', { ascending: true })
       .limit(1000);
     if (error) showError("계정 목록 로드 실패.");
