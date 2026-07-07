@@ -14,13 +14,16 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * 쓰는 조회성 엔드포인트만 통과시킨다 — 좌석 점유/해제 같은 쓰기 작업은 현재 어떤 화면에서도
  * 쓰지 않으므로 전부 막는다.
  */
+// id는 숫자가 아니라 UUID인 리소스도 있어서(예: 학생 id) 자리표시자는
+// 슬래시만 아니면 다 허용한다 — 경로 형태 자체는 여전히 고정돼 있어 안전하다.
+const ID = '[^/]+';
 const ALLOWED_ROUTES: { method: string; pattern: RegExp }[] = [
   { method: 'GET', pattern: /^\/rooms$/ },
-  { method: 'GET', pattern: /^\/rooms\/\d+\/composition$/ },
-  { method: 'GET', pattern: /^\/rooms\/\d+\/seats\/occupations$/ },
+  { method: 'GET', pattern: new RegExp(`^/rooms/${ID}/composition$`) },
+  { method: 'GET', pattern: new RegExp(`^/rooms/${ID}/seats/occupations$`) },
   { method: 'GET', pattern: /^\/students$/ },
-  { method: 'GET', pattern: /^\/students\/\d+$/ },
-  { method: 'GET', pattern: /^\/users\/\d+$/ },
+  { method: 'GET', pattern: new RegExp(`^/students/${ID}$`) },
+  { method: 'GET', pattern: new RegExp(`^/users/${ID}$`) },
   { method: 'GET', pattern: /^\/policies\/selfstudy$/ },
   { method: 'POST', pattern: /^\/selfstudy\/search$/ },
 ];
