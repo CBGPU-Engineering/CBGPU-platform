@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAlert } from '@/lib/alert';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
-import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2, KeyRound, Server, Container, GitBranch, Globe, School, Lock, Users, HelpCircle } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2, KeyRound, Server, Container, GitBranch, Globe, School, Lock, Users, HelpCircle, Megaphone } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
@@ -125,11 +125,41 @@ export default function AdminPage() {
     }
   }
 
+  // ── 사이트 공지 배너 ────────────────────────────────────────────────────────
+  const [bannerMessage, setBannerMessage] = useState('');
+  const [bannerActive, setBannerActive] = useState(false);
+  const [bannerLoading, setBannerLoading] = useState(true);
+  const [bannerSaving, setBannerSaving] = useState(false);
+
+  const fetchBanner = async () => {
+    const { data, error } = await supabase.from('site_banner').select('message, is_active').eq('id', 1).maybeSingle();
+    if (error) showError("배너 로드 실패.");
+    else {
+      setBannerMessage(data?.message ?? '');
+      setBannerActive(data?.is_active ?? false);
+    }
+    setBannerLoading(false);
+  };
+
+  async function saveBanner(active: boolean) {
+    setBannerSaving(true);
+    const { error } = await supabase
+      .from('site_banner')
+      .upsert({ id: 1, message: bannerMessage, is_active: active }, { onConflict: 'id' });
+    if (error) showError("저장 실패: " + error.message);
+    else {
+      setBannerActive(active);
+      showSuccess(active ? '배너를 켰습니다.' : '배너를 껐습니다.');
+    }
+    setBannerSaving(false);
+  }
+
   useEffect(() => {
     if (!authLoading && isAdmin) {
       fetchReservations();
       fetchCpuProjects();
       fetchProfiles();
+      fetchBanner();
     }
   }, [authLoading, isAdmin]);
 
@@ -179,6 +209,50 @@ export default function AdminPage() {
               </Button>
             </Link>
           </div>
+        </div>
+
+        {/* 전체 공지 배너 — 탭과 무관하게 항상 보임 */}
+        <div className="mb-8 border-2 rounded-3xl bg-card p-6 md:p-8 shadow-2xl transition-all space-y-4">
+          {bannerLoading ? (
+            <div className="flex items-center justify-center py-8"><LoadingSpinner size={40} label="배너 불러오는 중" /></div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <Megaphone className="size-5 text-primary" />
+                <h2 className="font-black uppercase text-sm tracking-widest">전체 공지 배너</h2>
+                {bannerActive && (
+                  <Badge variant="success" icon={<CheckCircle2 className="size-3" />}>표시 중</Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground font-medium">
+                켜두면 로그인 여부와 상관없이 모든 페이지 상단에 이 문구가 보입니다.
+              </p>
+              <textarea
+                value={bannerMessage}
+                onChange={(e) => setBannerMessage(e.target.value)}
+                placeholder="예: 7/10(금) 03:00~05:00 서버 점검이 있습니다."
+                rows={3}
+                className="w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 resize-y"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest gap-1.5"
+                  disabled={bannerSaving || !bannerMessage.trim()}
+                  onClick={() => saveBanner(true)}
+                >
+                  <Megaphone className="size-3.5" /> 저장하고 켜기
+                </Button>
+                <Button
+                  variant="outline"
+                  className="font-black text-xs uppercase tracking-widest"
+                  disabled={bannerSaving || !bannerActive}
+                  onClick={() => saveBanner(false)}
+                >
+                  끄기
+                </Button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* 탭 전환 */}
