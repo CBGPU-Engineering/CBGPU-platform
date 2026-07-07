@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { useAlert } from '@/lib/alert';
+import { useAuth } from '@/lib/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { format, isSameDay, parseISO, addDays, startOfDay, endOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -31,6 +32,7 @@ function combineDateHour(day: Date, hour: number): Date {
 
 export default function GPUCard({ id, name }: { id: number; name: string }) {
   const { showAlert, showError, showSuccess } = useAlert();
+  const { isApproved } = useAuth();
   const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
   const [selectedHour, setSelectedHour] = useState(() => Math.min(23, new Date().getHours() + 1));
   const [durationHours, setDurationHours] = useState(3);
@@ -61,6 +63,10 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
   };
 
   const handleRequest = async () => {
+    if (!isApproved) {
+      showError('학번 또는 이름 확인이 필요해 예약할 수 없습니다. 프로필에서 정보를 확인해 주세요.'); return;
+    }
+
     if (showSchedule) {
       setShowSchedule(false);
       showAlert('예약 시간을 확인해 주세요.', 'info'); return;

@@ -51,7 +51,7 @@ interface RedeployForm {
 
 export default function ServerDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isApproved } = useAuth();
   const { showError, showSuccess } = useAlert();
   const router = useRouter();
 
@@ -105,6 +105,7 @@ export default function ServerDetailPage() {
 
   const handleRedeploy = async () => {
     if (!form || !project) return;
+    if (!isApproved) { showError('학번 또는 이름 확인이 필요해 재배포할 수 없습니다. 프로필에서 정보를 확인해 주세요.'); return; }
     const hostPort = parseInt(form.hostPort);
     const containerPort = parseInt(form.containerPort);
     if (isNaN(hostPort)) { showError('포트는 숫자여야 합니다.'); return; }

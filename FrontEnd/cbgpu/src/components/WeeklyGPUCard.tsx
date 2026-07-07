@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { useAlert } from '@/lib/alert';
+import { useAuth } from '@/lib/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { startOfWeek, endOfWeek, addWeeks, format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils';
 
 export default function WeeklyGPUCard({ id, name }: { id: number; name: string }) {
   const { showError, showSuccess } = useAlert();
+  const { isApproved } = useAuth();
   const [selectedWeeks, setSelectedWeeks] = useState<Date[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [approvedReservations, setApprovedReservations] = useState<any[]>([]);
@@ -55,6 +57,9 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
   };
 
   const handleSubmit = async () => {
+    if (!isApproved) {
+      showError('학번 또는 이름 확인이 필요해 예약할 수 없습니다. 프로필에서 정보를 확인해 주세요.'); return;
+    }
     if (selectedWeeks.length === 0) { showError('주차를 선택해 주세요.'); return; }
 
     const { data: { user } } = await supabase.auth.getUser();

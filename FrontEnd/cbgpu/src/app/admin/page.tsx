@@ -6,13 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAlert } from '@/lib/alert';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
-import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2, KeyRound, Server, Container, GitBranch, Globe, School, Lock } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2, KeyRound, Server, Container, GitBranch, Globe, School, Lock, Users, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 
-type AdminTab = 'gpu' | 'server';
+type AdminTab = 'gpu' | 'server' | 'accounts';
 
 export default function AdminPage() {
   const { isAdmin, isLoading: authLoading } = useAuth();
@@ -97,10 +97,38 @@ export default function AdminPage() {
     else { showSuccess(`상태가 ${newStatus}로 변경됐습니다.`); fetchCpuProjects(); }
   }
 
+  // ── 계정(학번/이름 확인) ────────────────────────────────────────────────────
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(true);
+  const [profilesJustFinished, setProfilesJustFinished] = useState(false);
+
+  const fetchProfiles = async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, student_id, full_name, is_admin, is_approved')
+      .order('full_name', { ascending: true })
+      .limit(1000);
+    if (error) showError("계정 목록 로드 실패.");
+    else setProfiles(data || []);
+    setProfilesLoading(false);
+    setProfilesJustFinished(true);
+    setTimeout(() => setProfilesJustFinished(false), 600);
+  };
+
+  async function setProfileApproval(id: string, approved: boolean) {
+    const { error } = await supabase.from('profiles').update({ is_approved: approved }).eq('id', id);
+    if (error) showError("처리 실패: " + error.message);
+    else {
+      showSuccess(approved ? '승인 처리됐습니다.' : '학번/이름 확인이 필요한 상태로 표시했습니다.');
+      fetchProfiles();
+    }
+  }
+
   useEffect(() => {
     if (!authLoading && isAdmin) {
       fetchReservations();
       fetchCpuProjects();
+      fetchProfiles();
     }
   }, [authLoading, isAdmin]);
 
@@ -133,6 +161,7 @@ export default function AdminPage() {
   }
 
   const pendingCpuCount = cpuProjects.filter(p => p.status === 'pending').length;
+  const unreviewedCount = profiles.filter(p => p.is_approved === null || p.is_approved === false).length;
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -155,8 +184,9 @@ export default function AdminPage() {
         <div className="mb-6">
           <SegmentedTabs
             items={[
-              { value: 'gpu',    label: 'GPU 예약' },
-              { value: 'server', label: `서버 배포${pendingCpuCount > 0 ? ` (${pendingCpuCount})` : ''}` },
+              { value: 'gpu',      label: 'GPU 예약' },
+              { value: 'server',   label: `서버 배포${pendingCpuCount > 0 ? ` (${pendingCpuCount})` : ''}` },
+              { value: 'accounts', label: `계정${unreviewedCount > 0 ? ` (${unreviewedCount})` : ''}` },
             ]}
             value={tab}
             onChange={v => setTab(v as AdminTab)}
@@ -312,6 +342,62 @@ export default function AdminPage() {
                             {proj.status === 'rejected' && (
                               <Button size="sm" variant="outline" className="font-black text-[10px] uppercase h-8 px-4 rounded-xl border-2 hover:bg-muted transition-all active:scale-95 gap-1.5" onClick={() => updateCpuStatus(proj.id, 'pending')}>
                                 <Undo2 className="size-3" /> Reset
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+
+        {/* ── 계정 탭 ── */}
+        {tab === 'accounts' && (
+          <div className="border-2 rounded-3xl bg-card overflow-hidden shadow-2xl transition-all">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow className="hover:bg-transparent border-b-2">
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest py-5 px-6">Name</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest py-5">Student ID</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest py-5">Status</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest py-5 px-6 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {profilesLoading || profilesJustFinished ? (
+                    <TableRow><TableCell colSpan={4} className="py-16"><div className="flex items-center justify-center"><LoadingSpinner done={profilesJustFinished} size={48} label="계정 목록 불러오는 중" /></div></TableCell></TableRow>
+                  ) : profiles.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-20 font-bold text-muted-foreground opacity-50">No accounts found.</TableCell></TableRow>
+                  ) : (
+                    profiles.map((p) => (
+                      <TableRow key={p.id} className="hover:bg-muted/20 transition-colors border-b last:border-0">
+                        <TableCell className="py-5 px-6">
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-sm uppercase tracking-tight">{p.full_name || 'Unknown'}</span>
+                            {p.is_admin && <Badge variant="warning">Admin</Badge>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm font-bold">{p.student_id || '-'}</TableCell>
+                        <TableCell className="py-5">
+                          {p.is_approved === false && <Badge variant="danger" icon={<XCircle className="size-3" />}>제한됨</Badge>}
+                          {p.is_approved === null && <Badge variant="warning" icon={<HelpCircle className="size-3" />}>미검토</Badge>}
+                          {p.is_approved === true && <Badge variant="success" icon={<CheckCircle2 className="size-3" />}>승인됨</Badge>}
+                        </TableCell>
+                        <TableCell className="text-right py-5 px-6">
+                          <div className="flex justify-end gap-2">
+                            {p.is_approved !== true && (
+                              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => setProfileApproval(p.id, true)}>
+                                승인
+                              </Button>
+                            )}
+                            {p.is_approved !== false && (
+                              <Button size="sm" variant="destructive" className="font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-destructive/20 transition-all active:scale-95" onClick={() => setProfileApproval(p.id, false)}>
+                                확인 필요로 표시
                               </Button>
                             )}
                           </div>

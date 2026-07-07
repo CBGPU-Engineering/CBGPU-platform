@@ -8,6 +8,8 @@ type AuthContextType = {
   user: User | null;
   profile: any | null;
   isAdmin: boolean;
+  /** null(기본값)/true = 정상 이용 가능, false = 관리자가 학번/이름 확인이 필요하다고 표시한 상태 */
+  isApproved: boolean;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
 };
@@ -16,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   isAdmin: false,
+  isApproved: true,
   isLoading: true,
   refreshProfile: async () => {},
 });
@@ -68,6 +71,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     user,
     profile,
     isAdmin: profile?.is_admin || false,
+    isApproved: profile?.is_approved !== false,
     isLoading,
     refreshProfile,
   };

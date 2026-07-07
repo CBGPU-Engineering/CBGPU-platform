@@ -40,11 +40,11 @@ export default function Signup() {
           .from('profiles')
           .insert([
             { 
-              id: data.user.id, 
-              student_id: studentId, 
+              id: data.user.id,
+              student_id: studentId,
               full_name: fullName,
               is_admin: false,
-              is_approved: false
+              is_approved: null
             }
           ]);
 
@@ -52,7 +52,7 @@ export default function Signup() {
           console.error(profileError);
           showError("프로필 생성 실패: " + profileError.message);
         } else {
-          showSuccess('회원가입 완료! 관리자 승인을 기다려 주세요.');
+          showSuccess('회원가입 완료!');
           router.push('/auth/login');
         }
       }
