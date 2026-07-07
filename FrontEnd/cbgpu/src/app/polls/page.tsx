@@ -517,7 +517,7 @@ export default function PollsPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const loadPolls = useCallback(async () => {
-    const { data, error } = await supabase.from('polls').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('polls').select('*').order('created_at', { ascending: false }).limit(500);
     if (error?.message?.includes('does not exist')) { setDbMissing(true); setLoading(false); return; }
     setPolls((data ?? []) as Poll[]);
     if (user) {

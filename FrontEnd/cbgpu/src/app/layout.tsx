@@ -1,4 +1,5 @@
 import './globals.css';
+import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import AuthGate from '@/components/AuthGate';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -7,6 +8,7 @@ import { Metadata } from 'next';
 import { AlertProvider } from '@/lib/alert';
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import DeferredStylesheet from '@/components/DeferredStylesheet';
 
 const siteUrl = 'https://cbgpu.vercel.app';
 const schoolLogo = 'https://i.namu.wiki/i/qMgg10XRSaTorhAnQaV-bKbUWK_xIlq2socc7pVyw1SJmovke8gEWfeofFitiIJ1VBMngGy4o1NuAnjrOA0m1w.webp';
@@ -71,7 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/toss/tossface/dist/tossface.css" />
+        <DeferredStylesheet href="https://cdn.jsdelivr.net/gh/toss/tossface/dist/tossface.css" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -93,9 +95,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <footer className="hidden md:block border-t py-12 bg-muted/20 text-center text-sm text-muted-foreground transition-all">
                 <div className="flex flex-col items-center gap-4">
                   <div className="flex items-center gap-2 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-500">
-                    <img
+                    <Image
                       src="https://i.namu.wiki/i/qMgg10XRSaTorhAnQaV-bKbUWK_xIlq2socc7pVyw1SJmovke8gEWfeofFitiIJ1VBMngGy4o1NuAnjrOA0m1w.webp"
                       alt="School Logo"
+                      width={24}
+                      height={24}
                       className="w-6 h-6 object-contain"
                     />
                     <span className="font-black tracking-tighter italic">CBGPU</span>

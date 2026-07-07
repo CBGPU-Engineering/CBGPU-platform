@@ -190,8 +190,8 @@ export default function MatchPage() {
 
   const load = useCallback(async () => {
     const [{ data: p, error }, { data: m }] = await Promise.all([
-      supabase.from('study_posts').select('*').order('created_at', { ascending: false }),
-      supabase.from('study_members').select('post_id, user_id, joined_at'),
+      supabase.from('study_posts').select('*').order('created_at', { ascending: false }).limit(500),
+      supabase.from('study_members').select('post_id, user_id, joined_at').limit(2000),
     ]);
     if (error?.message?.includes('does not exist')) { setDbMissing(true); setLoading(false); return; }
     setPosts((p ?? []) as StudyPost[]);

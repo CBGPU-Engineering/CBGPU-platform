@@ -40,8 +40,9 @@ function renderMd(raw: string): string {
   return html;
 }
 function escHtml(s: string) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+/** 마크다운 치환 전에 반드시 이스케이프부터 한다 — 순서를 바꾸면 사용자 입력의 &lt;script&gt; 등이 그대로 렌더링되는 저장형 XSS가 된다 */
 function inlineMd(s: string) {
-  return s
+  return escHtml(s)
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
     .replace(/~~([^~]+)~~/g, '<del>$1</del>')
@@ -242,8 +243,8 @@ function NoteList({ onOpen }: { onOpen: (n: Note | null) => void }) {
   const load = useCallback(async () => {
     if (!user) return;
     const [{ data: mine, error }, { data: pub }] = await Promise.all([
-      supabase.from('research_notes').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }),
-      supabase.from('research_notes').select('*').eq('is_shared', true).neq('user_id', user.id).order('updated_at', { ascending: false }),
+      supabase.from('research_notes').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(500),
+      supabase.from('research_notes').select('*').eq('is_shared', true).neq('user_id', user.id).order('updated_at', { ascending: false }).limit(500),
     ]);
     if (error?.message?.includes('does not exist')) { setDbMissing(true); setLoading(false); return; }
     setNotes((mine ?? []) as Note[]);

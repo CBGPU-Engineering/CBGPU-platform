@@ -29,7 +29,8 @@ export default function AdminPage() {
     const { data, error } = await supabase
       .from('reservations')
       .select(`*, profiles:user_id (full_name, student_id)`)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(1000);
 
     if (error) { showError("데이터 로드 실패."); }
     else { setReservations(data || []); }
@@ -77,7 +78,8 @@ export default function AdminPage() {
       .from('cpu_projects')
       .select('*')
       .neq('status', 'deleted')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(1000);
     if (error) showError("서버 프로젝트 로드 실패.");
     else setCpuProjects(data || []);
     setCpuLoading(false);

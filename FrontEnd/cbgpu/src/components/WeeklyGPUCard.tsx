@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -140,11 +141,15 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
   return (
     <Card className="tilt-3d overflow-hidden border-border bg-card hover:border-primary group shadow-lg flex flex-col h-full rounded-[28px]">
       <CardHeader className="p-0 overflow-hidden relative">
-        <img
-          src="/img/rtx5000.jpg"
-          alt="GPU"
-          className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
-        />
+        <div className="relative w-full h-32">
+          <Image
+            src="/img/rtx5000.jpg"
+            alt="GPU"
+            fill
+            sizes="(max-width: 768px) 100vw, 400px"
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        </div>
         <div className="absolute top-2 right-2">
           <Button
             variant="secondary"
