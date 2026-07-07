@@ -158,12 +158,9 @@ export default function Navbar() {
     <nav className="flex items-center justify-between px-6 md:px-10 py-4 bg-background/50 border-b border-border sticky top-0 z-50 backdrop-blur-md">
       <div className="flex items-center gap-4 md:gap-8">
         <Link href="/" className="flex items-center gap-2 group transition-transform active:scale-95">
-          <Image
+          <img
             src="https://i.namu.wiki/i/qMgg10XRSaTorhAnQaV-bKbUWK_xIlq2socc7pVyw1SJmovke8gEWfeofFitiIJ1VBMngGy4o1NuAnjrOA0m1w.webp"
             alt="Logo"
-            width={32}
-            height={32}
-            priority
             className="w-8 h-8 object-contain grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 group-hover:rotate-12 transition-all duration-500"
           />
           <span className="text-xl md:text-2xl font-black text-foreground/70 group-hover:text-primary tracking-tighter italic transition-colors duration-500">
