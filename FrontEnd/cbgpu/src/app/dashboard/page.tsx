@@ -54,13 +54,24 @@ export default function Dashboard() {
   const [calendarLoading, setCalendarLoading] = useState(true);
   const [calendarJustFinished, setCalendarJustFinished] = useState(false);
 
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+  useEffect(() => { setClientToday(new Date()); }, []);
+
+  // 캘린더에 보이는 달(그리드 범위)만 가져온다 — 예약이 쌓일수록 전체를 매번
+  // 긁어오면 느려지고, 어차피 화면엔 이 범위 밖 데이터는 쓰이지 않는다.
   useEffect(() => {
-    setClientToday(new Date());
     const fetchCalendar = async () => {
+      setCalendarLoading(true);
       const { data } = await supabase
         .from('reservations')
         .select('id, gpu_id, start_time, end_time, status, profiles:user_id(full_name, student_id)')
         .eq('status', 'approved')
+        .lt('start_time', gridEnd.toISOString())
+        .gt('end_time', gridStart.toISOString())
         .order('start_time', { ascending: true });
       if (data) setCalendarReservations(data);
       setCalendarLoading(false);
@@ -68,12 +79,7 @@ export default function Dashboard() {
       setTimeout(() => setCalendarJustFinished(false), 600);
     };
     fetchCalendar();
-  }, []);
-
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  }, [gridStart.getTime(), gridEnd.getTime()]);
   const calendarDays: Date[] = [];
   for (let cursor = gridStart; cursor <= gridEnd; cursor = addDays(cursor, 1)) calendarDays.push(cursor);
 
@@ -138,13 +144,30 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  /** 승인된 예약이 있는 GPU의 비밀번호만 가져온다 — get_active_gpu_password RPC가
+   * 호출자의 승인된 예약을 서버(DB)에서 직접 확인한 뒤에만 비밀번호를 돌려준다.
+   * (supabase_security_hardening_migration.sql 적용 후 gpus 테이블 직접 SELECT는
+   * 관리자만 가능하도록 막혀 있어, 전체 GPU 비밀번호가 클라이언트로 내려가지 않는다.) */
   const fetchGpuPasswords = async () => {
-    const { data } = await supabase.from('gpus').select('id, password');
-    if (data) {
-      const map: {[key: number]: string} = {};
-      data.forEach((gpu: any) => { map[gpu.id] = gpu.password; });
-      setGpuPasswords(map);
-    }
+    if (!user) { setGpuPasswords({}); return; }
+    const { data: myApproved } = await supabase
+      .from('reservations')
+      .select('gpu_id')
+      .eq('user_id', user.id)
+      .eq('status', 'approved');
+
+    const gpuIds = [...new Set((myApproved ?? []).map((r: any) => r.gpu_id))];
+    if (gpuIds.length === 0) { setGpuPasswords({}); return; }
+
+    const entries = await Promise.all(
+      gpuIds.map(async (gpuId) => {
+        const { data } = await supabase.rpc('get_active_gpu_password', { p_gpu_id: gpuId });
+        return [gpuId, data as string | null] as const;
+      })
+    );
+    const map: {[key: number]: string} = {};
+    entries.forEach(([id, password]) => { if (password) map[id] = password; });
+    setGpuPasswords(map);
   };
 
   const fetchMyReservations = async () => {

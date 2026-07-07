@@ -1,10 +1,12 @@
 /**
  * cbsh.edu-set.com(학생관리시스템) API 클라이언트.
  *
- * 학교 측 SaaS(edu-set)의 API는 CORS가 전면 허용(Access-Control-Allow-Origin: *)되어 있어
- * 브라우저에서 직접 호출 가능하다. 그래서 우리 서버를 거치지 않고 클라이언트에서 바로
- * api.cbsh.edu-set.com을 호출한다 — 학생 비밀번호가 우리 서버를 지나가지 않는다.
+ * /api/study/proxy는 관리자가 등록해둔 공유 토큰으로 이 API를 대신 호출해준다.
+ * 그 공유 토큰은 프록시가 CBGPU 로그인 세션을 검증한 뒤에만 쓰므로, 매 요청마다
+ * 이 앱의 Supabase 액세스 토큰을 함께 실어 보낸다 (apiFetch 참고).
  */
+import { supabase } from '@/lib/supabase';
+
 const BASE_URL = '/api/study/proxy';
 const TOKEN_KEY = 'eduset_token';
 const TOKEN_EXPIRES_KEY = 'eduset_token_expires_at';
@@ -161,10 +163,14 @@ class EdusetError extends Error {}
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const rawToken = getToken();
   const token = rawToken?.startsWith('Bearer ') ? rawToken.slice(7) : rawToken;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new EdusetError('로그인이 필요합니다.');
+
   const res = await fetch(BASE_URL + path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      'x-cbgpu-auth': `Bearer ${session.access_token}`,
       ...(token ? {
         Authorization: `Bearer ${token}`,
         'x-jwt': token,
@@ -188,10 +194,14 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function signIn(id: string, password: string, turnstileResponse?: string): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('로그인이 필요합니다.');
+
   const response = await fetch('/api/study/auth', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
     },
     body: JSON.stringify({ id, password, turnstileResponse }),
   });

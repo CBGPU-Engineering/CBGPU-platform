@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
@@ -157,9 +158,12 @@ export default function Navbar() {
     <nav className="flex items-center justify-between px-6 md:px-10 py-4 bg-background/50 border-b border-border sticky top-0 z-50 backdrop-blur-md">
       <div className="flex items-center gap-4 md:gap-8">
         <Link href="/" className="flex items-center gap-2 group transition-transform active:scale-95">
-          <img
+          <Image
             src="https://i.namu.wiki/i/qMgg10XRSaTorhAnQaV-bKbUWK_xIlq2socc7pVyw1SJmovke8gEWfeofFitiIJ1VBMngGy4o1NuAnjrOA0m1w.webp"
             alt="Logo"
+            width={32}
+            height={32}
+            priority
             className="w-8 h-8 object-contain grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 group-hover:rotate-12 transition-all duration-500"
           />
           <span className="text-xl md:text-2xl font-black text-foreground/70 group-hover:text-primary tracking-tighter italic transition-colors duration-500">
@@ -245,7 +249,7 @@ export default function Navbar() {
                     </span>
                   </div>
                   {profile?.avatar_url && (
-                    <img src={profile.avatar_url} alt="" className="size-8 rounded-full object-cover ring-2 ring-background shadow-sm" />
+                    <Image src={profile.avatar_url} alt="" width={32} height={32} className="size-8 rounded-full object-cover ring-2 ring-background shadow-sm" />
                   )}
                 </Link>
 
@@ -283,7 +287,7 @@ export default function Navbar() {
               <div className="flex items-center justify-between pb-4 mb-3 border-b border-border/50">
                 <Link href="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3">
                   {profile?.avatar_url && (
-                    <img src={profile.avatar_url} alt="" className="size-10 rounded-full object-cover ring-2 ring-background shadow-sm" />
+                    <Image src={profile.avatar_url} alt="" width={40} height={40} className="size-10 rounded-full object-cover ring-2 ring-background shadow-sm" />
                   )}
                   <div className="flex flex-col">
                     <span className="text-sm font-black uppercase text-primary leading-none">

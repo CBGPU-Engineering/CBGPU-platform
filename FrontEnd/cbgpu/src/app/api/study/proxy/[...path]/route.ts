@@ -3,20 +3,50 @@ import { createClient } from '@supabase/supabase-js';
 import { decryptToken } from '@/lib/edusetTokenCrypto';
 
 const BASE_URL = 'https://api.cbsh.edu-set.com';
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-jwt, x-study-token',
-};
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-function getProxyPath(request: NextRequest) {
+/**
+ * 이 프록시는 관리자가 등록해둔 공유 토큰(admin 권한)으로 학교 API를 대신 호출한다.
+ * 그래서 아무나 호출하면 안 되고, (1) 로그인+승인된 CBGPU 사용자만, (2) 실제 화면에서
+ * 쓰는 조회성 엔드포인트만 통과시킨다 — 좌석 점유/해제 같은 쓰기 작업은 현재 어떤 화면에서도
+ * 쓰지 않으므로 전부 막는다.
+ */
+const ALLOWED_ROUTES: { method: string; pattern: RegExp }[] = [
+  { method: 'GET', pattern: /^\/rooms$/ },
+  { method: 'GET', pattern: /^\/rooms\/\d+\/composition$/ },
+  { method: 'GET', pattern: /^\/rooms\/\d+\/seats\/occupations$/ },
+  { method: 'GET', pattern: /^\/students$/ },
+  { method: 'GET', pattern: /^\/students\/\d+$/ },
+  { method: 'GET', pattern: /^\/users\/\d+$/ },
+  { method: 'GET', pattern: /^\/policies\/selfstudy$/ },
+  { method: 'POST', pattern: /^\/selfstudy\/search$/ },
+];
+
+function getProxyPathname(request: NextRequest): string {
   const pathname = request.nextUrl.pathname.replace(/^\/api\/study\/proxy\/?/, '/');
-  const path = pathname === '/' ? '' : pathname;
-  return `${path}${request.nextUrl.search}`;
+  return pathname === '/' ? '' : pathname;
+}
+
+async function requireApprovedUser(request: NextRequest) {
+  const token = request.headers.get('x-cbgpu-auth')?.replace(/^Bearer\s+/i, '');
+  if (!token) return false;
+
+  const client = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const { data: { user }, error } = await client.auth.getUser(token);
+  if (error || !user) return false;
+
+  const { data: profile } = await client
+    .from('profiles')
+    .select('is_approved')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  return !!profile?.is_approved;
 }
 
 let cachedToken: { value: string | null; fetchedAt: number } | null = null;
@@ -47,10 +77,6 @@ async function getSharedToken(): Promise<string | null> {
   return value;
 }
 
-export async function OPTIONS(request: NextRequest) {
-  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
-}
-
 export async function GET(request: NextRequest) {
   return proxyRequest(request);
 }
@@ -59,31 +85,30 @@ export async function POST(request: NextRequest) {
   return proxyRequest(request);
 }
 
-export async function PUT(request: NextRequest) {
-  return proxyRequest(request);
-}
-
-export async function PATCH(request: NextRequest) {
-  return proxyRequest(request);
-}
-
-export async function DELETE(request: NextRequest) {
-  return proxyRequest(request);
-}
-
 async function proxyRequest(request: NextRequest) {
-  const targetPath = getProxyPath(request);
-  const targetUrl = new URL(targetPath, BASE_URL);
+  const pathname = getProxyPathname(request);
+  const allowed = ALLOWED_ROUTES.some(
+    (r) => r.method === request.method && r.pattern.test(pathname)
+  );
+  if (!allowed) {
+    return NextResponse.json({ message: '지원하지 않는 요청입니다.' }, { status: 403 });
+  }
+
+  if (!(await requireApprovedUser(request))) {
+    return NextResponse.json({ message: '로그인 후 승인된 계정만 조회할 수 있습니다.' }, { status: 401 });
+  }
+
+  const targetUrl = new URL(`${pathname}${request.nextUrl.search}`, BASE_URL);
   const token = await getSharedToken();
 
   if (!token) {
-    return new NextResponse(
-      JSON.stringify({ message: '관리자가 아직 자습신청 토큰을 등록하지 않았습니다.' }),
-      { status: 503, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+    return NextResponse.json(
+      { message: '관리자가 아직 자습신청 토큰을 등록하지 않았습니다.' },
+      { status: 503 }
     );
   }
 
-  const body = request.method === 'GET' || request.method === 'HEAD' ? undefined : await request.text();
+  const body = request.method === 'GET' ? undefined : await request.text();
 
   const upstream = await fetch(targetUrl, {
     method: request.method,
@@ -99,7 +124,6 @@ async function proxyRequest(request: NextRequest) {
   return new NextResponse(responseBody, {
     status: upstream.status,
     headers: {
-      ...CORS_HEADERS,
       'Content-Type': upstream.headers.get('content-type') ?? 'application/json',
       'Cache-Control': 'no-store',
     },

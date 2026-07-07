@@ -5,10 +5,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
+import Image from 'next/image';
 import { UserCircle2, Mail, Hash, Save, Loader2, Camera, KeyRound, Lock } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/spinner';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+
+/** 아바타는 항상 112px 이하로 렌더링되니, 업로드 전에 리사이즈/압축해서 저장 용량과
+ * 매 페이지 로드 시 다운로드량을 줄인다. */
+async function resizeImageToJpeg(file: File, maxSize = 256, quality = 0.85): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('이미지 처리에 실패했습니다.');
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('이미지 변환에 실패했습니다.'))), 'image/jpeg', quality);
+  });
+}
 
 export default function Profile() {
   const { user, profile, refreshProfile, isLoading: authLoading } = useAuth();
@@ -97,12 +116,12 @@ export default function Profile() {
 
     setIsUploadingAvatar(true);
     try {
-      const ext = file.name.split('.').pop() || 'jpg';
-      const path = `${user.id}/avatar.${ext}`;
+      const resized = await resizeImageToJpeg(file);
+      const path = `${user.id}/avatar.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(path, file, { upsert: true, cacheControl: '3600' });
+        .upload(path, resized, { upsert: true, cacheControl: '3600', contentType: 'image/jpeg' });
       if (uploadError) throw uploadError;
 
       const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
@@ -147,7 +166,7 @@ export default function Profile() {
           className="relative shrink-0 group active:scale-95 transition-transform"
         >
           {profile?.avatar_url ? (
-            <img src={profile.avatar_url} alt="프로필 사진" className="w-28 h-28 rounded-full object-cover ring-8 ring-primary/5" />
+            <Image src={profile.avatar_url} alt="프로필 사진" width={112} height={112} className="w-28 h-28 rounded-full object-cover ring-8 ring-primary/5" />
           ) : (
             <div className="bg-primary/10 p-6 rounded-full ring-8 ring-primary/5">
               <UserCircle2 className="w-16 h-16 text-primary" />
