@@ -46,7 +46,8 @@ async function requireApprovedUser(request: NextRequest) {
     .eq('id', user.id)
     .maybeSingle();
 
-  return !!profile?.is_approved;
+  // null(기본값)/true는 정상 이용 가능, 관리자가 false로 내린 경우만 막는다
+  return profile?.is_approved !== false;
 }
 
 let cachedToken: { value: string | null; fetchedAt: number } | null = null;

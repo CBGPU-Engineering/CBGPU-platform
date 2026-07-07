@@ -76,7 +76,7 @@ const SCOPE_OPTS: { value: AccessScope; label: string; icon: React.ReactNode; de
 ];
 
 export default function NewServerPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isApproved, isLoading: authLoading } = useAuth();
   const { showError, showSuccess } = useAlert();
   const router = useRouter();
 
@@ -93,6 +93,7 @@ export default function NewServerPage() {
 
   const handleSubmit = async () => {
     if (!user) return;
+    if (!isApproved) { showError('학번 또는 이름 확인이 필요해 배포할 수 없습니다. 프로필에서 정보를 확인해 주세요.'); return; }
     if (!form.name.trim())                                         { showError('프로젝트 이름을 입력해주세요.'); return; }
     if (form.deployType === 'docker' && !form.dockerImage.trim()) { showError('Docker 이미지를 입력해주세요.'); return; }
     if (form.deployType === 'git'    && !form.gitUrl.trim())      { showError('Git 저장소 URL을 입력해주세요.'); return; }

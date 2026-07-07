@@ -11,28 +11,32 @@
 -- ============================================================
 
 -- ── 1. profiles: 본인 프로필은 수정 가능하되, is_admin/is_approved는
---    본인이 스스로 바꿀 수 없게 한다. 클라이언트(anon key)에서 직접
+--    본인이 스스로 바꿀 수 없게 한다. 클라이언트(anon key)에서 직접z
 --    supabase.from('profiles').update({is_admin:true})를 호출해도
 --    이 체크에 걸려서 거부된다. ────────────────────────────────────
 alter table profiles enable row level security;
 
+-- is_admin/is_approved는 null일 수 있으므로 "=" 대신 "is not distinct from"으로 비교한다
+-- (null = null은 SQL에서 unknown이라 "="만 쓰면 null 값을 가진 본인 행도 update가 막힌다).
 drop policy if exists "profiles_update_self" on profiles;
 create policy "profiles_update_self" on profiles for update
   using (auth.uid() = id)
   with check (
     auth.uid() = id
-    and is_admin     = (select p.is_admin     from profiles p where p.id = auth.uid())
-    and is_approved  = (select p.is_approved  from profiles p where p.id = auth.uid())
+    and is_admin    is not distinct from (select p.is_admin    from profiles p where p.id = auth.uid())
+    and is_approved is not distinct from (select p.is_approved from profiles p where p.id = auth.uid())
   );
 
 drop policy if exists "profiles_admin_all" on profiles;
 create policy "profiles_admin_all" on profiles for all
   using (exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin = true));
 
--- 회원가입 직후 본인 행 삽입은 허용하되, is_admin/is_approved는 항상 false로 강제한다.
+-- 회원가입 직후 본인 행 삽입은 허용하되, is_admin은 항상 false, is_approved는 항상 null로
+-- 강제한다. null/true는 정상 이용 가능, 관리자가 학번/이름이 이상하다고 판단해 false로
+-- 내리면 계정은 살아있지만 예약/서버 배포 같은 핵심 기능만 막힌다 — ApprovalNotice 참고.
 drop policy if exists "profiles_insert_self" on profiles;
 create policy "profiles_insert_self" on profiles for insert
-  with check (auth.uid() = id and is_admin = false and is_approved = false);
+  with check (auth.uid() = id and is_admin = false and is_approved is null);
 
 -- ── 2. cpu_projects: 소유자 또는 관리자만 수정/삭제 가능. UI에서만
 --    막던 것을 실제 DB 레벨에서도 강제한다. ──────────────────────────
