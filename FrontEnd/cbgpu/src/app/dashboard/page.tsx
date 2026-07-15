@@ -108,7 +108,7 @@ export default function Dashboard() {
     }
   }, []);
 
-  const effectiveHost = '10.138.26.144';
+  const effectiveHost = '10.138.24.219';
 
   const stableHost = 'cbshoj.tail0701ea.ts.net'; // 변경된 실제 Tailscale 도메인 주소
 
