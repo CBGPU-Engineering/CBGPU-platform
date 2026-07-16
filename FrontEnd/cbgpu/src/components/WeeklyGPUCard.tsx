@@ -42,12 +42,27 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
     return { mon, sun };
   });
 
-  const isWeekTaken = (mon: Date, sun: Date) =>
-    approvedReservations.some(res => {
+  /** 그 주에 걸친 승인된 예약이 있으면(조기 종료로 일부만 썼어도) 실제 남은 기간만 계산한다.
+   * 겹치는 예약들의 종료 시각 중 가장 늦은 것 이후부터를 신청 가능 구간으로 본다 — 조기
+   * 종료로 비게 된 뒷부분을 다른 사람이 신청할 수 있게 하기 위함. */
+  const getWeekAvailability = (mon: Date, sun: Date) => {
+    const overlapping = approvedReservations.filter(res => {
       const s = parseISO(res.start_time);
       const e = parseISO(res.end_time);
       return s < sun && e > mon;
     });
+    if (overlapping.length === 0) return { taken: false, availableFrom: mon };
+
+    const latestEnd = overlapping.reduce((max, res) => {
+      const e = parseISO(res.end_time);
+      return e > max ? e : max;
+    }, mon);
+
+    const availableFrom = latestEnd > mon ? latestEnd : mon;
+    return { taken: availableFrom >= sun, availableFrom };
+  };
+
+  const isWeekTaken = (mon: Date, sun: Date) => getWeekAvailability(mon, sun).taken;
 
   const toggleWeek = (mon: Date) => {
     setSelectedWeeks(prev => {
@@ -109,10 +124,31 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
       // 충돌 체크 및 레코드 생성
       const records = [];
       for (const { start, end } of groups) {
+        // 이 구간 맨 앞에 이미 승인된 예약이 걸쳐 있으면(조기 종료로 일부만 쓰고 끝난 경우 등)
+        // 전체 기간을 막지 않고, 그 예약이 끝난 시점 이후 남은 기간만 신청 구간으로 좁힌다.
+        let adjustedStart = start;
+        const overlappingAtStart = existing?.filter(res => {
+          const s = new Date(res.start_time);
+          const e = new Date(res.end_time);
+          return s <= adjustedStart && e > adjustedStart;
+        });
+        if (overlappingAtStart && overlappingAtStart.length > 0) {
+          const latestEnd = overlappingAtStart.reduce((max, r) => {
+            const e = new Date(r.end_time);
+            return e > max ? e : max;
+          }, adjustedStart);
+          if (latestEnd > adjustedStart) adjustedStart = latestEnd;
+        }
+
+        if (adjustedStart >= end) {
+          setIsSubmitting(false);
+          showError(`${format(start, 'M월 d일', { locale: ko })} 주는 남은 기간이 없습니다.`); return;
+        }
+
         const hasConflict = existing?.some(res => {
           const s = new Date(res.start_time);
           const e = new Date(res.end_time);
-          return start < e && end > s;
+          return adjustedStart < e && end > s;
         });
 
         if (hasConflict) {
@@ -124,7 +160,7 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
           gpu_id: id,
           user_id: user.id,
           user_email: user.email,
-          start_time: start.toISOString(),
+          start_time: adjustedStart.toISOString(),
           end_time: end.toISOString(),
           status: 'pending',
         });
@@ -214,7 +250,8 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
             <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">예약할 주차 선택</p>
             <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
               {weeks.map(({ mon, sun }, i) => {
-                const taken = isWeekTaken(mon, sun);
+                const { taken, availableFrom } = getWeekAvailability(mon, sun);
+                const partial = !taken && availableFrom.getTime() > mon.getTime();
                 const isSelected = selectedWeeks.some(d => d.getTime() === mon.getTime());
 
                 return (
@@ -240,6 +277,11 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
                       <p className="text-[9px] text-muted-foreground mt-0.5">
                         {i === 0 ? '이번 주' : `${i}주 후`}
                       </p>
+                      {partial && (
+                        <p className="text-[9px] text-amber-600 font-bold mt-0.5">
+                          {format(availableFrom, 'M/d HH:mm', { locale: ko })}부터 신청 가능(조기 종료로 일부 남음)
+                        </p>
+                      )}
                     </div>
                     {taken ? (
                       <Lock className="size-3.5 text-muted-foreground shrink-0" />
