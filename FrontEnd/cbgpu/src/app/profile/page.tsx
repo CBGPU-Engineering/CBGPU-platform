@@ -1,13 +1,15 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import Image from 'next/image';
-import { UserCircle2, Mail, Hash, Save, Loader2, Camera, KeyRound, Lock } from 'lucide-react';
+import { UserCircle2, Mail, Hash, Save, Loader2, Camera, KeyRound, Lock, ShieldAlert, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
@@ -32,9 +34,12 @@ async function resizeImageToJpeg(file: File, maxSize = 256, quality = 0.85): Pro
 export default function Profile() {
   const { user, profile, refreshProfile, isLoading: authLoading } = useAuth();
   const { showError, showSuccess } = useAlert();
+  const router = useRouter();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [studentId, setStudentId] = useState('');
   const [fullName, setFullName] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -99,6 +104,32 @@ export default function Profile() {
       showError(error.message || '비밀번호 변경 실패');
     } finally {
       setIsChangingPassword(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!user) return;
+    setIsDeletingAccount(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) { showError('세션이 만료되었습니다. 다시 로그인해주세요.'); return; }
+
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { showError(body?.message || '계정 삭제 실패'); return; }
+
+      await supabase.auth.signOut();
+      showSuccess('계정이 삭제됐습니다.');
+      router.push('/');
+    } catch (error: any) {
+      showError(error.message || '계정 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeletingAccount(false);
+      setDeleteOpen(false);
     }
   }
 
@@ -290,6 +321,32 @@ export default function Profile() {
           {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
         </Button>
       </form>
+
+      <div className="tilt-3d bg-card ring-1 ring-destructive/20 p-10 rounded-[2.5rem] shadow-lg space-y-6">
+        <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2 text-destructive">
+          <ShieldAlert className="size-5" /> 위험 구역
+        </h2>
+        <p className="text-sm text-muted-foreground font-bold">
+          계정을 삭제하면 로그인할 수 없게 되고 이름, 학번, 프로필 사진이 모두 삭제됩니다. 되돌릴 수 없습니다.
+        </p>
+        <Button
+          type="button"
+          variant="destructive"
+          onClick={() => setDeleteOpen(true)}
+          className="h-14 rounded-2xl font-black text-base uppercase tracking-widest gap-3"
+        >
+          <Trash2 className="size-5" /> 계정 삭제
+        </Button>
+      </div>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title="계정을 삭제할까요?"
+        description="이름, 학번, 프로필 사진이 삭제되고 다시 로그인할 수 없습니다. 되돌릴 수 없습니다."
+        confirmLabel={isDeletingAccount ? '삭제 중...' : '계정 삭제'}
+        onConfirm={handleDeleteAccount}
+        onCancel={() => setDeleteOpen(false)}
+      />
     </div>
   );
 }

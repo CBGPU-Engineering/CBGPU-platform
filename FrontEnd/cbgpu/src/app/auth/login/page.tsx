@@ -52,16 +52,19 @@ export default function Login() {
           />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Password</label>
-          <Input 
-            type="password" 
-            placeholder="••••••••" 
-            className="bg-background border-input text-foreground font-bold" 
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} 
-            required 
+          <div className="flex items-center justify-between ml-1">
+            <label className="text-[10px] font-black uppercase text-muted-foreground">Password</label>
+            <Link href="/auth/forgot-password" className="text-[10px] font-black uppercase text-primary hover:underline">비밀번호 찾기</Link>
+          </div>
+          <Input
+            type="password"
+            placeholder="••••••••"
+            className="bg-background border-input text-foreground font-bold"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+            required
           />
         </div>
-        <Button 
+        <Button
           disabled={isSubmitting}
           className="w-full bg-primary py-6 text-lg font-black uppercase tracking-widest transition-all active:scale-95"
         >
