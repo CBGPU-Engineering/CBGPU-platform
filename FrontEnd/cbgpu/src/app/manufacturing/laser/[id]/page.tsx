@@ -112,6 +112,12 @@ export default function LaserJobDetailPage() {
           <p className="font-black uppercase tracking-widest text-xs">Details</p>
         </div>
         <div className="p-6 grid gap-5">
+          {requester && (
+            <div>
+              <label className={labelCls}>신청자</label>
+              <span className="font-bold text-sm">{requester.full_name || 'Unknown'} {requester.student_id ? `(${requester.student_id})` : ''}</span>
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className={labelCls}>재질</label>

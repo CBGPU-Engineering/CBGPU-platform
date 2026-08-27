@@ -8,13 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { PersonSearchSelect } from '@/components/manufacturing/PersonSearchSelect';
 import { convertModelTo3mf } from '@/lib/manufacturing/convertTo3mf';
-import { ArrowLeft, ShieldAlert, GraduationCap, Wrench, UploadCloud, Target, X, FileBox, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ShieldAlert, GraduationCap, Wrench, UploadCloud, Target, X, FileBox, RefreshCw, Printer } from 'lucide-react';
 
 type Mode = 'beginner' | 'advanced';
 type FilamentEntry = { id: string; material: string; color: string };
-type FileEntry = { file: File; quantity: string; filamentId: string; convertedFrom?: string };
+type FileEntry = { file: File; quantity: string; plateCount: string; filamentId: string; convertedFrom?: string };
 
 const labelCls = 'text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1 block';
 const cardCls = 'rounded-2xl border border-border/60 bg-card p-6 space-y-5';
@@ -28,6 +29,9 @@ export default function NewPrintJobPage() {
   const [fileEntries, setFileEntries] = useState<FileEntry[]>([]);
   const [purpose, setPurpose] = useState('');
   const [notes, setNotes] = useState('');
+  const [printers, setPrinters] = useState<any[]>([]);
+  const [printerId, setPrinterId] = useState<number | null>(null);
+  const [plateBacklog, setPlateBacklog] = useState<Record<number, number>>({});
   const [managers, setManagers] = useState<any[]>([]);
   const [managerId, setManagerId] = useState<string>('');
   const [filaments, setFilaments] = useState<FilamentEntry[]>([]);
@@ -35,8 +39,33 @@ export default function NewPrintJobPage() {
   const [converting, setConverting] = useState(false);
 
   useEffect(() => {
+    const fetchPrinters = async () => {
+      const { data, error } = await supabase.from('printers').select('*').order('id');
+      if (!error) setPrinters(data || []);
+    };
+    const fetchFilaments = async () => {
+      const { data, error } = await supabase.from('print_materials').select('*').order('material').order('color');
+      if (!error) setFilaments(data || []);
+    };
+    const fetchBacklog = async () => {
+      const { data, error } = await supabase.rpc('printer_plate_backlog');
+      if (!error) {
+        const map: Record<number, number> = {};
+        for (const row of data || []) map[row.printer_id] = row.plates;
+        setPlateBacklog(map);
+      }
+    };
+    fetchPrinters();
+    fetchFilaments();
+    fetchBacklog();
+  }, []);
+
+  // 프린터를 고르면 그 프린터의 담당자만 골라서 지정할 수 있게 다시 불러온다.
+  useEffect(() => {
+    setManagerId('');
+    if (printerId == null) { setManagers([]); return; }
     const fetchManagers = async () => {
-      const { data: pm, error: pmError } = await supabase.from('printer_managers').select('user_id');
+      const { data: pm, error: pmError } = await supabase.from('printer_managers').select('user_id').eq('printer_id', printerId);
       if (pmError || !pm || pm.length === 0) { setManagers([]); return; }
       const ids = [...new Set(pm.map(r => r.user_id))];
       const { data, error } = await supabase
@@ -46,13 +75,8 @@ export default function NewPrintJobPage() {
         .order('student_id');
       if (!error) setManagers(data || []);
     };
-    const fetchFilaments = async () => {
-      const { data, error } = await supabase.from('print_materials').select('*').order('material').order('color');
-      if (!error) setFilaments(data || []);
-    };
     fetchManagers();
-    fetchFilaments();
-  }, []);
+  }, [printerId]);
 
   const addFiles = async (list: FileList | null) => {
     if (!list) return;
@@ -61,7 +85,7 @@ export default function NewPrintJobPage() {
     for (const file of picked) {
       const ext = file.name.toLowerCase().split('.').pop();
       if (ext === '3mf') {
-        setFileEntries(prev => [...prev, { file, quantity: '1', filamentId: '' }]);
+        setFileEntries(prev => [...prev, { file, quantity: '1', plateCount: '1', filamentId: '' }]);
         continue;
       }
       if (ext === 'stl' || ext === 'obj') {
@@ -69,7 +93,7 @@ export default function NewPrintJobPage() {
           const converted = await convertModelTo3mf(file);
           const newName = file.name.replace(/\.[^.]+$/, '.3mf');
           const convertedFile = new File([converted], newName, { type: 'model/3mf' });
-          setFileEntries(prev => [...prev, { file: convertedFile, quantity: '1', filamentId: '', convertedFrom: file.name }]);
+          setFileEntries(prev => [...prev, { file: convertedFile, quantity: '1', plateCount: '1', filamentId: '', convertedFrom: file.name }]);
         } catch {
           showError(`"${file.name}" 변환 실패: 파일이 손상되었거나 지원하지 않는 구조입니다.`);
         }
@@ -88,10 +112,13 @@ export default function NewPrintJobPage() {
     if (!isApproved) { showError('학번 또는 이름 확인이 필요해 신청할 수 없습니다. 프로필에서 정보를 확인해 주세요.'); return; }
     if (fileEntries.length === 0) { showError('3mf 파일을 한 개 이상 업로드해주세요.'); return; }
     if (fileEntries.some(e => !e.file.name.toLowerCase().endsWith('.3mf'))) { showError('3mf 파일만 업로드할 수 있습니다.'); return; }
+    if (printerId == null) { showError('사용할 프린터를 선택해주세요.'); return; }
     if (!purpose.trim()) { showError('사용 목적을 입력해주세요.'); return; }
     for (const e of fileEntries) {
       const q = parseInt(e.quantity);
       if (isNaN(q) || q <= 0) { showError(`"${e.file.name}"의 수량을 올바르게 입력해주세요.`); return; }
+      const pc = parseInt(e.plateCount);
+      if (isNaN(pc) || pc <= 0) { showError(`"${e.file.name}"의 플레이트 수를 올바르게 입력해주세요.`); return; }
     }
 
     setSubmitting(true);
@@ -111,8 +138,10 @@ export default function NewPrintJobPage() {
         user_email: user.email,
         mode,
         manager_id: managerId || null,
+        preferred_printer_id: printerId,
         purpose: purpose.trim(),
         quantity: parseInt(entry.quantity),
+        plate_count: parseInt(entry.plateCount),
         material: filament?.material ?? null,
         color: filament?.color ?? null,
         file_path: filePath,
@@ -169,6 +198,28 @@ export default function NewPrintJobPage() {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50 mt-0.5">Bambu Lab X1C</p>
         </div>
       </div>
+
+      <section className={cardCls}>
+        <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Printer className="size-3.5" /> 사용할 프린터 선택 *</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {printers.map(p => (
+            <button
+              key={p.id}
+              onClick={() => setPrinterId(p.id)}
+              className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 text-center transition-all ${
+                printerId === p.id ? 'border-primary bg-primary/5' : 'border-border/60 bg-muted/20 text-muted-foreground hover:border-border'
+              }`}
+            >
+              <span className="font-black text-sm">{p.name}</span>
+              <Badge variant={p.status === 'printing' ? 'success' : p.status === 'maintenance' ? 'danger' : p.status === 'done' ? 'warning' : 'muted'}>
+                {p.status === 'printing' ? '사용중' : p.status === 'maintenance' ? '고장' : p.status === 'done' ? '회수대기' : '대기'}
+              </Badge>
+              <span className="text-[10px] text-muted-foreground opacity-70">밀린 플레이트 {plateBacklog[p.id] || 0}개</span>
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground opacity-60">담당자 지정은 이 프린터를 맡고 있는 사람 중에서만 고를 수 있습니다.</p>
+      </section>
 
       <section className={cardCls}>
         <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">모드 선택</h2>
@@ -237,10 +288,14 @@ export default function NewPrintJobPage() {
                 {entry.convertedFrom && (
                   <p className="text-[9px] text-emerald-600 font-bold flex items-center gap-1"><RefreshCw className="size-2.5" /> {entry.convertedFrom} → 3mf 변환됨</p>
                 )}
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   <div>
                     <label className={labelCls}>수량</label>
                     <Input type="number" min="1" value={entry.quantity} onChange={e => updateEntry(i, { quantity: e.target.value })} className="h-9 text-xs" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>플레이트 수</label>
+                    <Input type="number" min="1" value={entry.plateCount} onChange={e => updateEntry(i, { plateCount: e.target.value })} className="h-9 text-xs" />
                   </div>
                   <div className="col-span-2">
                     <label className={labelCls}>필라멘트</label>
@@ -266,9 +321,18 @@ export default function NewPrintJobPage() {
 
       <section className={cardCls}>
         <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">담당자 지정</h2>
-        <div className="flex items-center gap-2">
-          <PersonSearchSelect candidates={managers} value={managerId} onChange={setManagerId} placeholder="아무나 (자동 배정) — 이름/학번 검색" />
-        </div>
+        {printerId == null ? (
+          <p className="text-xs text-muted-foreground font-bold opacity-60 border-2 border-dashed border-border/40 rounded-xl py-4 text-center">
+            프린터를 먼저 선택하면 그 프린터의 담당자를 고를 수 있습니다.
+          </p>
+        ) : (
+          <div className="flex items-center gap-2">
+            <PersonSearchSelect candidates={managers} value={managerId} onChange={setManagerId} placeholder="아무나 (수락하는 담당자에게 배정) — 이름/학번 검색" />
+          </div>
+        )}
+        <p className="text-[10px] text-muted-foreground opacity-60">
+          &ldquo;아무나&rdquo;를 선택하면 무작위 배정이 아니라, 이 프린터 담당자 중 먼저 수락하는 사람에게 배정됩니다.
+        </p>
 
         <div>
           <label className={labelCls}>메모</label>

@@ -64,21 +64,20 @@ const SELF_STUDY_SCHEDULE: Record<number, SelfStudyPeriodTime[]> = {
 };
 
 export type LocationResult =
-  | { kind: 'class'; identity: StudentIdentity; period: number; subject?: string; teacher?: string }
+  | { kind: 'class'; identity: StudentIdentity; period?: number; subject?: string; teacher?: string }
   | { kind: 'selfstudy'; identity: StudentIdentity; period: number; roomName: string; seatName?: string }
-  | { kind: 'no-selfstudy'; identity: StudentIdentity; period: number }
-  | { kind: 'unknown'; identity: StudentIdentity };
+  | { kind: 'no-selfstudy'; identity: StudentIdentity; period: number };
 
 /**
- * "Where is this student right now" — clock-accurate on both sides:
- *  - During the regular school day, 컴시간(comcigan) publishes real period start times, so we
- *    pinpoint the current period and show the student's homeroom (comcigan has no per-room data,
- *    and Korean high schoolers normally stay in homeroom outside moving-class subjects — this is
- *    not a claim about elective/lab rooms). If there's no class scheduled for that class/period
- *    (a gap in the grid), we fall through to the self-study check instead of guessing.
- *  - Outside/around school hours, we use the school's actual self-study bell schedule (provided
- *    by the manager, not scraped) to find the current period, then look up that student's
- *    room/seat for exactly that period via the shared 자습신청 lookup.
+ * "Where is this student right now" — always resolves to somewhere:
+ *  - If it's currently a self-study period per the school's actual bell schedule (provided by
+ *    the manager, not scraped), look up that student's room/seat for exactly that period via
+ *    the shared 자습신청 lookup.
+ *  - Otherwise, show the student's homeroom (comcigan has no per-room data, and Korean high
+ *    schoolers normally stay in homeroom outside moving-class subjects — this is not a claim
+ *    about elective/lab rooms). When 컴시간(comcigan) has a precise period/subject match for
+ *    right now, that's included too; when it doesn't (weekend, gap period, or the scraped site
+ *    being flaky), we still show homeroom as the best default, just without a subject/period.
  */
 export async function locateStudentNow(studentId: string | null | undefined): Promise<LocationResult | null> {
   const identity = parseStudentId(studentId);
@@ -88,6 +87,22 @@ export async function locateStudentNow(studentId: string | null | undefined): Pr
   const jsDay = now.getDay(); // 0 Sun .. 6 Sat
   const gridDay = jsDay - 1;  // 0 Mon .. 4 Fri, matching comcigan's grid convention
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const todaySchedule = SELF_STUDY_SCHEDULE[jsDay];
+  const currentSelfStudyPeriod = todaySchedule.find(p => nowMinutes >= p.startMinutes && nowMinutes < p.endMinutes);
+  if (currentSelfStudyPeriod) {
+    try {
+      const entries = await searchSelfStudy({ date: localDateStr(now) });
+      const mine = entries.find(
+        e => e.period === currentSelfStudyPeriod.period &&
+          e.student.grade === identity.grade && e.student.classNo === identity.classNo && e.student.number === identity.number
+      );
+      if (mine) return { kind: 'selfstudy', identity, period: currentSelfStudyPeriod.period, roomName: mine.room?.name ?? '알 수 없음', seatName: mine.seat?.name ?? undefined };
+      return { kind: 'no-selfstudy', identity, period: currentSelfStudyPeriod.period };
+    } catch {
+      // self-study lookup failed — fall through to the homeroom default below
+    }
+  }
 
   if (gridDay >= 0 && gridDay <= 4) {
     try {
@@ -101,28 +116,14 @@ export async function locateStudentNow(studentId: string | null | undefined): Pr
           if (nowMinutes >= start && nowMinutes < end) {
             const cell = data.grid?.[gridDay]?.[periods[i].period];
             if (cell) return { kind: 'class', identity, period: periods[i].period, subject: cell.subject, teacher: cell.teacher };
-            break; // no class this period (gap) — fall through to self-study
+            break; // no class this period (gap) — fall through to the plain homeroom default
           }
         }
       }
     } catch {
-      // comcigan is a scraped third-party site and can be flaky — fall through to self-study
+      // comcigan is a scraped third-party site and can be flaky — fall through to homeroom
     }
   }
 
-  const todaySchedule = SELF_STUDY_SCHEDULE[jsDay];
-  const currentPeriod = todaySchedule.find(p => nowMinutes >= p.startMinutes && nowMinutes < p.endMinutes);
-  if (!currentPeriod) return { kind: 'unknown', identity };
-
-  try {
-    const entries = await searchSelfStudy({ date: localDateStr(now) });
-    const mine = entries.find(
-      e => e.period === currentPeriod.period &&
-        e.student.grade === identity.grade && e.student.classNo === identity.classNo && e.student.number === identity.number
-    );
-    if (!mine) return { kind: 'no-selfstudy', identity, period: currentPeriod.period };
-    return { kind: 'selfstudy', identity, period: currentPeriod.period, roomName: mine.room?.name ?? '알 수 없음', seatName: mine.seat?.name ?? undefined };
-  } catch {
-    return { kind: 'unknown', identity };
-  }
+  return { kind: 'class', identity };
 }

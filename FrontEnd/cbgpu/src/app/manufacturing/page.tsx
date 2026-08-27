@@ -84,9 +84,19 @@ export default function ManufacturingPage() {
     if (!error) setPrintQueueLength(data);
   };
 
+  const [plateBacklog, setPlateBacklog] = useState<Record<number, number>>({});
+  const fetchPlateBacklog = async () => {
+    const { data, error } = await supabase.rpc('printer_plate_backlog');
+    if (!error) {
+      const map: Record<number, number> = {};
+      for (const row of data || []) map[row.printer_id] = row.plates;
+      setPlateBacklog(map);
+    }
+  };
+
   const loadPrintTab = async () => {
     setPrintLoading(true);
-    await Promise.all([fetchPrinters(), fetchMyPrintJobs(), fetchPrintQueueLength()]);
+    await Promise.all([fetchPrinters(), fetchMyPrintJobs(), fetchPrintQueueLength(), fetchPlateBacklog()]);
     setPrintLoading(false);
   };
 
@@ -121,6 +131,28 @@ export default function ManufacturingPage() {
     window.open(data.signedUrl, '_blank');
   }
 
+  // print_jobs/laser_jobs.user_id references auth.users, not profiles, so PostgREST can't
+  // embed the requester's profile automatically (unlike manager_id, which references profiles
+  // directly) — fetch it separately and key it by user_id for lookup in the tables below.
+  const [requesterProfiles, setRequesterProfiles] = useState<Record<string, { full_name: string | null; student_id: string | null }>>({});
+
+  async function fetchRequesterProfiles(userIds: string[]) {
+    const uniqueIds = [...new Set(userIds)];
+    if (uniqueIds.length === 0) return;
+    const { data } = await supabase.from('profiles').select('id, full_name, student_id').in('id', uniqueIds);
+    setRequesterProfiles(prev => {
+      const next = { ...prev };
+      for (const p of data || []) next[p.id] = { full_name: p.full_name, student_id: p.student_id };
+      return next;
+    });
+  }
+
+  function requesterLabel(job: any): string {
+    const p = requesterProfiles[job.user_id];
+    if (!p) return job.user_email;
+    return `${p.full_name || 'Unknown'} (${p.student_id || '-'})`;
+  }
+
   const fetchAllPrintJobs = async () => {
     setManagerPrintLoading(true);
     const { data, error } = await supabase
@@ -128,12 +160,15 @@ export default function ManufacturingPage() {
       .select('*, manager:manager_id(full_name, student_id)')
       .order('created_at', { ascending: false })
       .limit(500);
-    if (!error) setAllPrintJobs(data || []);
+    if (!error) {
+      setAllPrintJobs(data || []);
+      fetchRequesterProfiles((data || []).map(j => j.user_id));
+    }
     setManagerPrintLoading(false);
   };
 
   const loadPrintManagerTab = async () => {
-    await Promise.all([fetchPrinters(), fetchAllPrintJobs(), fetchFilamentCatalog()]);
+    await Promise.all([fetchPrinters(), fetchAllPrintJobs(), fetchFilamentCatalog(), fetchPlateBacklog()]);
   };
 
   // ── Filament catalog (managed by 3D managers) ─────────────────────────────
@@ -209,21 +244,30 @@ export default function ManufacturingPage() {
     loadPrintManagerTab();
   }
 
-  async function finishPrint(printer: any) {
-    if (printer.current_job_id) {
+  // A job's plates print one at a time on the physical bed, so a multi-plate job is completed
+  // plate by plate rather than all at once. Completing the last plate finishes the whole job.
+  async function completePlate(printer: any, job: any) {
+    const newCompleted = (job.plates_completed || 0) + 1;
+
+    if (newCompleted >= job.plate_count) {
       await supabase.from('print_jobs').update({
+        plates_completed: newCompleted,
         status: 'done',
         completed_at: new Date().toISOString(),
-      }).eq('id', printer.current_job_id);
+      }).eq('id', job.id);
+      // The printer stays occupied (status 'done') until someone actually collects the part —
+      // it isn't really free just because printing stopped.
+      const { error } = await supabase.from('printers').update({
+        status: 'done',
+        estimated_end_at: null,
+      }).eq('id', printer.id);
+      if (error) showError('처리 실패: ' + error.message);
+      else { showSuccess('인쇄 완료 처리했습니다. 회수하면 "회수함"을 눌러주세요.'); loadPrintManagerTab(); }
+    } else {
+      const { error } = await supabase.from('print_jobs').update({ plates_completed: newCompleted }).eq('id', job.id);
+      if (error) showError('처리 실패: ' + error.message);
+      else { showSuccess(`${newCompleted}번 플레이트를 완료 처리했습니다.`); loadPrintManagerTab(); }
     }
-    // The printer stays occupied (status 'done') until someone actually collects the part —
-    // it isn't really free just because printing stopped.
-    const { error } = await supabase.from('printers').update({
-      status: 'done',
-      estimated_end_at: null,
-    }).eq('id', printer.id);
-    if (error) showError('처리 실패: ' + error.message);
-    else { showSuccess('인쇄 완료 처리했습니다. 회수하면 "회수함"을 눌러주세요.'); loadPrintManagerTab(); }
   }
 
   async function collectPrint(printer: any) {
@@ -278,7 +322,10 @@ export default function ManufacturingPage() {
       .select('*, manager:manager_id(full_name, student_id)')
       .order('created_at', { ascending: false })
       .limit(500);
-    if (!error) setAllLaserJobs(data || []);
+    if (!error) {
+      setAllLaserJobs(data || []);
+      fetchRequesterProfiles((data || []).map(j => j.user_id));
+    }
     setManagerLaserLoading(false);
   };
 
@@ -432,6 +479,7 @@ export default function ManufacturingPage() {
                     {formatDistanceToNow(new Date(p.estimated_end_at), { locale: ko, addSuffix: true })} 완료 예정
                   </p>
                 )}
+                <p className="text-[10px] text-muted-foreground opacity-70">밀린 플레이트 {plateBacklog[p.id] || 0}개</p>
               </Card>
             ))}
           </div>
@@ -589,6 +637,7 @@ export default function ManufacturingPage() {
                             ? <Badge variant="danger">고장</Badge>
                             : <Badge variant="muted">대기</Badge>}
                     </div>
+                    <p className="text-[10px] text-muted-foreground opacity-70">밀린 플레이트 {plateBacklog[p.id] || 0}개</p>
 
                     {!isMine ? (
                       <p className="text-[10px] text-muted-foreground font-bold opacity-50 text-center py-1">담당 프린터가 아닙니다</p>
@@ -613,9 +662,41 @@ export default function ManufacturingPage() {
                             {formatDistanceToNow(new Date(p.estimated_end_at), { locale: ko, addSuffix: true })} 완료 예정
                           </p>
                         )}
-                        <Button size="sm" variant="outline" className="w-full font-black text-[10px] uppercase gap-1.5" onClick={() => finishPrint(p)}>
-                          <Square className="size-3" /> 출력 완료
-                        </Button>
+                        {(() => {
+                          const job = allPrintJobs.find(j => j.id === p.current_job_id);
+                          if (!job) return null;
+                          if (job.plate_count > 1) {
+                            return (
+                              <div className="space-y-1">
+                                <p className="text-[10px] text-muted-foreground font-bold text-center">플레이트 {job.plates_completed}/{job.plate_count} 완료</p>
+                                <div className="grid grid-cols-4 gap-1">
+                                  {Array.from({ length: job.plate_count }, (_, idx) => {
+                                    const plateNum = idx + 1;
+                                    const done = plateNum <= job.plates_completed;
+                                    const isNext = plateNum === job.plates_completed + 1;
+                                    return (
+                                      <Button
+                                        key={plateNum}
+                                        size="sm"
+                                        variant={done ? 'outline' : 'default'}
+                                        disabled={!isNext}
+                                        className="text-[10px] font-black px-0"
+                                        onClick={() => completePlate(p, job)}
+                                      >
+                                        {done ? <CheckCircle2 className="size-3" /> : plateNum}
+                                      </Button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <Button size="sm" variant="outline" className="w-full font-black text-[10px] uppercase gap-1.5" onClick={() => completePlate(p, job)}>
+                              <Square className="size-3" /> 출력 완료
+                            </Button>
+                          );
+                        })()}
                         <Button size="sm" variant="destructive" className="w-full font-black text-[10px] uppercase gap-1.5" onClick={() => markPrinterBroken(p)}>
                           <Wrench className="size-3" /> 고장 처리
                         </Button>
@@ -664,10 +745,11 @@ export default function ManufacturingPage() {
                         const info = PRINT_STATUS_INFO[j.status] || { variant: 'default', icon: null, label: j.status };
                         return (
                           <TableRow key={j.id} className="hover:bg-muted/20 transition-colors border-b last:border-0 align-top">
-                            <TableCell className="py-4 px-6 text-xs font-bold">{j.user_email}</TableCell>
+                            <TableCell className="py-4 px-6 text-xs font-bold">{requesterLabel(j)}</TableCell>
                             <TableCell className="py-4">
                               <div className="flex flex-col gap-1.5">
-                                <span className="text-xs font-black uppercase">{j.mode === 'beginner' ? '초보자' : '고급자'} · {j.quantity}개{j.material ? ` · ${j.material}` : ''}{j.color ? ` · ${j.color}` : ''}</span>
+                                <span className="text-xs font-black uppercase">{j.mode === 'beginner' ? '초보자' : '고급자'} · {j.quantity}개 · 플레이트 {j.plate_count}개{j.material ? ` · ${j.material}` : ''}{j.color ? ` · ${j.color}` : ''}</span>
+                                {j.preferred_printer_id && <span className="text-[10px] text-muted-foreground">희망 프린터: {printers.find(p => p.id === j.preferred_printer_id)?.name || `#${j.preferred_printer_id}`}</span>}
                                 {j.purpose && <span className="text-xs font-bold text-muted-foreground">{j.purpose}</span>}
                                 {j.manager?.full_name && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><User className="size-2.5" /> 담당: {j.manager.full_name}</span>}
                                 <Link href={`/manufacturing/print/${j.id}`} className="text-xs text-primary hover:underline flex items-center gap-1">
@@ -761,7 +843,7 @@ export default function ManufacturingPage() {
                     const info = LASER_STATUS_INFO[j.status] || { variant: 'default', icon: null, label: j.status };
                     return (
                       <TableRow key={j.id} className="hover:bg-muted/20 transition-colors border-b last:border-0">
-                        <TableCell className="py-4 px-6 text-xs font-bold">{j.user_email}</TableCell>
+                        <TableCell className="py-4 px-6 text-xs font-bold">{requesterLabel(j)}</TableCell>
                         <TableCell className="py-4">
                           <div className="flex flex-col gap-1">
                             <span className="text-xs font-black uppercase">{j.material === 'mdf' ? 'MDF' : '아크릴'}{j.thickness_mm ? ` · ${j.thickness_mm}mm` : ''} × {j.quantity}</span>
@@ -817,7 +899,7 @@ export default function ManufacturingPage() {
               >
                 <option value="">— 선택 —</option>
                 {idleJobsForQueue.map(j => (
-                  <option key={j.id} value={j.id}>{j.user_email} · {j.file_name}</option>
+                  <option key={j.id} value={j.id}>{requesterLabel(j)} · {j.file_name}</option>
                 ))}
               </select>
             </div>

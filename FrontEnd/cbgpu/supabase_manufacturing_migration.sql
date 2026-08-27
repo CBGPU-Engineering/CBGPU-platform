@@ -83,8 +83,11 @@ create table if not exists print_jobs (
   user_email text,
   mode text not null check (mode in ('beginner', 'advanced')),
   manager_id uuid references profiles(id),
+  preferred_printer_id int references printers(id),
   purpose text not null default '',
   quantity int not null default 1,
+  plate_count int not null default 1,
+  plates_completed int not null default 0,
   material text,
   color text,
   file_path text,
@@ -179,6 +182,9 @@ alter table print_jobs add column if not exists color text;
 alter table print_jobs add column if not exists reject_reason text;
 alter table laser_jobs add column if not exists reject_reason text;
 alter table print_jobs add column if not exists collected_at timestamptz;
+alter table print_jobs add column if not exists preferred_printer_id int references printers(id);
+alter table print_jobs add column if not exists plate_count int not null default 1;
+alter table print_jobs add column if not exists plates_completed int not null default 0;
 
 -- Add the 'done' printer status if this migration ran before it existed.
 alter table printers drop constraint if exists printers_status_check;
@@ -298,6 +304,33 @@ as $$
   select count(*)::int from public.print_jobs where status in ('pending', 'accepted');
 $$;
 grant execute on function public.print_queue_length() to authenticated;
+
+-- Per-printer plate backlog: how many plates are still waiting for each preferred printer.
+-- A job's plates print one at a time, so while it's 'printing' only the plates after the one
+-- currently on the bed count as backlog (plate_count - plates_completed - 1, floored at 0) —
+-- the one actively printing right now is not "backed up". Same "count only, no row exposure"
+-- pattern as print_queue_length().
+create or replace function public.printer_plate_backlog()
+returns table(printer_id int, plates bigint)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    preferred_printer_id,
+    coalesce(sum(
+      case
+        when status in ('pending', 'accepted') then plate_count
+        when status = 'printing' then greatest(plate_count - plates_completed - 1, 0)
+        else 0
+      end
+    ), 0)
+  from public.print_jobs
+  where status in ('pending', 'accepted', 'printing') and preferred_printer_id is not null
+  group by preferred_printer_id;
+$$;
+grant execute on function public.printer_plate_backlog() to authenticated;
 
 create or replace function public.laser_queue_length()
 returns int

@@ -39,7 +39,7 @@ export default function PrintJobDetailPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
 
   const fetchJob = async () => {
-    const { data, error } = await supabase.from('print_jobs').select('*, manager:manager_id(full_name, student_id)').eq('id', id).single();
+    const { data, error } = await supabase.from('print_jobs').select('*, manager:manager_id(full_name, student_id), preferred_printer:preferred_printer_id(name)').eq('id', id).single();
     if (error) { showError('신청 내역을 찾을 수 없습니다.'); router.push('/manufacturing'); return; }
     setJob(data);
     setLoading(false);
@@ -113,14 +113,26 @@ export default function PrintJobDetailPage() {
           <p className="font-black uppercase tracking-widest text-xs">Details</p>
         </div>
         <div className="p-6 grid gap-5">
+          {requester && (
+            <div>
+              <label className={labelCls}>신청자</label>
+              <span className="font-bold text-sm">{requester.full_name || 'Unknown'} {requester.student_id ? `(${requester.student_id})` : ''}</span>
+            </div>
+          )}
           <div>
             <label className={labelCls}>모드</label>
             <span className="font-bold text-sm">{job.mode === 'beginner' ? '초보자 (담당자가 슬라이싱)' : '고급자 (본인이 직접 슬라이싱한 파일 제출)'}</span>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div>
               <label className={labelCls}>수량</label>
               <span className="font-bold text-sm">{job.quantity}개</span>
+            </div>
+            <div>
+              <label className={labelCls}>플레이트 수</label>
+              <span className="font-bold text-sm">
+                {job.plate_count}개{job.plate_count > 1 && job.status === 'printing' ? ` (${job.plates_completed}개 완료)` : ''}
+              </span>
             </div>
             <div>
               <label className={labelCls}>재질</label>
@@ -135,6 +147,12 @@ export default function PrintJobDetailPage() {
             <div>
               <label className={labelCls}>사용 목적</label>
               <p className="text-sm font-bold whitespace-pre-wrap">{job.purpose}</p>
+            </div>
+          )}
+          {job.preferred_printer?.name && (
+            <div>
+              <label className={labelCls}>희망 프린터</label>
+              <span className="font-bold text-sm">{job.preferred_printer.name}</span>
             </div>
           )}
           {job.manager?.full_name && (
