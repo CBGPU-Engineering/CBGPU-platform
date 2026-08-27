@@ -1,4 +1,15 @@
-export const CONVERTIBLE_2D_EXTENSIONS = ['svg'] as const;
+export const CONVERTIBLE_2D_EXTENSIONS = ['svg', 'dwg'] as const;
+
+/** Converts a .dwg file to a .dxf Blob using nasjidwg's DWG reader + DXF writer
+ * (pure TypeScript, no WASM/native parser). Loaded lazily since it's a sizable
+ * library only needed when someone actually uploads a .dwg. */
+export async function convertDwgToDxf(file: File): Promise<Blob> {
+  const { readDwg, writeDxf } = await import('nasjidwg');
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const drawing = readDwg(bytes);
+  const dxfText = writeDxf(drawing);
+  return new Blob([dxfText], { type: 'application/dxf' });
+}
 
 function lwpolylineEntity(points: { x: number; y: number }[]): string {
   let s = `0\nLWPOLYLINE\n8\n0\n90\n${points.length}\n70\n0\n`;
