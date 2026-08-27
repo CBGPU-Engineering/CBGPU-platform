@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useAlert } from '@/lib/alert';
 import { getURL } from '@/lib/utils';
+import { MailCheck } from 'lucide-react';
 
 export default function Signup() {
   const [email, setEmail] = useState('');
@@ -14,18 +15,24 @@ export default function Signup() {
   const [studentId, setStudentId] = useState('');
   const [fullName, setFullName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmEmailSent, setConfirmEmailSent] = useState(false);
   const { showError, showSuccess } = useAlert();
   const router = useRouter();
 
   const handleSignup = async (e: any) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
-      const { data, error } = await supabase.auth.signUp({ 
-        email, 
+      // The profiles row is created server-side by a trigger on auth.users
+      // (see supabase_account_management_migration.sql) so it works even
+      // when email confirmation delays the session — full_name/student_id
+      // travel in as user metadata for the trigger to read.
+      const { data, error } = await supabase.auth.signUp({
+        email,
         password,
         options: {
+          data: { full_name: fullName, student_id: studentId },
           emailRedirectTo: getURL() + 'auth/callback',
         }
       });
@@ -35,26 +42,12 @@ export default function Signup() {
         return;
       }
 
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            { 
-              id: data.user.id,
-              student_id: studentId,
-              full_name: fullName,
-              is_admin: false,
-              is_approved: null
-            }
-          ]);
-
-        if (profileError) {
-          console.error(profileError);
-          showError("프로필 생성 실패: " + profileError.message);
-        } else {
-          showSuccess('회원가입 완료!');
-          router.push('/auth/login');
-        }
+      if (data.session) {
+        // Email confirmation is off (or already auto-confirmed) — the user is signed in now.
+        showSuccess('회원가입 완료!');
+        router.push('/');
+      } else {
+        setConfirmEmailSent(true);
       }
     } catch (err: any) {
         showError("회원가입 중 오류가 발생했습니다.");
@@ -62,6 +55,19 @@ export default function Signup() {
         setIsSubmitting(false);
     }
   };
+
+  if (confirmEmailSent) {
+    return (
+      <div className="max-w-md mx-auto mt-20 p-8 bg-card ring-1 ring-foreground/5 rounded-[28px] shadow-lg text-center space-y-4">
+        <MailCheck className="size-12 mx-auto text-primary" />
+        <h2 className="text-2xl font-black text-foreground italic uppercase tracking-tighter">이메일을 확인해주세요</h2>
+        <p className="text-sm text-muted-foreground font-medium">
+          <span className="font-bold text-foreground">{email}</span>로 인증 메일을 보냈습니다. 메일의 링크를 눌러야 로그인할 수 있습니다.
+        </p>
+        <Link href="/auth/login" className="inline-block text-primary font-bold hover:underline text-sm">로그인으로 이동</Link>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto mt-10 p-8 bg-card ring-1 ring-foreground/5 rounded-[28px] shadow-lg">
