@@ -10,6 +10,7 @@ import { LoadingSpinner } from '@/components/ui/spinner';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { DxfPreview } from '@/components/manufacturing/DxfPreview';
 import { LocateStudentButton } from '@/components/manufacturing/LocateStudentButton';
+import { deleteManufacturingFile } from '@/lib/manufacturing/storage';
 import {
   ArrowLeft, Download, CheckCircle2, Clock, XCircle, Boxes, Scissors, Trash2, PackageCheck,
 } from 'lucide-react';
@@ -45,6 +46,8 @@ export default function LaserJobDetailPage() {
     if (data.file_path) {
       const { data: signed } = await supabase.storage.from('manufacturing').createSignedUrl(data.file_path, 3600);
       setDownloadUrl(signed?.signedUrl || null);
+    } else {
+      setDownloadUrl(null);
     }
     if (data.user_id !== user?.id) {
       const { data: profile } = await supabase.from('profiles').select('full_name, student_id').eq('id', data.user_id).maybeSingle();
@@ -61,9 +64,13 @@ export default function LaserJobDetailPage() {
   };
 
   const handleMarkDelivered = async () => {
-    const { error } = await supabase.from('laser_jobs').update({ delivered_at: new Date().toISOString() }).eq('id', job.id);
-    if (error) showError('처리 실패: ' + error.message);
-    else { showSuccess('전달 완료로 표시했습니다.'); fetchJob(); }
+    const { error } = await supabase.from('laser_jobs')
+      .update({ delivered_at: new Date().toISOString(), file_path: null, file_name: null })
+      .eq('id', job.id);
+    if (error) { showError('처리 실패: ' + error.message); return; }
+    await deleteManufacturingFile(job.file_path);
+    showSuccess('전달 완료로 표시했습니다.');
+    fetchJob();
   };
 
   if (loading) {

@@ -16,6 +16,7 @@ import { LoadingSpinner } from '@/components/ui/spinner';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { PrinterVisual } from '@/components/manufacturing/PrinterVisual';
 import { LocateStudentButton } from '@/components/manufacturing/LocateStudentButton';
+import { deleteManufacturingFile } from '@/lib/manufacturing/storage';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import {
@@ -227,10 +228,14 @@ export default function ManufacturingPage() {
     else { showSuccess('거절 처리했습니다.'); fetchAllPrintJobs(); }
   }
 
-  async function markPrintDelivered(id: string) {
-    const { error } = await supabase.from('print_jobs').update({ delivered_at: new Date().toISOString() }).eq('id', id);
-    if (error) showError('처리 실패: ' + error.message);
-    else { showSuccess('전달 완료로 표시했습니다.'); fetchAllPrintJobs(); }
+  async function markPrintDelivered(job: any) {
+    const { error } = await supabase.from('print_jobs')
+      .update({ delivered_at: new Date().toISOString(), file_path: null, file_name: null })
+      .eq('id', job.id);
+    if (error) { showError('처리 실패: ' + error.message); return; }
+    await deleteManufacturingFile(job.file_path);
+    showSuccess('전달 완료로 표시했습니다.');
+    fetchAllPrintJobs();
   }
 
   const openQueueDialog = (printer: any) => {
@@ -393,10 +398,14 @@ export default function ManufacturingPage() {
     else { showSuccess('거절 처리했습니다.'); fetchAllLaserJobs(); }
   }
 
-  async function markLaserDelivered(id: string) {
-    const { error } = await supabase.from('laser_jobs').update({ delivered_at: new Date().toISOString() }).eq('id', id);
-    if (error) showError('처리 실패: ' + error.message);
-    else { showSuccess('전달 완료로 표시했습니다.'); fetchAllLaserJobs(); }
+  async function markLaserDelivered(job: any) {
+    const { error } = await supabase.from('laser_jobs')
+      .update({ delivered_at: new Date().toISOString(), file_path: null, file_name: null })
+      .eq('id', job.id);
+    if (error) { showError('처리 실패: ' + error.message); return; }
+    await deleteManufacturingFile(job.file_path);
+    showSuccess('전달 완료로 표시했습니다.');
+    fetchAllLaserJobs();
   }
 
   // ── Laser materials catalog (managed by laser managers) ──────────────────
@@ -834,7 +843,7 @@ export default function ManufacturingPage() {
                                 {j.status === 'done' && !j.delivered_at && (
                                   <>
                                     <LocateStudentButton studentId={requesterProfiles[j.user_id]?.student_id} studentName={requesterProfiles[j.user_id]?.full_name} />
-                                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-3 rounded-xl gap-1" onClick={() => markPrintDelivered(j.id)}>
+                                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-3 rounded-xl gap-1" onClick={() => markPrintDelivered(j)}>
                                       <PackageCheck className="size-3.5" /> 가져다 줌
                                     </Button>
                                   </>
@@ -945,7 +954,7 @@ export default function ManufacturingPage() {
                             {j.status === 'done' && !j.delivered_at && (
                               <>
                                 <LocateStudentButton studentId={requesterProfiles[j.user_id]?.student_id} studentName={requesterProfiles[j.user_id]?.full_name} />
-                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-3 rounded-xl gap-1" onClick={() => markLaserDelivered(j.id)}>
+                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-3 rounded-xl gap-1" onClick={() => markLaserDelivered(j)}>
                                   <PackageCheck className="size-3.5" /> 가져다 줌
                                 </Button>
                               </>
@@ -1004,20 +1013,18 @@ export default function ManufacturingPage() {
           <div className="space-y-4 py-2">
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">작업 선택</label>
-              <select
-                value={queueJobId}
-                onChange={e => setQueueJobId(e.target.value)}
-                className="h-10 w-full rounded-xl border border-input bg-transparent px-3 text-sm font-bold outline-none"
-              >
-                <option value="">— 선택 —</option>
-                {idleJobsForQueue.map(j => (
-                  <option key={j.id} value={j.id}>{requesterLabel(j)} · {j.file_name}</option>
-                ))}
-              </select>
+              <Select value={queueJobId} onValueChange={setQueueJobId}>
+                <SelectTrigger className="h-10 w-full text-sm"><SelectValue placeholder="— 선택 —" /></SelectTrigger>
+                <SelectContent>
+                  {idleJobsForQueue.map(j => (
+                    <SelectItem key={j.id} value={j.id}>{requesterLabel(j)} · {j.file_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">예상 소요 시간</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 mb-2">
                 {DURATION_PRESETS.map(p => (
                   <button
                     key={p.hours}
@@ -1030,6 +1037,18 @@ export default function ManufacturingPage() {
                     {p.label}
                   </button>
                 ))}
+              </div>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={queueHours}
+                  onChange={e => setQueueHours(Math.max(0, Number(e.target.value)))}
+                  className="h-10 pr-14 font-bold"
+                  placeholder="직접 입력"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-muted-foreground">시간</span>
               </div>
             </div>
           </div>
