@@ -11,7 +11,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { Model3MFViewer } from '@/components/manufacturing/Model3MFViewer';
 import { LocateStudentButton } from '@/components/manufacturing/LocateStudentButton';
 import {
-  ArrowLeft, Download, CheckCircle2, Clock, XCircle, Boxes, Printer, Trash2,
+  ArrowLeft, Download, CheckCircle2, Clock, XCircle, Boxes, Printer, Trash2, PackageCheck,
 } from 'lucide-react';
 
 const labelCls = 'text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block';
@@ -61,6 +61,12 @@ export default function PrintJobDetailPage() {
     else { showSuccess('신청이 취소됐습니다.'); setCancelOpen(false); fetchJob(); }
   };
 
+  const handleMarkDelivered = async () => {
+    const { error } = await supabase.from('print_jobs').update({ delivered_at: new Date().toISOString() }).eq('id', job.id);
+    if (error) showError('처리 실패: ' + error.message);
+    else { showSuccess('전달 완료로 표시했습니다.'); fetchJob(); }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -89,6 +95,9 @@ export default function PrintJobDetailPage() {
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <h1 className="text-3xl font-black tracking-tighter italic uppercase">3D 프린팅 신청</h1>
               <Badge variant={statusInfo.variant} icon={statusInfo.icon}>{statusInfo.label}</Badge>
+              {job.status === 'done' && job.delivered_at && (
+                <Badge variant="success" icon={<PackageCheck className="size-3" />}>전달 완료</Badge>
+              )}
             </div>
             <p className="text-sm text-muted-foreground font-bold opacity-70">{job.file_name || '파일 없음'}</p>
           </div>
@@ -98,8 +107,13 @@ export default function PrintJobDetailPage() {
               <Trash2 className="size-3.5" /> 신청 취소
             </Button>
           )}
-          {!isOwner && job.status === 'done' && requester?.student_id && (
-            <LocateStudentButton studentId={requester.student_id} studentName={requester.full_name} />
+          {!isOwner && job.status === 'done' && !job.delivered_at && (
+            <div className="flex items-center gap-2">
+              <LocateStudentButton studentId={requester?.student_id} studentName={requester?.full_name} />
+              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase gap-1.5 h-9" onClick={handleMarkDelivered}>
+                <PackageCheck className="size-3.5" /> 가져다 줌
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -208,6 +222,12 @@ export default function PrintJobDetailPage() {
               <div>
                 <label className={labelCls}>회수일</label>
                 <span className="text-xs font-bold text-muted-foreground">{new Date(job.collected_at).toLocaleString('ko-KR')}</span>
+              </div>
+            )}
+            {job.delivered_at && (
+              <div>
+                <label className={labelCls}>전달일</label>
+                <span className="text-xs font-bold text-muted-foreground">{new Date(job.delivered_at).toLocaleString('ko-KR')}</span>
               </div>
             )}
           </div>

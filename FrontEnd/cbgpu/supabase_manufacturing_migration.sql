@@ -99,7 +99,9 @@ create table if not exists print_jobs (
   printer_id int references printers(id),
   started_at timestamptz,
   estimated_end_at timestamptz,
-  completed_at timestamptz
+  completed_at timestamptz,
+  collected_at timestamptz,
+  delivered_at timestamptz
 );
 
 do $$
@@ -150,7 +152,8 @@ create table if not exists laser_jobs (
   status text not null default 'pending'
     check (status in ('pending', 'accepted', 'in_progress', 'done', 'rejected', 'canceled')),
   reject_reason text,
-  completed_at timestamptz
+  completed_at timestamptz,
+  delivered_at timestamptz
 );
 
 -- ── laser_materials: catalog of requestable (material, thickness) combos ──
@@ -185,6 +188,8 @@ alter table print_jobs add column if not exists collected_at timestamptz;
 alter table print_jobs add column if not exists preferred_printer_id int references printers(id);
 alter table print_jobs add column if not exists plate_count int not null default 1;
 alter table print_jobs add column if not exists plates_completed int not null default 0;
+alter table print_jobs add column if not exists delivered_at timestamptz;
+alter table laser_jobs add column if not exists delivered_at timestamptz;
 
 -- Add the 'done' printer status if this migration ran before it existed.
 alter table printers drop constraint if exists printers_status_check;
