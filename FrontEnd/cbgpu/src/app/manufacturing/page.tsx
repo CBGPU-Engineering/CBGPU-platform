@@ -15,11 +15,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { PrinterVisual } from '@/components/manufacturing/PrinterVisual';
+import { LocateStudentButton } from '@/components/manufacturing/LocateStudentButton';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import {
   Printer, Scissors, Plus, Clock, CheckCircle2, XCircle, ShieldAlert,
-  Boxes, Play, Square, ExternalLink, Download, Wrench, Undo2, X, Layers, User,
+  Boxes, Play, Square, ExternalLink, Download, Wrench, Undo2, X, Layers, User, PackageCheck,
 } from 'lucide-react';
 
 type Tab = 'print' | 'laser' | 'print_manager' | 'laser_manager';
@@ -213,6 +214,12 @@ export default function ManufacturingPage() {
     else { showSuccess('거절 처리했습니다.'); fetchAllPrintJobs(); }
   }
 
+  async function markPrintDelivered(id: string) {
+    const { error } = await supabase.from('print_jobs').update({ delivered_at: new Date().toISOString() }).eq('id', id);
+    if (error) showError('처리 실패: ' + error.message);
+    else { showSuccess('전달 완료로 표시했습니다.'); fetchAllPrintJobs(); }
+  }
+
   const openQueueDialog = (printer: any) => {
     setQueueDialogPrinter(printer);
     setQueueJobId('');
@@ -345,6 +352,12 @@ export default function ManufacturingPage() {
     const { error } = await supabase.from('laser_jobs').update({ status: 'rejected', reject_reason: reason || null }).eq('id', id);
     if (error) showError('처리 실패: ' + error.message);
     else { showSuccess('거절 처리했습니다.'); fetchAllLaserJobs(); }
+  }
+
+  async function markLaserDelivered(id: string) {
+    const { error } = await supabase.from('laser_jobs').update({ delivered_at: new Date().toISOString() }).eq('id', id);
+    if (error) showError('처리 실패: ' + error.message);
+    else { showSuccess('전달 완료로 표시했습니다.'); fetchAllLaserJobs(); }
   }
 
   // ── Laser materials catalog (managed by laser managers) ──────────────────
@@ -762,13 +775,26 @@ export default function ManufacturingPage() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="py-4"><Badge variant={info.variant} icon={info.icon}>{info.label}</Badge></TableCell>
+                            <TableCell className="py-4">
+                              <Badge variant={info.variant} icon={info.icon}>{info.label}</Badge>
+                              {j.status === 'done' && j.delivered_at && (
+                                <div className="mt-1"><Badge variant="success" icon={<PackageCheck className="size-3" />}>전달 완료</Badge></div>
+                              )}
+                            </TableCell>
                             <TableCell className="py-4 px-6 text-right">
-                              <div className="flex justify-end gap-2">
+                              <div className="flex justify-end gap-2 flex-wrap">
                                 {j.status === 'pending' && (
                                   <>
                                     <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-3 rounded-xl" onClick={() => updatePrintJobStatus(j.id, 'accepted')}>수락</Button>
                                     <Button size="sm" variant="destructive" className="font-black text-[10px] uppercase h-8 px-3 rounded-xl" onClick={() => openReject('print', j.id)}>거절</Button>
+                                  </>
+                                )}
+                                {j.status === 'done' && !j.delivered_at && (
+                                  <>
+                                    <LocateStudentButton studentId={requesterProfiles[j.user_id]?.student_id} studentName={requesterProfiles[j.user_id]?.full_name} />
+                                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-3 rounded-xl gap-1" onClick={() => markPrintDelivered(j.id)}>
+                                      <PackageCheck className="size-3.5" /> 가져다 줌
+                                    </Button>
                                   </>
                                 )}
                               </div>
@@ -854,9 +880,14 @@ export default function ManufacturingPage() {
                             </Link>
                           </div>
                         </TableCell>
-                        <TableCell className="py-4"><Badge variant={info.variant} icon={info.icon}>{info.label}</Badge></TableCell>
+                        <TableCell className="py-4">
+                          <Badge variant={info.variant} icon={info.icon}>{info.label}</Badge>
+                          {j.status === 'done' && j.delivered_at && (
+                            <div className="mt-1"><Badge variant="success" icon={<PackageCheck className="size-3" />}>전달 완료</Badge></div>
+                          )}
+                        </TableCell>
                         <TableCell className="py-4 px-6 text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-2 flex-wrap">
                             {j.status === 'pending' && (
                               <>
                                 <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-3 rounded-xl" onClick={() => updateLaserJobStatus(j.id, 'accepted')}>수락</Button>
@@ -868,6 +899,14 @@ export default function ManufacturingPage() {
                             )}
                             {j.status === 'in_progress' && (
                               <Button size="sm" className="font-black text-[10px] uppercase h-8 px-3 rounded-xl" onClick={() => updateLaserJobStatus(j.id, 'done')}>완료</Button>
+                            )}
+                            {j.status === 'done' && !j.delivered_at && (
+                              <>
+                                <LocateStudentButton studentId={requesterProfiles[j.user_id]?.student_id} studentName={requesterProfiles[j.user_id]?.full_name} />
+                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-3 rounded-xl gap-1" onClick={() => markLaserDelivered(j.id)}>
+                                  <PackageCheck className="size-3.5" /> 가져다 줌
+                                </Button>
+                              </>
                             )}
                           </div>
                         </TableCell>

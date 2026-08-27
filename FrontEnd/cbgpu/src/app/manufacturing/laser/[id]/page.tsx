@@ -11,7 +11,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { DxfPreview } from '@/components/manufacturing/DxfPreview';
 import { LocateStudentButton } from '@/components/manufacturing/LocateStudentButton';
 import {
-  ArrowLeft, Download, CheckCircle2, Clock, XCircle, Boxes, Scissors, Trash2,
+  ArrowLeft, Download, CheckCircle2, Clock, XCircle, Boxes, Scissors, Trash2, PackageCheck,
 } from 'lucide-react';
 
 const labelCls = 'text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block';
@@ -60,6 +60,12 @@ export default function LaserJobDetailPage() {
     else { showSuccess('신청이 취소됐습니다.'); setCancelOpen(false); fetchJob(); }
   };
 
+  const handleMarkDelivered = async () => {
+    const { error } = await supabase.from('laser_jobs').update({ delivered_at: new Date().toISOString() }).eq('id', job.id);
+    if (error) showError('처리 실패: ' + error.message);
+    else { showSuccess('전달 완료로 표시했습니다.'); fetchJob(); }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -88,6 +94,9 @@ export default function LaserJobDetailPage() {
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <h1 className="text-3xl font-black tracking-tighter italic uppercase">레이저 커팅 신청</h1>
               <Badge variant={statusInfo.variant} icon={statusInfo.icon}>{statusInfo.label}</Badge>
+              {job.status === 'done' && job.delivered_at && (
+                <Badge variant="success" icon={<PackageCheck className="size-3" />}>전달 완료</Badge>
+              )}
             </div>
             <p className="text-sm text-muted-foreground font-bold opacity-70">{job.file_name || '파일 없음'}</p>
           </div>
@@ -97,8 +106,13 @@ export default function LaserJobDetailPage() {
               <Trash2 className="size-3.5" /> 신청 취소
             </Button>
           )}
-          {!isOwner && job.status === 'done' && requester?.student_id && (
-            <LocateStudentButton studentId={requester.student_id} studentName={requester.full_name} />
+          {!isOwner && job.status === 'done' && !job.delivered_at && (
+            <div className="flex items-center gap-2">
+              <LocateStudentButton studentId={requester?.student_id} studentName={requester?.full_name} />
+              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase gap-1.5 h-9" onClick={handleMarkDelivered}>
+                <PackageCheck className="size-3.5" /> 가져다 줌
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -173,6 +187,12 @@ export default function LaserJobDetailPage() {
               <div>
                 <label className={labelCls}>완료일</label>
                 <span className="text-xs font-bold text-muted-foreground">{new Date(job.completed_at).toLocaleString('ko-KR')}</span>
+              </div>
+            )}
+            {job.delivered_at && (
+              <div>
+                <label className={labelCls}>전달일</label>
+                <span className="text-xs font-bold text-muted-foreground">{new Date(job.delivered_at).toLocaleString('ko-KR')}</span>
               </div>
             )}
           </div>
