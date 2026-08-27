@@ -133,8 +133,31 @@ export default function ManufacturingPage() {
   };
 
   const loadPrintManagerTab = async () => {
-    await Promise.all([fetchPrinters(), fetchAllPrintJobs()]);
+    await Promise.all([fetchPrinters(), fetchAllPrintJobs(), fetchFilamentCatalog()]);
   };
+
+  // ── Filament catalog (managed by 3D managers) ─────────────────────────────
+  const [filamentCatalog, setFilamentCatalog] = useState<any[]>([]);
+  const [newFilamentMaterial, setNewFilamentMaterial] = useState<'PLA' | 'PETG' | 'ABS' | 'TPU' | '기타'>('PLA');
+  const [newFilamentColor, setNewFilamentColor] = useState('');
+
+  const fetchFilamentCatalog = async () => {
+    const { data, error } = await supabase.from('print_materials').select('*').order('material').order('color');
+    if (!error) setFilamentCatalog(data || []);
+  };
+
+  async function addFilamentEntry() {
+    if (!newFilamentColor.trim()) { showError('색상을 입력해주세요.'); return; }
+    const { error } = await supabase.from('print_materials').insert({ material: newFilamentMaterial, color: newFilamentColor.trim() });
+    if (error) showError(error.code === '23505' ? '이미 등록된 조합입니다.' : '추가 실패: ' + error.message);
+    else { showSuccess('필라멘트가 등록됐습니다.'); setNewFilamentColor(''); fetchFilamentCatalog(); }
+  }
+
+  async function removeFilamentEntry(id: string) {
+    const { error } = await supabase.from('print_materials').delete().eq('id', id);
+    if (error) showError('삭제 실패: ' + error.message);
+    else { showSuccess('필라멘트가 삭제됐습니다.'); fetchFilamentCatalog(); }
+  }
 
   async function updatePrintJobStatus(id: string, status: string) {
     const updates: Record<string, any> = { status };
@@ -515,6 +538,39 @@ export default function ManufacturingPage() {
       {/* ── 3D manager ── */}
       {tab === 'print_manager' && is3DPrintManager && (
         <div className="space-y-8">
+          <Card className="p-6 rounded-2xl space-y-3">
+            <h2 className="font-black uppercase text-xs tracking-widest flex items-center gap-1.5"><Layers className="size-4" /> 필라멘트 카탈로그</h2>
+            <p className="text-[11px] text-muted-foreground font-bold opacity-70">
+              지금 보유한 필라멘트만 등록하세요. 신청자는 여기 등록된 조합 중에서 고르거나 &ldquo;상관없음&rdquo;을 선택할 수 있습니다.
+            </p>
+            {filamentCatalog.length === 0 ? (
+              <p className="text-xs text-muted-foreground opacity-50">등록된 필라멘트가 없습니다.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {filamentCatalog.map(f => (
+                  <span key={f.id} className="inline-flex items-center gap-1.5 bg-muted/50 rounded-full pl-3 pr-1.5 py-1 text-xs font-bold">
+                    {f.material} · {f.color}
+                    <button onClick={() => removeFilamentEntry(f.id)} className="ml-1 flex items-center justify-center size-5 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors">
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Select value={newFilamentMaterial} onValueChange={v => setNewFilamentMaterial(v as typeof newFilamentMaterial)}>
+                <SelectTrigger className="h-9 w-28 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(['PLA', 'PETG', 'ABS', 'TPU', '기타'] as const).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input value={newFilamentColor} onChange={e => setNewFilamentColor(e.target.value)} className="h-9 w-32 text-xs" placeholder="색상 (예: 검정)" />
+              <Button size="sm" className="h-9 px-3 font-black text-[10px] uppercase gap-1" onClick={addFilamentEntry}>
+                <Plus className="size-3.5" /> 추가
+              </Button>
+            </div>
+          </Card>
+
           <div>
             <h2 className="font-black uppercase text-sm tracking-widest mb-3">프린터 큐</h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
