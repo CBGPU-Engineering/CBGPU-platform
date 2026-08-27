@@ -98,6 +98,7 @@ export default function NewPrintJobPage() {
 
     const rows: Record<string, any>[] = [];
     for (const entry of fileEntries) {
+      const filament = filaments.find(f => f.id === entry.filamentId);
       const filePath = `${user.id}/print/${Date.now()}_${entry.file.name}`;
       const { error: uploadError } = await supabase.storage.from('manufacturing').upload(filePath, entry.file);
       if (uploadError) {
@@ -112,8 +113,8 @@ export default function NewPrintJobPage() {
         manager_id: managerId || null,
         purpose: purpose.trim(),
         quantity: parseInt(entry.quantity),
-        material: entry.material || null,
-        color: entry.color.trim() || null,
+        material: filament?.material ?? null,
+        color: filament?.color ?? null,
         file_path: filePath,
         file_name: entry.file.name,
         notes: notes.trim(),
@@ -241,18 +242,14 @@ export default function NewPrintJobPage() {
                     <label className={labelCls}>수량</label>
                     <Input type="number" min="1" value={entry.quantity} onChange={e => updateEntry(i, { quantity: e.target.value })} className="h-9 text-xs" />
                   </div>
-                  <div>
-                    <label className={labelCls}>재질</label>
-                    <Select value={entry.material} onValueChange={v => updateEntry(i, { material: v })}>
+                  <div className="col-span-2">
+                    <label className={labelCls}>필라멘트</label>
+                    <Select value={entry.filamentId} onValueChange={v => updateEntry(i, { filamentId: v })}>
                       <SelectTrigger className="h-9 w-full text-xs"><SelectValue placeholder="상관없음" /></SelectTrigger>
                       <SelectContent>
-                        {MATERIALS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                        {filaments.map(f => <SelectItem key={f.id} value={f.id}>{f.material} · {f.color}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div>
-                    <label className={labelCls}>색상</label>
-                    <Input placeholder="상관없음" value={entry.color} onChange={e => updateEntry(i, { color: e.target.value })} className="h-9 text-xs" />
                   </div>
                 </div>
               </div>

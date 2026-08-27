@@ -57,18 +57,14 @@ export function LocateStudentButton({ studentId, studentName }: { studentId?: st
                 <p className="text-[10px] text-muted-foreground opacity-60">이동수업이 아니라면 이 교실에 있을 가능성이 높습니다.</p>
               </div>
             ) : result.kind === 'selfstudy' ? (
-              <div className="space-y-2">
-                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground text-center mb-2">자습 시간 · 오늘 신청 내역</p>
-                {result.entries.map(e => (
-                  <div key={e.period} className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
-                    <span className="text-xs font-black">{e.period}교시</span>
-                    <span className="text-sm font-bold">{e.roomName}{e.seatName ? ` · ${e.seatName}` : ''}</span>
-                  </div>
-                ))}
-                <p className="text-[10px] text-muted-foreground opacity-60 text-center pt-1">지금이 몇 교시인지 확인해서 해당 줄을 보세요.</p>
+              <div className="space-y-2 text-center">
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">자습 시간 · {result.period}교시</p>
+                <p className="text-2xl font-black">{result.roomName}{result.seatName ? ` · ${result.seatName}` : ''}</p>
               </div>
             ) : result.kind === 'no-selfstudy' ? (
-              <p className="text-sm font-bold text-muted-foreground text-center py-4">오늘 자습 신청 내역이 없습니다.</p>
+              <p className="text-sm font-bold text-muted-foreground text-center py-4">
+                현재 {result.period}교시 자습 시간이지만, 신청 내역이 없습니다.
+              </p>
             ) : (
               <p className="text-sm font-bold text-muted-foreground text-center py-4">지금은 일과시간도 자습시간도 아닌 것 같습니다.</p>
             )}
