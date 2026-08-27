@@ -148,6 +148,14 @@
   50%     { transform: translateX(2px); }
 }
 
+@keyframes printer-glow {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 0.7; }
+}
+@utility printer-glow {
+  animation: printer-glow 1.6s ease-in-out infinite;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

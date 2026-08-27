@@ -11,7 +11,7 @@ import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import {
   Menu, X, ChevronDown, Home, GraduationCap,
-  BookOpen, CalendarDays, UtensilsCrossed, Users, Cpu, Vote, NotebookPen, Wrench, Gamepad2, Newspaper, Server,
+  BookOpen, CalendarDays, UtensilsCrossed, Users, Cpu, Vote, NotebookPen, Wrench, Gamepad2, Newspaper, Server, Printer,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 
@@ -21,6 +21,7 @@ interface NavGroup { label: string; links: NavLink[]; }
 const PRIMARY_LINKS: NavLink[] = [
   { href: '/dashboard', label: 'GPU' },
   { href: '/server',    label: 'Server' },
+  { href: '/manufacturing', label: 'Manufacture' },
 ];
 
 const GROUPS: NavGroup[] = [
@@ -60,6 +61,7 @@ const BOTTOM_CATEGORIES_LEFT: BottomCategory[] = [
   { key: 'gpu', label: 'GPU', Icon: Cpu, links: [
     { href: '/dashboard', label: 'GPU 예약', Icon: Cpu },
     { href: '/server',    label: '서버 배포', Icon: Server },
+    { href: '/manufacturing', label: '제작', Icon: Printer },
   ] },
 ];
 const BOTTOM_CATEGORIES_RIGHT: BottomCategory[] = [
@@ -305,6 +307,9 @@ export default function Navbar() {
               </Link>
               <Link href="/server" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname.startsWith('/server') ? 'text-primary' : 'text-muted-foreground'}`}>
                 Server
+              </Link>
+              <Link href="/manufacturing" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname.startsWith('/manufacturing') ? 'text-primary' : 'text-muted-foreground'}`}>
+                Manufacture
               </Link>
 
               {GROUPS.map(group => (

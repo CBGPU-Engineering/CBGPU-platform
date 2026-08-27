@@ -6,13 +6,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAlert } from '@/lib/alert';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
-import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2, KeyRound, Server, Container, GitBranch, Globe, School, Lock, Users, HelpCircle, Megaphone } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2, KeyRound, Server, Container, GitBranch, Globe, School, Lock, Users, HelpCircle, Megaphone, Printer, Scissors, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { PersonSearchSelect } from '@/components/manufacturing/PersonSearchSelect';
 
-type AdminTab = 'gpu' | 'server' | 'accounts';
+type AdminTab = 'gpu' | 'server' | 'accounts' | 'manufacture';
 
 export default function AdminPage() {
   const { isAdmin, isLoading: authLoading } = useAuth();
@@ -105,7 +106,7 @@ export default function AdminPage() {
   const fetchProfiles = async () => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, student_id, full_name, is_admin, is_approved')
+      .select('id, student_id, full_name, is_admin, is_approved, is_laser_cut_manager')
       .order('is_approved', { ascending: true, nullsFirst: true })
       .order('full_name', { ascending: true })
       .limit(1000);
@@ -123,6 +124,77 @@ export default function AdminPage() {
       showSuccess(approved ? '승인 처리됐습니다.' : '학번/이름 확인이 필요한 상태로 표시했습니다.');
       fetchProfiles();
     }
+  }
+
+  async function toggleLaserManager(id: string, current: boolean) {
+    const { error } = await supabase.from('profiles').update({ is_laser_cut_manager: !current }).eq('id', id);
+    if (error) showError("처리 실패: " + error.message);
+    else {
+      showSuccess(!current ? '레이저 담당자로 지정됐습니다.' : '레이저 담당자 지정이 해제됐습니다.');
+      fetchProfiles();
+      fetchLaserManagers();
+    }
+  }
+
+  // ── Manufacture: per-printer manager assignment ───────────────────────
+  const [allProfiles, setAllProfiles] = useState<any[]>([]);
+  const [printers, setPrinters] = useState<any[]>([]);
+  const [printerManagers, setPrinterManagers] = useState<any[]>([]);
+  const [laserManagers, setLaserManagers] = useState<any[]>([]);
+  const [manufactureLoading, setManufactureLoading] = useState(true);
+  const [addPrinterManagerSelect, setAddPrinterManagerSelect] = useState<Record<number, string>>({});
+  const [addLaserManagerSelect, setAddLaserManagerSelect] = useState('');
+
+  const fetchAllProfiles = async () => {
+    const { data, error } = await supabase.from('profiles').select('id, full_name, student_id').order('student_id');
+    if (!error) setAllProfiles(data || []);
+  };
+
+  const fetchPrinters = async () => {
+    const { data, error } = await supabase.from('printers').select('*').order('id');
+    if (!error) setPrinters(data || []);
+  };
+
+  const fetchPrinterManagers = async () => {
+    const { data, error } = await supabase
+      .from('printer_managers')
+      .select('printer_id, user_id, profiles:user_id (full_name, student_id)');
+    if (!error) setPrinterManagers(data || []);
+  };
+
+  const fetchLaserManagers = async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, student_id')
+      .eq('is_laser_cut_manager', true)
+      .order('student_id');
+    if (!error) setLaserManagers(data || []);
+  };
+
+  const fetchManufactureData = async () => {
+    setManufactureLoading(true);
+    await Promise.all([fetchAllProfiles(), fetchPrinters(), fetchPrinterManagers(), fetchLaserManagers()]);
+    setManufactureLoading(false);
+  };
+
+  async function addPrinterManager(printerId: number) {
+    const userId = addPrinterManagerSelect[printerId];
+    if (!userId) { showError('담당자로 지정할 사람을 선택해주세요.'); return; }
+    const { error } = await supabase.from('printer_managers').insert({ printer_id: printerId, user_id: userId });
+    if (error) showError('추가 실패: ' + error.message);
+    else { showSuccess('담당자가 추가됐습니다.'); setAddPrinterManagerSelect(s => ({ ...s, [printerId]: '' })); fetchPrinterManagers(); }
+  }
+
+  async function removePrinterManager(printerId: number, userId: string) {
+    const { error } = await supabase.from('printer_managers').delete().eq('printer_id', printerId).eq('user_id', userId);
+    if (error) showError('제거 실패: ' + error.message);
+    else { showSuccess('담당자가 제거됐습니다.'); fetchPrinterManagers(); }
+  }
+
+  async function addLaserManager() {
+    if (!addLaserManagerSelect) { showError('담당자로 지정할 사람을 선택해주세요.'); return; }
+    await toggleLaserManager(addLaserManagerSelect, false);
+    setAddLaserManagerSelect('');
   }
 
   // ── 사이트 공지 배너 ────────────────────────────────────────────────────────
@@ -160,6 +232,7 @@ export default function AdminPage() {
       fetchCpuProjects();
       fetchProfiles();
       fetchBanner();
+      fetchManufactureData();
     }
   }, [authLoading, isAdmin]);
 
@@ -262,6 +335,7 @@ export default function AdminPage() {
               { value: 'gpu',      label: 'GPU 예약' },
               { value: 'server',   label: `서버 배포${pendingCpuCount > 0 ? ` (${pendingCpuCount})` : ''}` },
               { value: 'accounts', label: `계정${unreviewedCount > 0 ? ` (${unreviewedCount})` : ''}` },
+              { value: 'manufacture', label: 'Manufacture' },
             ]}
             value={tab}
             onChange={v => setTab(v as AdminTab)}
@@ -452,9 +526,10 @@ export default function AdminPage() {
                     profiles.map((p) => (
                       <TableRow key={p.id} className="hover:bg-muted/20 transition-colors border-b last:border-0">
                         <TableCell className="py-5 px-6">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-black text-sm uppercase tracking-tight">{p.full_name || 'Unknown'}</span>
                             {p.is_admin && <Badge variant="warning">Admin</Badge>}
+                            {p.is_laser_cut_manager && <Badge variant="default">레이저 담당</Badge>}
                           </div>
                         </TableCell>
                         <TableCell className="text-sm font-bold">{p.student_id || '-'}</TableCell>
@@ -464,7 +539,7 @@ export default function AdminPage() {
                           {p.is_approved === true && <Badge variant="success" icon={<CheckCircle2 className="size-3" />}>승인됨</Badge>}
                         </TableCell>
                         <TableCell className="text-right py-5 px-6">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-2 flex-wrap">
                             {p.is_approved !== true && (
                               <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => setProfileApproval(p.id, true)}>
                                 승인
@@ -483,6 +558,90 @@ export default function AdminPage() {
                 </TableBody>
               </Table>
             </div>
+          </div>
+        )}
+
+        {/* ── Manufacture tab ── */}
+        {tab === 'manufacture' && (
+          <div className="space-y-8">
+            {manufactureLoading ? (
+              <div className="flex justify-center py-16"><LoadingSpinner size={48} label="불러오는 중" /></div>
+            ) : (
+              <>
+                <div>
+                  <h2 className="font-black uppercase text-sm tracking-widest mb-1 flex items-center gap-1.5"><Printer className="size-4" /> 3D 프린터 담당자</h2>
+                  <p className="text-xs text-muted-foreground font-bold opacity-60 mb-4">
+                    프린터를 먼저 고르고, 그 프린터를 담당할 사람을 추가하세요. 담당자는 그 프린터의 인쇄 시작/완료/고장 처리를 할 수 있습니다.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {printers.map(printer => {
+                      const assigned = printerManagers.filter(pm => pm.printer_id === printer.id);
+                      const assignedIds = new Set(assigned.map(a => a.user_id));
+                      const candidates = allProfiles.filter(p => !assignedIds.has(p.id));
+                      return (
+                        <div key={printer.id} className="border-2 rounded-2xl bg-card p-5 space-y-3">
+                          <p className="font-black text-sm uppercase">{printer.name}</p>
+                          {assigned.length === 0 ? (
+                            <p className="text-xs text-muted-foreground opacity-50">담당자 없음</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {assigned.map(a => (
+                                <span key={a.user_id} className="inline-flex items-center gap-1.5 bg-muted/50 rounded-full pl-3 pr-1.5 py-1 text-xs font-bold">
+                                  {a.profiles?.full_name || 'Unknown'} <span className="text-muted-foreground opacity-60">({a.profiles?.student_id || '-'})</span>
+                                  <button onClick={() => removePrinterManager(printer.id, a.user_id)} className="ml-1 flex items-center justify-center size-5 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                    <X className="size-3" />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <PersonSearchSelect
+                              candidates={candidates}
+                              value={addPrinterManagerSelect[printer.id] || ''}
+                              onChange={v => setAddPrinterManagerSelect(s => ({ ...s, [printer.id]: v }))}
+                            />
+                            <Button size="sm" className="h-9 px-3 font-black text-[10px] uppercase gap-1" onClick={() => addPrinterManager(printer.id)}>
+                              <Plus className="size-3.5" /> 추가
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="font-black uppercase text-sm tracking-widest mb-3 flex items-center gap-1.5"><Scissors className="size-4" /> 레이저 커팅 담당자</h2>
+                  <div className="border-2 rounded-2xl bg-card p-5 space-y-3 max-w-xl">
+                    {laserManagers.length === 0 ? (
+                      <p className="text-xs text-muted-foreground opacity-50">담당자 없음</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {laserManagers.map(m => (
+                          <span key={m.id} className="inline-flex items-center gap-1.5 bg-muted/50 rounded-full pl-3 pr-1.5 py-1 text-xs font-bold">
+                            {m.full_name || 'Unknown'} <span className="text-muted-foreground opacity-60">({m.student_id || '-'})</span>
+                            <button onClick={() => toggleLaserManager(m.id, true)} className="ml-1 flex items-center justify-center size-5 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors">
+                              <X className="size-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <PersonSearchSelect
+                        candidates={allProfiles.filter(p => !laserManagers.some(m => m.id === p.id))}
+                        value={addLaserManagerSelect}
+                        onChange={setAddLaserManagerSelect}
+                      />
+                      <Button size="sm" className="h-9 px-3 font-black text-[10px] uppercase gap-1" onClick={addLaserManager}>
+                        <Plus className="size-3.5" /> 추가
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </section>
