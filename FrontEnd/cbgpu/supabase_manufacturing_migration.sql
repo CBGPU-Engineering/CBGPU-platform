@@ -116,12 +116,14 @@ begin
 end $$;
 
 -- ── print_materials: catalog of available filament (material, color) combos ──
--- Mirrors laser_materials — 3D managers register what filament is actually loaded/on
--- hand, and requesters can only pick from that list (plus an explicit "no preference").
+-- Mirrors laser_materials in structure, but — unlike laser sheet stock, which is
+-- intentionally NOT counted — filament spools ARE worth tracking a stock count for,
+-- since managers restock/deplete individual spools over time.
 create table if not exists print_materials (
   id uuid primary key default gen_random_uuid(),
   material text not null,
   color text not null,
+  stock_count int not null default 0,
   created_at timestamptz default now(),
   unique (material, color)
 );
@@ -190,6 +192,7 @@ alter table print_jobs add column if not exists plate_count int not null default
 alter table print_jobs add column if not exists plates_completed int not null default 0;
 alter table print_jobs add column if not exists delivered_at timestamptz;
 alter table laser_jobs add column if not exists delivered_at timestamptz;
+alter table print_materials add column if not exists stock_count int not null default 0;
 
 -- Add the 'done' printer status if this migration ran before it existed.
 alter table printers drop constraint if exists printers_status_check;

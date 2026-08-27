@@ -174,8 +174,9 @@ export default function ManufacturingPage() {
 
   // ── Filament catalog (managed by 3D managers) ─────────────────────────────
   const [filamentCatalog, setFilamentCatalog] = useState<any[]>([]);
-  const [newFilamentMaterial, setNewFilamentMaterial] = useState<'PLA' | 'PETG' | 'ABS' | 'TPU' | '기타'>('PLA');
+  const [newFilamentMaterial, setNewFilamentMaterial] = useState('');
   const [newFilamentColor, setNewFilamentColor] = useState('');
+  const [newFilamentStock, setNewFilamentStock] = useState('1');
 
   const fetchFilamentCatalog = async () => {
     const { data, error } = await supabase.from('print_materials').select('*').order('material').order('color');
@@ -183,10 +184,22 @@ export default function ManufacturingPage() {
   };
 
   async function addFilamentEntry() {
+    if (!newFilamentMaterial.trim()) { showError('재질을 입력해주세요.'); return; }
     if (!newFilamentColor.trim()) { showError('색상을 입력해주세요.'); return; }
-    const { error } = await supabase.from('print_materials').insert({ material: newFilamentMaterial, color: newFilamentColor.trim() });
+    const stock = parseInt(newFilamentStock);
+    if (isNaN(stock) || stock < 0) { showError('재고 수량을 올바르게 입력해주세요.'); return; }
+    const { error } = await supabase.from('print_materials').insert({ material: newFilamentMaterial.trim(), color: newFilamentColor.trim(), stock_count: stock });
     if (error) showError(error.code === '23505' ? '이미 등록된 조합입니다.' : '추가 실패: ' + error.message);
-    else { showSuccess('필라멘트가 등록됐습니다.'); setNewFilamentColor(''); fetchFilamentCatalog(); }
+    else { showSuccess('필라멘트가 등록됐습니다.'); setNewFilamentMaterial(''); setNewFilamentColor(''); setNewFilamentStock('1'); fetchFilamentCatalog(); }
+  }
+
+  async function adjustFilamentStock(id: string, delta: number) {
+    const f = filamentCatalog.find(x => x.id === id);
+    if (!f) return;
+    const next = Math.max(0, f.stock_count + delta);
+    const { error } = await supabase.from('print_materials').update({ stock_count: next }).eq('id', id);
+    if (error) showError('재고 수정 실패: ' + error.message);
+    else fetchFilamentCatalog();
   }
 
   async function removeFilamentEntry(id: string) {
@@ -253,7 +266,30 @@ export default function ManufacturingPage() {
 
   // A job's plates print one at a time on the physical bed, so a multi-plate job is completed
   // plate by plate rather than all at once. Completing the last plate finishes the whole job.
-  async function completePlate(printer: any, job: any) {
+  // Before actually applying the completion, we ask whether any filament spool ran out during
+  // this plate, so stock_count can be decremented right away instead of drifting out of date.
+  const [plateCompleteTarget, setPlateCompleteTarget] = useState<{ printer: any; job: any } | null>(null);
+  const [usedUpFilamentIds, setUsedUpFilamentIds] = useState<string[]>([]);
+
+  function openPlateComplete(printer: any, job: any) {
+    setPlateCompleteTarget({ printer, job });
+    setUsedUpFilamentIds([]);
+  }
+
+  function toggleUsedUpFilament(id: string) {
+    setUsedUpFilamentIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }
+
+  async function confirmPlateComplete() {
+    if (!plateCompleteTarget) return;
+    const { printer, job } = plateCompleteTarget;
+
+    for (const filamentId of usedUpFilamentIds) {
+      const f = filamentCatalog.find(x => x.id === filamentId);
+      if (f) await supabase.from('print_materials').update({ stock_count: Math.max(0, f.stock_count - 1) }).eq('id', filamentId);
+    }
+    if (usedUpFilamentIds.length > 0) fetchFilamentCatalog();
+
     const newCompleted = (job.plates_completed || 0) + 1;
 
     if (newCompleted >= job.plate_count) {
@@ -269,12 +305,15 @@ export default function ManufacturingPage() {
         estimated_end_at: null,
       }).eq('id', printer.id);
       if (error) showError('처리 실패: ' + error.message);
-      else { showSuccess('인쇄 완료 처리했습니다. 회수하면 "회수함"을 눌러주세요.'); loadPrintManagerTab(); }
+      else showSuccess('인쇄 완료 처리했습니다. 회수하면 "회수함"을 눌러주세요.');
     } else {
       const { error } = await supabase.from('print_jobs').update({ plates_completed: newCompleted }).eq('id', job.id);
       if (error) showError('처리 실패: ' + error.message);
-      else { showSuccess(`${newCompleted}번 플레이트를 완료 처리했습니다.`); loadPrintManagerTab(); }
+      else showSuccess(`${newCompleted}번 플레이트를 완료 처리했습니다.`);
     }
+
+    setPlateCompleteTarget(null);
+    loadPrintManagerTab();
   }
 
   async function collectPrint(printer: any) {
@@ -607,25 +646,28 @@ export default function ManufacturingPage() {
             {filamentCatalog.length === 0 ? (
               <p className="text-xs text-muted-foreground opacity-50">등록된 필라멘트가 없습니다.</p>
             ) : (
-              <div className="flex flex-wrap gap-2">
+              <div className="space-y-1.5">
                 {filamentCatalog.map(f => (
-                  <span key={f.id} className="inline-flex items-center gap-1.5 bg-muted/50 rounded-full pl-3 pr-1.5 py-1 text-xs font-bold">
-                    {f.material} · {f.color}
-                    <button onClick={() => removeFilamentEntry(f.id)} className="ml-1 flex items-center justify-center size-5 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors">
-                      <X className="size-3" />
-                    </button>
-                  </span>
+                  <div key={f.id} className={`flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 ${f.stock_count === 0 ? 'bg-destructive/10' : 'bg-muted/50'}`}>
+                    <span className="text-xs font-bold">
+                      {f.material} · {f.color}{f.stock_count === 0 && <span className="text-destructive ml-1.5">품절</span>}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => adjustFilamentStock(f.id, -1)} className="flex items-center justify-center size-6 rounded-full hover:bg-muted transition-colors font-black text-sm">−</button>
+                      <span className="text-xs font-black w-6 text-center">{f.stock_count}</span>
+                      <button onClick={() => adjustFilamentStock(f.id, 1)} className="flex items-center justify-center size-6 rounded-full hover:bg-muted transition-colors font-black text-sm">+</button>
+                      <button onClick={() => removeFilamentEntry(f.id)} className="ml-1 flex items-center justify-center size-6 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors">
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
             <div className="flex items-center gap-2">
-              <Select value={newFilamentMaterial} onValueChange={v => setNewFilamentMaterial(v as typeof newFilamentMaterial)}>
-                <SelectTrigger className="h-9 w-28 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(['PLA', 'PETG', 'ABS', 'TPU', '기타'] as const).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Input value={newFilamentColor} onChange={e => setNewFilamentColor(e.target.value)} className="h-9 w-32 text-xs" placeholder="색상 (예: 검정)" />
+              <Input value={newFilamentMaterial} onChange={e => setNewFilamentMaterial(e.target.value)} className="h-9 w-28 text-xs" placeholder="재질 (예: PLA Basic)" />
+              <Input value={newFilamentColor} onChange={e => setNewFilamentColor(e.target.value)} className="h-9 w-28 text-xs" placeholder="색상 (예: 블랙)" />
+              <Input type="number" min="0" value={newFilamentStock} onChange={e => setNewFilamentStock(e.target.value)} className="h-9 w-16 text-xs" placeholder="재고" />
               <Button size="sm" className="h-9 px-3 font-black text-[10px] uppercase gap-1" onClick={addFilamentEntry}>
                 <Plus className="size-3.5" /> 추가
               </Button>
@@ -694,7 +736,7 @@ export default function ManufacturingPage() {
                                         variant={done ? 'outline' : 'default'}
                                         disabled={!isNext}
                                         className="text-[10px] font-black px-0"
-                                        onClick={() => completePlate(p, job)}
+                                        onClick={() => openPlateComplete(p, job)}
                                       >
                                         {done ? <CheckCircle2 className="size-3" /> : plateNum}
                                       </Button>
@@ -705,7 +747,7 @@ export default function ManufacturingPage() {
                             );
                           }
                           return (
-                            <Button size="sm" variant="outline" className="w-full font-black text-[10px] uppercase gap-1.5" onClick={() => completePlate(p, job)}>
+                            <Button size="sm" variant="outline" className="w-full font-black text-[10px] uppercase gap-1.5" onClick={() => openPlateComplete(p, job)}>
                               <Square className="size-3" /> 출력 완료
                             </Button>
                           );
@@ -920,6 +962,37 @@ export default function ManufacturingPage() {
           </div>
         </div>
       )}
+
+      {/* ── Plate complete dialog ── */}
+      <Dialog open={!!plateCompleteTarget} onOpenChange={o => !o && setPlateCompleteTarget(null)}>
+        <DialogContent className="max-w-sm rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-black uppercase tracking-tighter italic text-xl">완료 처리</DialogTitle>
+            <DialogDescription className="text-xs font-bold opacity-60">이번에 다 쓴 필라멘트 롤이 있으면 체크해주세요 (여러 개 선택 가능).</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5 max-h-56 overflow-y-auto py-2">
+            {filamentCatalog.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">등록된 필라멘트가 없습니다.</p>
+            ) : (
+              filamentCatalog.map(f => (
+                <label key={f.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 cursor-pointer text-xs font-bold">
+                  <input
+                    type="checkbox"
+                    checked={usedUpFilamentIds.includes(f.id)}
+                    onChange={() => toggleUsedUpFilament(f.id)}
+                    className="size-4"
+                  />
+                  {f.material} · {f.color} <span className="text-muted-foreground opacity-60">(재고 {f.stock_count})</span>
+                </label>
+              ))
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="font-black uppercase text-[10px]" onClick={() => setPlateCompleteTarget(null)}>취소</Button>
+            <Button className="font-black uppercase text-[10px]" onClick={confirmPlateComplete}>완료 처리</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Start print dialog ── */}
       <Dialog open={!!queueDialogPrinter} onOpenChange={o => !o && setQueueDialogPrinter(null)}>

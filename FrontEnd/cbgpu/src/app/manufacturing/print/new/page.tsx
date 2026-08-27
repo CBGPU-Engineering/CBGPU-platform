@@ -14,7 +14,7 @@ import { convertModelTo3mf } from '@/lib/manufacturing/convertTo3mf';
 import { ArrowLeft, ShieldAlert, GraduationCap, Wrench, UploadCloud, Target, X, FileBox, RefreshCw, Printer } from 'lucide-react';
 
 type Mode = 'beginner' | 'advanced';
-type FilamentEntry = { id: string; material: string; color: string };
+type FilamentEntry = { id: string; material: string; color: string; stock_count: number };
 type FileEntry = { file: File; quantity: string; plateCount: string; filamentId: string; convertedFrom?: string };
 
 const labelCls = 'text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1 block';
@@ -302,7 +302,11 @@ export default function NewPrintJobPage() {
                     <Select value={entry.filamentId} onValueChange={v => updateEntry(i, { filamentId: v })}>
                       <SelectTrigger className="h-9 w-full text-xs"><SelectValue placeholder="상관없음" /></SelectTrigger>
                       <SelectContent>
-                        {filaments.map(f => <SelectItem key={f.id} value={f.id}>{f.material} · {f.color}</SelectItem>)}
+                        {filaments.map(f => (
+                          <SelectItem key={f.id} value={f.id}>
+                            {f.material} · {f.color}{f.stock_count === 0 ? ' (품절)' : ''}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
