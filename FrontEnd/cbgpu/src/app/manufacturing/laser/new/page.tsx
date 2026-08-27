@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PersonSearchSelect } from '@/components/manufacturing/PersonSearchSelect';
-import { convertSvgToDxf } from '@/lib/manufacturing/convertToDxf';
+import { convertSvgToDxf, convertDwgToDxf } from '@/lib/manufacturing/convertToDxf';
 import { ArrowLeft, ShieldAlert, UploadCloud, Target, X, FileBox, RefreshCw } from 'lucide-react';
 
 type CatalogEntry = { id: string; material: 'mdf' | 'acrylic'; thickness_mm: number };
@@ -59,18 +59,18 @@ export default function NewLaserJobPage() {
         setFileEntries(prev => [...prev, { file, quantity: '1', catalogId: '' }]);
         continue;
       }
-      if (ext === 'svg') {
+      if (ext === 'svg' || ext === 'dwg') {
         try {
-          const converted = await convertSvgToDxf(file);
+          const converted = ext === 'svg' ? await convertSvgToDxf(file) : await convertDwgToDxf(file);
           const newName = file.name.replace(/\.[^.]+$/, '.dxf');
           const convertedFile = new File([converted], newName, { type: 'application/dxf' });
           setFileEntries(prev => [...prev, { file: convertedFile, quantity: '1', catalogId: '', convertedFrom: file.name }]);
         } catch {
-          showError(`"${file.name}" 변환 실패: 파일이 손상되었거나 그릴 수 있는 도형이 없습니다.`);
+          showError(`"${file.name}" 변환 실패: 파일이 손상되었거나 지원하지 않는 구조입니다.`);
         }
         continue;
       }
-      showError(`"${file.name}"은(는) 지원하지 않는 형식입니다. (.dxf, .svg만 가능)`);
+      showError(`"${file.name}"은(는) 지원하지 않는 형식입니다. (.dxf, .svg, .dwg만 가능)`);
     }
     setConverting(false);
   };
@@ -189,10 +189,10 @@ export default function NewLaserJobPage() {
                 <>
                   <UploadCloud className="size-6 opacity-40" />
                   <span className="text-xs font-bold text-muted-foreground">클릭해서 파일 선택 (여러 개 가능)</span>
-                  <span className="text-[9px] text-muted-foreground opacity-50">.dxf 그대로 올리거나, .svg를 올리면 자동으로 dxf로 변환됩니다</span>
+                  <span className="text-[9px] text-muted-foreground opacity-50">.dxf 그대로 올리거나, .svg / .dwg를 올리면 자동으로 dxf로 변환됩니다</span>
                 </>
               )}
-              <input type="file" accept=".dxf,.svg" multiple disabled={converting} className="hidden" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
+              <input type="file" accept=".dxf,.svg,.dwg" multiple disabled={converting} className="hidden" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
             </label>
 
             {fileEntries.length > 0 && (
