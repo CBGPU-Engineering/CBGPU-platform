@@ -75,7 +75,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
         {toasts.map(t => (
           <div
             key={t.id}
-            className="flex items-center gap-2 rounded-xl bg-foreground text-background px-4 py-2.5 text-sm font-bold shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-200 ease-[var(--ease-spring)]"
+            className="flex items-center gap-2 rounded-xl bg-foreground/90 backdrop-blur-xl saturate-150 text-background px-4 py-2.5 text-sm font-bold shadow-lg ring-1 ring-background/10 animate-in fade-in slide-in-from-bottom-4 duration-200 ease-[var(--ease-spring)]"
           >
             <CheckCircle2 className="size-4 text-success shrink-0" />
             {t.message}

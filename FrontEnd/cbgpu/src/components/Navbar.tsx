@@ -86,7 +86,7 @@ function BottomCategoryButton({ cat, isOpen, onToggle, pathname }: {
   return (
     <div className="relative flex flex-col items-center w-12 shrink-0">
       {isOpen && (
-        <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex flex-col gap-1 p-2 rounded-2xl bg-background ring-1 ring-foreground/10 shadow-2xl pop-in-3d whitespace-nowrap">
+        <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex flex-col gap-1 p-2 rounded-2xl glass pop-in-3d whitespace-nowrap">
           {cat.links.map(l => (
             <Link
               key={l.href}
@@ -157,7 +157,7 @@ export default function Navbar() {
 
   return (
     <>
-    <nav className="flex items-center justify-between px-6 md:px-10 py-4 bg-background/50 border-b border-border sticky top-0 z-50 backdrop-blur-md">
+    <nav className="flex items-center justify-between px-6 md:px-10 py-4 glass sticky top-0 z-50">
       <div className="flex items-center gap-4 md:gap-8">
         <Link href="/" className="flex items-center gap-2 group transition-transform active:scale-95">
           <img
@@ -203,7 +203,7 @@ export default function Navbar() {
                   <DropdownMenuPrimitive.Content
                     align="start"
                     sideOffset={8}
-                    className="z-50 min-w-36 rounded-xl bg-popover p-1.5 ring-1 ring-foreground/10 shadow-lg data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+                    className="z-50 min-w-36 rounded-xl glass p-1.5 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
                   >
                     {group.links.map(l => (
                       <DropdownMenuPrimitive.Item key={l.href} asChild>
@@ -280,7 +280,7 @@ export default function Navbar() {
 
       {/* Mobile Menu Overlay */}
       {isMenuOpen && (
-        <div className="absolute top-full left-0 w-full bg-background/95 backdrop-blur-xl border-b border-border py-6 px-6 md:hidden flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-300 max-h-[calc(100vh-72px)] overflow-y-auto">
+        <div className="absolute top-full left-0 w-full glass-strong py-6 px-6 md:hidden flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-300 max-h-[calc(100vh-72px)] overflow-y-auto">
           {user ? (
             <>
               <div className="flex items-center justify-between pb-4 mb-3 border-b border-border/50">
@@ -356,7 +356,7 @@ export default function Navbar() {
     {user && !isLoading && (
       <>
         {openCat && <div className="md:hidden fixed inset-0 z-40" onClick={() => setOpenCat(null)} />}
-        <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50 flex items-end gap-1 rounded-[28px] bg-background/85 backdrop-blur-xl ring-1 ring-foreground/10 shadow-2xl px-2 py-2 tilt-3d">
+        <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50 flex items-end gap-1 rounded-[28px] glass-strong px-2 py-2 tilt-3d">
           <div className="flex-1 flex items-end justify-evenly">
             {BOTTOM_CATEGORIES_LEFT.map(cat => (
               <BottomCategoryButton
