@@ -130,7 +130,7 @@ export default function Home() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-10">
-      <div className="flex items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="flex items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 ease-[var(--ease-spring)]">
         {profile?.avatar_url && (
           <>
             <img src={profile.avatar_url} alt="" className="size-16 md:size-20 rounded-full object-cover ring-2 ring-background shadow-md shrink-0" />
@@ -152,8 +152,8 @@ export default function Home() {
           <Link
             key={f.href}
             href={f.href}
-            style={{ animationDelay: `${i * 40}ms` }}
-            className="tilt-3d flex flex-col items-start gap-3 p-5 rounded-[28px] bg-card ring-1 ring-foreground/5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-500 fill-mode-backwards"
+            style={{ animationDelay: `${80 + i * 50}ms` }}
+            className="tilt-3d flex flex-col items-start gap-3 p-5 rounded-[28px] bg-card ring-1 ring-foreground/5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-500 ease-[var(--ease-spring)] fill-mode-backwards"
           >
             <span className={`flex items-center justify-center size-11 rounded-2xl ${f.color}`}>
               <f.icon className="size-5" strokeWidth={2} />
@@ -166,8 +166,8 @@ export default function Home() {
       {!user && (
         <Link
           href="/auth/signup"
-          className="tilt-3d block rounded-[28px] bg-primary text-primary-foreground p-6 animate-in fade-in slide-in-from-bottom-2 duration-500"
-          style={{ animationDelay: '400ms' }}
+          className="tilt-3d block rounded-[28px] bg-primary text-primary-foreground p-6 animate-in fade-in slide-in-from-bottom-2 duration-500 ease-[var(--ease-spring)] fill-mode-backwards"
+          style={{ animationDelay: `${80 + FEATURES.length * 50}ms` }}
         >
           <p className="font-black text-lg">아직 계정이 없으신가요?</p>
           <p className="text-sm opacity-80 mt-1">가입하고 학교생활에 필요한 모든 걸 한 곳에서 확인하세요 →</p>
