@@ -40,7 +40,7 @@ final _groups = [
     _NavLink('자습신청', '/soon/자습신청'),
     _NavLink('시간표', '/timetable'),
     _NavLink('급식', '/meal'),
-    _NavLink('스터디', '/soon/스터디'),
+    _NavLink('스터디', '/match'),
   ]),
   _NavGroup('도구', Icons.build_outlined, [
     _NavLink('노트', '/soon/노트'),

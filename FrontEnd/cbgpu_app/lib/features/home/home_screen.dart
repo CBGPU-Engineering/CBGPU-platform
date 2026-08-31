@@ -24,7 +24,7 @@ final _features = [
   _Feature('급식', Icons.restaurant_outlined, AppColors.featureAmber, '/meal'),
   _Feature('투표', Icons.how_to_vote_outlined, AppColors.featureViolet),
   _Feature('연구노트', Icons.edit_note_outlined, AppColors.featureTeal),
-  _Feature('스터디 매칭', Icons.groups_outlined, AppColors.featureSky),
+  _Feature('스터디 매칭', Icons.groups_outlined, AppColors.featureSky, '/match'),
   _Feature('GPU 대여', Icons.memory_outlined, AppColors.featureSlate),
   _Feature('서버 배포', Icons.dns_outlined, AppColors.featureEmerald),
   _Feature('제작', Icons.print_outlined, AppColors.featureOrange),
