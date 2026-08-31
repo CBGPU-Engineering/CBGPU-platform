@@ -24,6 +24,7 @@ import '../features/dashboard/dashboard_screen.dart';
 import '../features/server/server_screen.dart';
 import '../features/admin/admin_screen.dart';
 import '../features/admin/admin_study_token_screen.dart';
+import '../features/games/arcade_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/',
@@ -58,6 +59,7 @@ final router = GoRouter(
         GoRoute(path: '/server/:id', pageBuilder: (context, state) => springPage(state: state, child: ServerDetailScreen(id: state.pathParameters['id']!))),
         GoRoute(path: '/admin', pageBuilder: (context, state) => springPage(state: state, child: const AdminScreen())),
         GoRoute(path: '/admin/study', pageBuilder: (context, state) => springPage(state: state, child: const AdminStudyTokenScreen())),
+        GoRoute(path: '/arcade', pageBuilder: (context, state) => springPage(state: state, child: const ArcadeScreen())),
         GoRoute(path: '/contact', pageBuilder: (context, state) => springPage(state: state, child: const ContactScreen())),
         // Mirrors the web app's /schedule, which is just `redirect('/dashboard')` —
         // no actual page. Points at the GPU placeholder until Dashboard is ported,
