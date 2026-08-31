@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // @sparticuz/chromium ships a large native binary that Next.js's bundler
+  // shouldn't try to trace/inline — it needs to stay a plain node_modules require.
+  serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'i.namu.wiki' },
