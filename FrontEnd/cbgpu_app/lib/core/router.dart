@@ -33,6 +33,10 @@ final router = GoRouter(
         GoRoute(path: '/', pageBuilder: (context, state) => springPage(state: state, child: const HomeScreen())),
         GoRoute(path: '/meal', pageBuilder: (context, state) => springPage(state: state, child: const MealScreen())),
         GoRoute(path: '/contact', pageBuilder: (context, state) => springPage(state: state, child: const ContactScreen())),
+        // Mirrors the web app's /schedule, which is just `redirect('/dashboard')` —
+        // no actual page. Points at the GPU placeholder until Dashboard is ported,
+        // same as the web app currently points at Dashboard.
+        GoRoute(path: '/schedule', redirect: (context, state) => '/soon/GPU'),
         GoRoute(
           path: '/soon/:label',
           pageBuilder: (context, state) =>
