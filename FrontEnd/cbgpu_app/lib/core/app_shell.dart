@@ -48,7 +48,7 @@ final _groups = [
     _NavLink('Arcade', '/soon/Arcade'),
   ]),
   _NavGroup('정보', Icons.article_outlined, [
-    _NavLink('투표', '/soon/투표'),
+    _NavLink('투표', '/polls'),
     _NavLink('Feed', '/feed'),
   ]),
 ];

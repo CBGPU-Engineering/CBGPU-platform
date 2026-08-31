@@ -22,7 +22,7 @@ final _features = [
   _Feature('자습신청', Icons.menu_book_outlined, AppColors.featureBlue),
   _Feature('시간표', Icons.calendar_month_outlined, AppColors.featureIndigo, '/timetable'),
   _Feature('급식', Icons.restaurant_outlined, AppColors.featureAmber, '/meal'),
-  _Feature('투표', Icons.how_to_vote_outlined, AppColors.featureViolet),
+  _Feature('투표', Icons.how_to_vote_outlined, AppColors.featureViolet, '/polls'),
   _Feature('연구노트', Icons.edit_note_outlined, AppColors.featureTeal, '/notes'),
   _Feature('스터디 매칭', Icons.groups_outlined, AppColors.featureSky, '/match'),
   _Feature('GPU 대여', Icons.memory_outlined, AppColors.featureSlate),
