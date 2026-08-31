@@ -86,7 +86,7 @@ function BottomCategoryButton({ cat, isOpen, onToggle, pathname }: {
   return (
     <div className="relative flex flex-col items-center w-12 shrink-0">
       {isOpen && (
-        <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex flex-col gap-1 p-2 rounded-2xl glass pop-in-3d whitespace-nowrap">
+        <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex flex-col gap-1 p-2 rounded-2xl glass-strong pop-in-3d whitespace-nowrap">
           {cat.links.map(l => (
             <Link
               key={l.href}
@@ -171,7 +171,7 @@ export default function Navbar() {
         </Link>
 
         {user && !isLoading && (
-          <div ref={railRef} className="hidden md:flex items-center gap-1 relative">
+          <div ref={railRef} className="hidden lg:flex items-center gap-1 relative">
             {indicator && (
               <div
                 className="absolute top-0 bottom-0 rounded-lg bg-primary shadow-lg transition-all duration-200 ease-[var(--ease-spring)]"
@@ -203,7 +203,7 @@ export default function Navbar() {
                   <DropdownMenuPrimitive.Content
                     align="start"
                     sideOffset={8}
-                    className="z-50 min-w-36 rounded-xl glass p-1.5 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+                    className="z-50 min-w-36 rounded-xl glass-strong p-1.5 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
                   >
                     {group.links.map(l => (
                       <DropdownMenuPrimitive.Item key={l.href} asChild>
@@ -229,7 +229,7 @@ export default function Navbar() {
       </div>
 
       <div className="flex gap-2 md:gap-4 items-center">
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden lg:flex items-center gap-4">
           <Link href="/contact" className={`text-xs transition-colors font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/contact' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
             Contact
           </Link>
@@ -270,9 +270,9 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Menu Toggle */}
-        <div className="md:hidden flex items-center gap-2">
+        <div className="lg:hidden flex items-center gap-2">
           <ThemeToggle />
-          <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden">
+          <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)} className="lg:hidden">
             {isMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </Button>
         </div>
@@ -280,7 +280,7 @@ export default function Navbar() {
 
       {/* Mobile Menu Overlay */}
       {isMenuOpen && (
-        <div className="absolute top-full left-0 w-full glass-strong py-6 px-6 md:hidden flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-300 max-h-[calc(100vh-72px)] overflow-y-auto">
+        <div className="absolute top-full left-0 w-full glass-strong py-6 px-6 lg:hidden flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-300 max-h-[calc(100vh-72px)] overflow-y-auto">
           {user ? (
             <>
               <div className="flex items-center justify-between pb-4 mb-3 border-b border-border/50">
@@ -355,8 +355,8 @@ export default function Navbar() {
 
     {user && !isLoading && (
       <>
-        {openCat && <div className="md:hidden fixed inset-0 z-40" onClick={() => setOpenCat(null)} />}
-        <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50 flex items-end gap-1 rounded-[28px] glass-strong px-2 py-2 tilt-3d">
+        {openCat && <div className="lg:hidden fixed inset-0 z-40" onClick={() => setOpenCat(null)} />}
+        <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-50 flex items-end gap-1 rounded-[28px] glass-strong px-2 py-2 tilt-3d">
           <div className="flex-1 flex items-end justify-evenly">
             {BOTTOM_CATEGORIES_LEFT.map(cat => (
               <BottomCategoryButton
