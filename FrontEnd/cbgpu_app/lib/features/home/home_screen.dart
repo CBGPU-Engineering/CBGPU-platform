@@ -19,7 +19,7 @@ class _Feature {
 // same labels, same Tailwind -400 accent colors, Material-icon equivalents
 // of the lucide-react icons there.
 final _features = [
-  _Feature('자습신청', Icons.menu_book_outlined, AppColors.featureBlue),
+  _Feature('자습신청', Icons.menu_book_outlined, AppColors.featureBlue, '/study'),
   _Feature('시간표', Icons.calendar_month_outlined, AppColors.featureIndigo, '/timetable'),
   _Feature('급식', Icons.restaurant_outlined, AppColors.featureAmber, '/meal'),
   _Feature('투표', Icons.how_to_vote_outlined, AppColors.featureViolet, '/polls'),
