@@ -65,7 +65,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       child: Align(
         alignment: Alignment.topCenter,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 80, 16, 112),
+          padding: const EdgeInsets.fromLTRB(16, 120, 16, 112),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 448),
             child: GlassCard(
