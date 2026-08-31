@@ -44,9 +44,13 @@ final router = GoRouter(
         state.matchedLocation == '/login' ||
         state.matchedLocation == '/signup' ||
         state.matchedLocation.startsWith('/auth/');
+    final publicRoute =
+        authRoute ||
+        state.matchedLocation == '/' ||
+        state.matchedLocation == '/contact';
     final resetRoute = state.matchedLocation == '/auth/reset-password';
 
-    if (!loggedIn && !authRoute) return '/auth/login';
+    if (!loggedIn && !publicRoute) return '/auth/login';
     // A recovery link creates an authenticated recovery session before this
     // route renders. It must stay on the reset screen instead of being sent
     // home like an already signed-in visitor opening login/signup.

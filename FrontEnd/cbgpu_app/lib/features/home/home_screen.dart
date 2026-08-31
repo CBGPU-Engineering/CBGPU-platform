@@ -177,6 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
+    final loggedIn = Supabase.instance.client.auth.currentUser != null;
     final columns = width >= 640 ? 4 : 2;
     final horizontalPadding = width >= 768 ? 24.0 : 16.0;
 
@@ -277,6 +278,41 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
               ),
+              if (!loggedIn) ...[
+                const SizedBox(height: 40),
+                Material(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(28),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(28),
+                    onTap: () => context.go('/auth/signup'),
+                    child: const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '아직 계정이 없으신가요?',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '가입하고 학교생활에 필요한 모든 걸 한 곳에서 확인하세요 →',
+                            style: TextStyle(
+                              color: Color(0xCCFFFFFF),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
