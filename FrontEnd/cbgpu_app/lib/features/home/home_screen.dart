@@ -5,9 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/glass.dart';
 import '../../core/theme.dart';
 
-const _logoUrl =
-    'https://i.namu.wiki/i/qMgg10XRSaTorhAnQaV-bKbUWK_xIlq2socc7pVyw1SJmovke8gEWfeofFitiIJ1VBMngGy4o1NuAnjrOA0m1w.webp';
-
 class _Feature {
   const _Feature(this.label, this.icon, this.color);
   final String label;
@@ -65,61 +62,41 @@ class _HomeScreenState extends State<HomeScreen> {
     final width = MediaQuery.of(context).size.width;
     final columns = width >= 900 ? 6 : (width >= 600 ? 4 : 3);
 
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.network(_logoUrl, width: 26, height: 26),
-            const SizedBox(width: 8),
-            const Text('CBGPU'),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: '로그아웃',
-            onPressed: () => Supabase.instance.client.auth.signOut(),
+    return AmbientBackground(
+      child: ListView(
+        // Extra bottom padding so the last grid row doesn't sit under the
+        // floating bottom nav (mirrors the web app's `pb-28` on mobile).
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+        children: [
+          Text(
+            _fullName != null ? '$_fullName님,' : '안녕하세요,',
+            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+          ),
+          Text(
+            '오늘은 뭘 도와드릴까요?',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+            ),
+          ),
+          const SizedBox(height: 24),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _features.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.1,
+            ),
+            itemBuilder: (context, i) {
+              final f = _features[i];
+              return _FeatureCard(feature: f, onTap: () => context.go('/soon/${Uri.encodeComponent(f.label)}'));
+            },
           ),
         ],
-      ),
-      body: AmbientBackground(
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            children: [
-              Text(
-                _fullName != null ? '$_fullName님,' : '안녕하세요,',
-                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-              ),
-              Text(
-                '오늘은 뭘 도와드릴까요?',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-              ),
-              const SizedBox(height: 24),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _features.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columns,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 1.1,
-                ),
-                itemBuilder: (context, i) {
-                  final f = _features[i];
-                  return _FeatureCard(feature: f, onTap: () => context.go('/soon/${Uri.encodeComponent(f.label)}'));
-                },
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
