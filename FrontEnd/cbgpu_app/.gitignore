@@ -46,3 +46,7 @@ app.*.map.json
 
 # Supabase CLI local cache
 supabase/.temp/
+
+# Firebase service account keys should never sit in the repo — stored as a Supabase secret instead
+*firebase-adminsdk*.json
+/google-services.json
