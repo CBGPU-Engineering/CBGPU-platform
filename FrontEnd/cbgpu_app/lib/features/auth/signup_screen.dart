@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/glass.dart';
+import '../../core/theme.dart';
+
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -61,20 +64,24 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     if (_confirmationSent) {
       return Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.mark_email_read_outlined, size: 56),
-                const SizedBox(height: 16),
-                const Text('이메일을 확인해주세요', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22)),
-                const SizedBox(height: 8),
-                Text('${_emailController.text}로 인증 메일을 보냈습니다.', textAlign: TextAlign.center),
-                const SizedBox(height: 24),
-                TextButton(onPressed: () => context.go('/login'), child: const Text('로그인으로 이동')),
-              ],
+        body: AmbientBackground(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: GlassCard(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.mark_email_read_outlined, size: 56),
+                    const SizedBox(height: 16),
+                    const Text('이메일을 확인해주세요', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22)),
+                    const SizedBox(height: 8),
+                    Text('${_emailController.text}로 인증 메일을 보냈습니다.', textAlign: TextAlign.center),
+                    const SizedBox(height: 24),
+                    TextButton(onPressed: () => context.go('/login'), child: const Text('로그인으로 이동')),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -82,47 +89,59 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(title: const Text('Join CBGPU')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(controller: _nameController, decoration: const InputDecoration(labelText: '이름 (Name)')),
-                const SizedBox(height: 12),
-                TextField(controller: _studentIdController, decoration: const InputDecoration(labelText: '학번 (Student ID)')),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email'),
+      body: AmbientBackground(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: GlassCard(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const FieldLabel('이름 (Name)'),
+                      TextField(controller: _nameController, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      const FieldLabel('학번 (Student ID)'),
+                      TextField(controller: _studentIdController, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      const FieldLabel('Email'),
+                      TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+                      const FieldLabel('Password'),
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        onSubmitted: (_) => _handleSignup(),
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 12),
+                        Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.bold)),
+                      ],
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: _isSubmitting ? null : _handleSignup,
+                        child: Text(_isSubmitting ? 'CREATING...' : 'SIGN UP'),
+                      ),
+                      const SizedBox(height: 20),
+                      TextButton(
+                        onPressed: () => context.go('/login'),
+                        child: const Text('이미 계정이 있으신가요? 로그인'),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  onSubmitted: (_) => _handleSignup(),
-                  decoration: const InputDecoration(labelText: 'Password'),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                ],
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _isSubmitting ? null : _handleSignup,
-                  child: Text(_isSubmitting ? '가입 중...' : '가입하기'),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => context.go('/login'),
-                  child: const Text('이미 계정이 있으신가요? 로그인'),
-                ),
-              ],
+              ),
             ),
           ),
         ),
