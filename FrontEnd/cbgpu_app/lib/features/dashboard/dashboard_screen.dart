@@ -374,9 +374,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final horizontalPadding = screenWidth > 1432
+        ? (screenWidth - 1400) / 2
+        : 16.0;
     return AmbientBackground(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 40, 16, 112),
+        padding: EdgeInsets.fromLTRB(
+          horizontalPadding,
+          40,
+          horizontalPadding,
+          112,
+        ),
         children: [
           Wrap(
             alignment: WrapAlignment.spaceBetween,
@@ -652,7 +661,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 padding: const EdgeInsets.all(4),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 7,
-                  childAspectRatio: 0.75,
+                  mainAxisExtent: 28,
                 ),
                 itemCount: 7,
                 itemBuilder: (context, i) => Center(
@@ -666,94 +675,97 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               ),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(4),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 7,
-                  childAspectRatio: 0.85,
-                ),
-                itemCount: days.length,
-                itemBuilder: (context, i) {
-                  final day = days[i];
-                  final inMonth = day.month == _currentMonth.month;
-                  final isToday =
-                      day.year == today.year &&
-                      day.month == today.month &&
-                      day.day == today.day;
-                  final isSelected =
-                      _selectedDay != null &&
-                      _selectedDay!.year == day.year &&
-                      _selectedDay!.month == day.month &&
-                      _selectedDay!.day == day.day;
-                  final dayRes = _reservationsForDay(day);
-                  return InkWell(
-                    onTap: () =>
-                        setState(() => _selectedDay = isSelected ? null : day),
-                    child: Container(
-                      margin: const EdgeInsets.all(1),
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? Theme.of(
-                                context,
-                              ).colorScheme.primary.withValues(alpha: 0.08)
-                            : null,
-                        borderRadius: BorderRadius.circular(8),
-                        border: isSelected
-                            ? Border.all(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: 0.3),
-                              )
-                            : null,
+              LayoutBuilder(
+                builder: (context, constraints) => GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(4),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    mainAxisExtent: constraints.maxWidth < 700 ? 54 : 72,
+                  ),
+                  itemCount: days.length,
+                  itemBuilder: (context, i) {
+                    final day = days[i];
+                    final inMonth = day.month == _currentMonth.month;
+                    final isToday =
+                        day.year == today.year &&
+                        day.month == today.month &&
+                        day.day == today.day;
+                    final isSelected =
+                        _selectedDay != null &&
+                        _selectedDay!.year == day.year &&
+                        _selectedDay!.month == day.month &&
+                        _selectedDay!.day == day.day;
+                    final dayRes = _reservationsForDay(day);
+                    return InkWell(
+                      onTap: () => setState(
+                        () => _selectedDay = isSelected ? null : day,
                       ),
-                      child: Opacity(
-                        opacity: inMonth ? 1 : 0.3,
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 18,
-                              height: 18,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isToday
-                                    ? Theme.of(context).colorScheme.primary
-                                    : null,
-                              ),
-                              child: Text(
-                                '${day.day}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
-                                  color: isToday ? Colors.white : null,
+                      child: Container(
+                        margin: const EdgeInsets.all(1),
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.08)
+                              : null,
+                          borderRadius: BorderRadius.circular(8),
+                          border: isSelected
+                              ? Border.all(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withValues(alpha: 0.3),
+                                )
+                              : null,
+                        ),
+                        child: Opacity(
+                          opacity: inMonth ? 1 : 0.3,
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 18,
+                                height: 18,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isToday
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
+                                ),
+                                child: Text(
+                                  '${day.day}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: isToday ? Colors.white : null,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 2),
-                            Wrap(
-                              spacing: 1,
-                              alignment: WrapAlignment.center,
-                              children: [
-                                for (final r in dayRes.take(4))
-                                  Container(
-                                    width: 5,
-                                    height: 5,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: _gpuColors[r.gpuId],
+                              const SizedBox(height: 2),
+                              Wrap(
+                                spacing: 1,
+                                alignment: WrapAlignment.center,
+                                children: [
+                                  for (final r in dayRes.take(4))
+                                    Container(
+                                      width: 5,
+                                      height: 5,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: _gpuColors[r.gpuId],
+                                      ),
                                     ),
-                                  ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ],
           ),

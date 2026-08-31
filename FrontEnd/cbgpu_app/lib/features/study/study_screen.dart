@@ -93,6 +93,21 @@ class _StudyScreenState extends State<StudyScreen> {
       final today = DateTime.now();
       final dateStr = eduset.localDateStr(today);
 
+      // Render the room list as soon as the cheap base requests finish. The
+      // occupancy search/composition calls can continue in the background;
+      // they must not hold the entire page behind one global spinner.
+      var initialPeriodCount = policy == null
+          ? 0
+          : eduset.getPeriodCountForDate(policy, today);
+      if (initialPeriodCount <= 0) initialPeriodCount = _fallbackMinPeriods;
+      if (mounted) {
+        setState(() {
+          _roomData = rooms.map((room) => _RoomData(room: room)).toList();
+          _periodCount = initialPeriodCount;
+          _loading = false;
+        });
+      }
+
       List<eduset.SelfStudyEntry>? selfStudyEntries;
       try {
         // A failed aggregate search already has a room-by-room fallback in
@@ -404,8 +419,8 @@ class _StudyScreenState extends State<StudyScreen> {
     return AmbientBackground(
       child: Align(
         alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1056),
+        child: SizedBox(
+          width: MediaQuery.sizeOf(context).width.clamp(0, 1056).toDouble(),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 32, 16, 112),
             children: [
