@@ -40,6 +40,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String? _fullName;
+  String? _avatarUrl;
 
   @override
   void initState() {
@@ -53,10 +54,15 @@ class _HomeScreenState extends State<HomeScreen> {
     if (user == null) return;
     final data = await Supabase.instance.client
         .from('profiles')
-        .select('full_name')
+        .select('full_name, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
-    if (mounted) setState(() => _fullName = data?['full_name'] as String?);
+    if (mounted) {
+      setState(() {
+        _fullName = data?['full_name'] as String?;
+        _avatarUrl = data?['avatar_url'] as String?;
+      });
+    }
   }
 
   @override
@@ -70,17 +76,43 @@ class _HomeScreenState extends State<HomeScreen> {
         // floating bottom nav (mirrors the web app's `pb-28` on mobile).
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
         children: [
-          Text(
-            _fullName != null ? '$_fullName님,' : '안녕하세요,',
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-          ),
-          Text(
-            '오늘은 뭘 도와드릴까요?',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (_avatarUrl != null) ...[
+                ClipOval(
+                  child: Image.network(
+                    _avatarUrl!,
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const SizedBox(width: 64, height: 64),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Container(width: 1, height: 64, color: Theme.of(context).dividerColor),
+                const SizedBox(width: 16),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _fullName != null ? '$_fullName님,' : '안녕하세요,',
+                      style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+                    ),
+                    Text(
+                      '오늘은 뭘 도와드릴까요?',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
           GridView.builder(
