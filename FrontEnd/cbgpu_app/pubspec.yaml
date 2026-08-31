@@ -50,6 +50,8 @@ dependencies:
   home_widget: ^0.9.3
   workmanager: ^0.10.9
   archive: ^4.2.0
+  path_parsing: ^1.1.0
+  xml: ^7.0.1
 
 dev_dependencies:
   flutter_test:
