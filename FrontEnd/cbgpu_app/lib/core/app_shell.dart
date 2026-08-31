@@ -112,6 +112,7 @@ class AppShell extends StatelessWidget {
           ],
         ),
         actions: [
+          if (isDesktop) _DesktopLinkButton(label: 'Contact', onTap: () => context.go('/contact')),
           ValueListenableBuilder<ThemeMode>(
             valueListenable: themeModeNotifier,
             builder: (context, mode, _) => IconButton(
@@ -162,6 +163,7 @@ class AppShell extends StatelessWidget {
                   ListTile(title: Text(l.label, style: const TextStyle(fontWeight: FontWeight.bold)), onTap: () => _go(context, l.route)),
               ],
               const Divider(),
+              ListTile(title: const Text('Contact', style: TextStyle(fontWeight: FontWeight.bold)), onTap: () => _go(context, '/contact')),
               ListTile(
                 leading: const Icon(Icons.logout),
                 title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -171,6 +173,7 @@ class AppShell extends StatelessWidget {
                 },
               ),
             ] else ...[
+              ListTile(title: const Text('Contact', style: TextStyle(fontWeight: FontWeight.bold)), onTap: () => _go(context, '/contact')),
               ListTile(title: const Text('Login', style: TextStyle(fontWeight: FontWeight.w900)), onTap: () => _go(context, '/login')),
               ListTile(title: const Text('Join', style: TextStyle(fontWeight: FontWeight.w900)), onTap: () => _go(context, '/signup')),
             ],
