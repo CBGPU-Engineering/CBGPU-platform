@@ -92,10 +92,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Navbar />
               <SiteBanner />
               <ApprovalNotice />
-              <main className="flex-grow container mx-auto px-4 md:px-6 py-10 pb-28 lg:pb-10">
+              <main className="flex-grow container mx-auto px-4 md:px-6 py-10 pb-28 xl:pb-10">
                 <AuthGate>{children}</AuthGate>
               </main>
-              <footer className="hidden lg:block border-t py-12 bg-muted/20 text-center text-sm text-muted-foreground transition-all">
+              <footer className="hidden xl:block border-t py-12 bg-muted/20 text-center text-sm text-muted-foreground transition-all">
                 <div className="flex flex-col items-center gap-4">
                   <div className="flex items-center gap-2 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-500">
                     <img
