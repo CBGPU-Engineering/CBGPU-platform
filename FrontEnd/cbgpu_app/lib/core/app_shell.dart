@@ -5,11 +5,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'glass.dart';
 import 'theme_controller.dart';
 
-// Bundled locally (assets/logo.webp) instead of hotlinking the same
-// namu.wiki URL the web app uses — that host doesn't send CORS headers,
-// so Flutter Web's canvas-based image loading gets blocked outright
-// (a plain <img> tag on the web app doesn't have this restriction).
-const _logoAsset = 'assets/logo.webp';
+// Bundled locally instead of hotlinking the same namu.wiki URL the web app
+// uses — that host doesn't send CORS headers, so Flutter Web's canvas-based
+// image loading gets blocked outright (a plain <img> tag on the web app
+// doesn't have this restriction). Pre-resized to 256x256 with LANCZOS
+// resampling rather than shipping the 1000x1000 source and scaling it down
+// live at display time — that crest has fine detail (text rings, small
+// icons) that turns to visual noise when scaled down in one step at a tiny
+// display size, which is what "the logo looks broken" actually was.
+const _logoAsset = 'assets/logo.png';
 
 class _NavLink {
   const _NavLink(this.label, this.route);
@@ -85,9 +89,21 @@ class AppShell extends StatelessWidget {
         titleSpacing: isDesktop ? 24 : null,
         title: Row(
           children: [
-            Image.asset(_logoAsset, width: 26, height: 26),
-            const SizedBox(width: 8),
-            const Text('CBGPU'),
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => context.go('/'),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(_logoAsset, width: 30, height: 30, filterQuality: FilterQuality.high),
+                    const SizedBox(width: 8),
+                    const Text('CBGPU'),
+                  ],
+                ),
+              ),
+            ),
             if (isDesktop && loggedIn) ...[
               const SizedBox(width: 32),
               for (final l in _primaryLinks) _DesktopLinkButton(label: l.label, onTap: () => context.go(l.route)),
@@ -264,7 +280,7 @@ class _BottomNavState extends State<_BottomNav> {
   // clean off. Stack it as a sibling instead, overlapping the card from
   // above, so it's never subject to that ClipRRect.
   static const _buttonSize = 52.0;
-  static const _peekAbove = 22.0;
+  static const _peekAbove = 14.0;
 
   @override
   Widget build(BuildContext context) {
