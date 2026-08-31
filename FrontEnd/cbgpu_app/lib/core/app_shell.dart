@@ -33,7 +33,7 @@ class _NavGroup {
 final _primaryLinks = [
   _NavLink('GPU', '/dashboard'),
   _NavLink('Server', '/server'),
-  _NavLink('Manufacture', '/soon/Manufacture'),
+  _NavLink('Manufacture', '/manufacturing'),
 ];
 
 final _groups = [
