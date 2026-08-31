@@ -4,12 +4,20 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
 import { LoadingSpinner } from './ui/spinner';
 
-const PUBLIC_PATHS = ['/', '/auth/login', '/auth/signup', '/auth/callback', '/contact'];
+const PUBLIC_PATHS = ['/', '/contact'];
+
+function isPublicPath(pathname: string) {
+  // Every auth flow must be reachable before a normal signed-in session
+  // exists. This includes forgot/reset password and any future callback page.
+  // Sensitive actions still require the recovery session enforced by
+  // Supabase; this only allows the page itself to render.
+  return PUBLIC_PATHS.includes(pathname) || pathname.startsWith('/auth/');
+}
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const pathname = usePathname();
-  const isPublic = PUBLIC_PATHS.includes(pathname);
+  const isPublic = isPublicPath(pathname);
   const blocked = !isLoading && !user && !isPublic;
 
   // 공개 경로(로그인/회원가입 포함)는 auth 체크를 기다릴 필요가 전혀 없다 — 바로 렌더
