@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/admin_state.dart';
 import '../../core/glass.dart';
+import '../../core/home_widgets.dart';
 import '../../core/push_notifications.dart';
 import '../../core/theme.dart';
 
@@ -50,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadProfile();
     registerDeviceForPushNotifications();
+    refreshAllHomeWidgets();
   }
 
   Future<void> _loadProfile() async {

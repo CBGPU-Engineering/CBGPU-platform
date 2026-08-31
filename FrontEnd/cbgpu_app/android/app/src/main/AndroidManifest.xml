@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Only src/debug/AndroidManifest.xml had this before, so every network
+         call (Supabase, the Edge Functions backend) would have silently
+         failed in a release build despite working fine under `flutter run`. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="CBGPU"
         android:name="${applicationName}"
@@ -30,6 +35,46 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Home screen widgets — data pushed from lib/core/home_widgets.dart via
+             the home_widget plugin (foreground refresh + a periodic WorkManager
+             task); see widgets/BaseTextWidgetProvider.kt for the shared render code. -->
+        <receiver android:name=".widgets.GpuStatusWidgetProvider" android:exported="false" android:label="GPU 상태">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/gpu_status_widget_info" />
+        </receiver>
+        <receiver android:name=".widgets.Printer3dWidgetProvider" android:exported="false" android:label="3D 프린터">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/printer3d_widget_info" />
+        </receiver>
+        <receiver android:name=".widgets.LaserWidgetProvider" android:exported="false" android:label="레이저 커팅">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/laser_widget_info" />
+        </receiver>
+        <receiver android:name=".widgets.MealWidgetProvider" android:exported="false" android:label="오늘 급식">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/meal_widget_info" />
+        </receiver>
+        <receiver android:name=".widgets.TimetableWidgetProvider" android:exported="false" android:label="시간표">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/timetable_widget_info" />
+        </receiver>
+        <receiver android:name=".widgets.SelfStudyWidgetProvider" android:exported="false" android:label="자습신청">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/selfstudy_widget_info" />
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
