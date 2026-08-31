@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.cbgpu" "\0"
-            VALUE "FileDescription", "cbgpu_app" "\0"
+            VALUE "FileDescription", "CBGPU" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "cbgpu_app" "\0"
+            VALUE "InternalName", "CBGPU" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.cbgpu. All rights reserved." "\0"
             VALUE "OriginalFilename", "cbgpu_app.exe" "\0"
-            VALUE "ProductName", "cbgpu_app" "\0"
+            VALUE "ProductName", "CBGPU" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
