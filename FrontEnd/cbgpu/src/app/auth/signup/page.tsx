@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useAlert } from '@/lib/alert';
 import { getURL } from '@/lib/utils';
 import { MailCheck } from 'lucide-react';
+import { isValidStudentId, STUDENT_ID_HINT } from '@/lib/studentId';
 
 export default function Signup() {
   const [email, setEmail] = useState('');
@@ -21,6 +22,12 @@ export default function Signup() {
 
   const handleSignup = async (e: any) => {
     e.preventDefault();
+
+    if (!isValidStudentId(studentId)) {
+      showError(`학번 형식이 올바르지 않습니다. ${STUDENT_ID_HINT}`);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -84,12 +91,16 @@ export default function Signup() {
         </div>
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">학번 (Student ID)</label>
-          <Input 
-            placeholder="Student ID" 
+          <Input
+            placeholder="2309"
+            inputMode="numeric"
+            maxLength={4}
             className="bg-background border-input text-foreground font-bold"
-            onChange={(e: any) => setStudentId(e.target.value)} 
-            required 
+            value={studentId}
+            onChange={(e: any) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            required
           />
+          <p className="text-[10px] text-muted-foreground font-medium ml-1">{STUDENT_ID_HINT}</p>
         </div>
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Email</label>

@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { UserCircle2, Mail, Hash, Save, Loader2, Camera, KeyRound, Lock, ShieldAlert, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { isValidStudentId, STUDENT_ID_HINT } from '@/lib/studentId';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
@@ -56,6 +57,10 @@ export default function Profile() {
 
   async function updateProfile() {
     if (!user) return;
+    if (!isValidStudentId(studentId)) {
+      showError(`학번 형식이 올바르지 않습니다. ${STUDENT_ID_HINT}`);
+      return;
+    }
     setIsUpdating(true);
     try {
       const { error } = await supabase.from('profiles').update({
@@ -240,11 +245,14 @@ export default function Profile() {
             <Input
               name="student-id"
               autoComplete="off"
+              inputMode="numeric"
+              maxLength={4}
               value={studentId}
-              onChange={(e: any) => setStudentId(e.target.value)}
+              onChange={(e: any) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 4))}
               className="bg-background border-2 h-14 px-5 rounded-2xl font-black text-lg focus:ring-primary transition-all"
-              placeholder="Student ID"
+              placeholder="2309"
             />
+            <p className="text-[10px] text-muted-foreground font-medium ml-1">{STUDENT_ID_HINT}</p>
           </div>
         </div>
 

@@ -47,61 +47,72 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: AmbientBackground(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: GlassCard(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'CBGPU',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            fontStyle: FontStyle.italic,
-                            letterSpacing: -0.5,
-                          ),
-                    ),
-                    const SizedBox(height: 32),
-                    const FieldLabel('Email'),
-                    TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                      decoration: const InputDecoration(hintText: 'your@email.com'),
-                    ),
-                    const SizedBox(height: 16),
-                    const FieldLabel('Password'),
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                      onSubmitted: (_) => _handleLogin(),
-                      decoration: const InputDecoration(hintText: '••••••••'),
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 12),
-                      Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.bold)),
+    return AmbientBackground(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: GlassCard(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'SIGN IN',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          fontStyle: FontStyle.italic,
+                          letterSpacing: -0.5,
+                        ),
+                  ),
+                  const SizedBox(height: 32),
+                  const FieldLabel('Email'),
+                  TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    decoration: const InputDecoration(hintText: 'your@email.com'),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const FieldLabel('Password'),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: TextButton(
+                          onPressed: () => context.go('/soon/비밀번호 찾기'),
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                          child: const Text('비밀번호 찾기', style: TextStyle(fontSize: 11)),
+                        ),
+                      ),
                     ],
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _isSubmitting ? null : _handleLogin,
-                      child: Text(_isSubmitting ? 'SIGNING IN...' : 'LOGIN'),
-                    ),
-                    const SizedBox(height: 20),
-                    TextButton(
-                      onPressed: () => context.go('/signup'),
-                      child: const Text('계정이 없으신가요? 회원가입'),
-                    ),
+                  ),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    onSubmitted: (_) => _handleLogin(),
+                    decoration: const InputDecoration(hintText: '••••••••'),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.bold)),
                   ],
-                ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: _isSubmitting ? null : _handleLogin,
+                    child: Text(_isSubmitting ? 'SIGNING IN...' : 'LOGIN'),
+                  ),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: () => context.go('/signup'),
+                    child: const Text('계정이 없으신가요? 회원가입'),
+                  ),
+                ],
               ),
             ),
           ),
