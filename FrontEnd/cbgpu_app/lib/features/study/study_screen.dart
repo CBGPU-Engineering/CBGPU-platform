@@ -50,25 +50,6 @@ class _RoomData {
   final bool failed;
 }
 
-Future<T> _withRetry<T>(
-  Future<T> Function() fn, {
-  int attempts = 3,
-  int delayMs = 400,
-}) async {
-  Object? lastErr;
-  for (var i = 0; i < attempts; i++) {
-    try {
-      return await fn();
-    } catch (e) {
-      lastErr = e;
-      if (i < attempts - 1) {
-        await Future.delayed(Duration(milliseconds: delayMs * (i + 1)));
-      }
-    }
-  }
-  throw lastErr!;
-}
-
 class StudyScreen extends StatefulWidget {
   const StudyScreen({super.key});
   @override
@@ -114,9 +95,10 @@ class _StudyScreenState extends State<StudyScreen> {
 
       List<eduset.SelfStudyEntry>? selfStudyEntries;
       try {
-        selfStudyEntries = await _withRetry(
-          () => eduset.searchSelfStudy(dateStr),
-        );
+        // A failed aggregate search already has a room-by-room fallback in
+        // _loadRoom. Retrying it three times made a temporary upstream stall
+        // look like an infinite spinner for over a minute.
+        selfStudyEntries = await eduset.searchSelfStudy(dateStr);
       } catch (_) {
         selfStudyEntries = null;
       }
