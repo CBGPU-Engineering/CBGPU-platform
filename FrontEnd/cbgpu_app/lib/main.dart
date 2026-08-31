@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/home_widgets.dart';
@@ -9,7 +10,13 @@ import 'core/theme_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(url: SupabaseConfig.url, publishableKey: SupabaseConfig.anonKey);
+  // Match the React routes exactly so recovery links and refreshed nested
+  // pages do not get reinterpreted as /#/ routes by the web build.
+  usePathUrlStrategy();
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    publishableKey: SupabaseConfig.anonKey,
+  );
   await initializeHomeWidgets();
   runApp(const CbgpuApp());
 }
