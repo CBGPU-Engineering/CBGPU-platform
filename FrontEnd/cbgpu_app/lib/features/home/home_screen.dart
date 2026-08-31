@@ -13,13 +13,12 @@ import '../../core/push_notifications.dart';
 import '../../core/theme.dart';
 
 class _Feature {
-  const _Feature(this.label, this.icon, this.color, [this.route]);
+  const _Feature(this.label, this.icon, this.color, this.route);
   final String label;
   final IconData icon;
   final Color color;
 
-  /// Real route once migrated; falls back to /soon/:label until then.
-  final String? route;
+  final String route;
 }
 
 // Mirrors FEATURES in the Next.js home page (src/app/page.tsx) — same order,
@@ -55,7 +54,7 @@ final _features = [
     'Arcade',
     Icons.sports_esports_outlined,
     AppColors.featureViolet,
-    '/arcade',
+    '/games',
   ),
   _Feature('Feed', Icons.article_outlined, AppColors.featureBlue, '/feed'),
 ];
@@ -274,9 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   final f = _features[i];
                   return _FeatureCard(
                     feature: f,
-                    onTap: () => context.go(
-                      f.route ?? '/soon/${Uri.encodeComponent(f.label)}',
-                    ),
+                    onTap: () => context.go(f.route),
                   );
                 },
               ),
