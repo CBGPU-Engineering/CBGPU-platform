@@ -163,6 +163,7 @@ class AppShell extends StatelessWidget {
                   ListTile(title: Text(l.label, style: const TextStyle(fontWeight: FontWeight.bold)), onTap: () => _go(context, l.route)),
               ],
               const Divider(),
+              ListTile(leading: const Icon(Icons.account_circle_outlined), title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.w900)), onTap: () => _go(context, '/profile')),
               ListTile(title: const Text('Contact', style: TextStyle(fontWeight: FontWeight.bold)), onTap: () => _go(context, '/contact')),
               ListTile(
                 leading: const Icon(Icons.logout),
@@ -260,7 +261,7 @@ class _DesktopAccountButton extends StatelessWidget {
       ],
       onSelected: (value) {
         if (value == 'signout') Supabase.instance.client.auth.signOut();
-        if (value == 'profile') context.go('/soon/Profile');
+        if (value == 'profile') context.go('/profile');
       },
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 12),
