@@ -894,10 +894,19 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
     final pendingLaser = _allLaserJobs
         .where((j) => j['status'] == 'pending')
         .length;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final horizontalPadding = screenWidth > 1432
+        ? (screenWidth - 1400) / 2
+        : 16.0;
 
     return AmbientBackground(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 40, 16, 112),
+        padding: EdgeInsets.fromLTRB(
+          horizontalPadding,
+          40,
+          horizontalPadding,
+          112,
+        ),
         children: [
           const Text(
             '제작',
@@ -963,6 +972,7 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
   }
 
   Widget _buildPrintTab() {
+    final screenWidth = MediaQuery.sizeOf(context).width;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -990,11 +1000,11 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: screenWidth >= 1024 ? 4 : 2,
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
-            childAspectRatio: 1,
+            mainAxisExtent: 158,
           ),
           itemCount: _printers.length,
           itemBuilder: (context, i) =>

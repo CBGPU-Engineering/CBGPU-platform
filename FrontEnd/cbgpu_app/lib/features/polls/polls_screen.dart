@@ -396,8 +396,8 @@ class _PollsScreenState extends State<PollsScreen> {
     return AmbientBackground(
       child: Align(
         alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 704),
+        child: SizedBox(
+          width: MediaQuery.sizeOf(context).width.clamp(0, 704).toDouble(),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 32, 16, 112),
             children: [
