@@ -49,7 +49,7 @@ final _groups = [
   ]),
   _NavGroup('정보', Icons.article_outlined, [
     _NavLink('투표', '/soon/투표'),
-    _NavLink('Feed', '/soon/Feed'),
+    _NavLink('Feed', '/feed'),
   ]),
 ];
 
