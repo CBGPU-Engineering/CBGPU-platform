@@ -54,10 +54,15 @@
      아주 옅게 브랜드 색조(250 hue)를 섞어서 차가운 무채색보다 은은하게. */
   --background: oklch(0.975 0.004 250);
   --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
+  --card-opaque: oklch(1 0 0);
+  --card: oklch(1 0 0 / 0.82);
   --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
+  --card-blur: blur(18px) saturate(1.5);
+  /* 팝오버는 카드가 아니라 목록/드롭다운처럼 뒤 콘텐츠 위에 뜨는 것 — glass-strong과
+     같은 안전 기준(거의 불투명)을 쓴다. 그래야 뒤 텍스트가 비쳐 겹쳐 보이는 문제가 없다. */
+  --popover: oklch(1 0 0 / 0.92);
   --popover-foreground: oklch(0.145 0 0);
+  --popover-blur: blur(28px) saturate(1.6);
   --primary: oklch(0.6 0.18 250);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.96 0.004 250);
@@ -105,9 +110,10 @@
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --card-opaque: oklch(0.205 0 0);
+  --card: oklch(0.205 0 0 / 0.78);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
+  --popover: oklch(0.205 0 0 / 0.92);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.6 0.18 250); 
   --primary-foreground: oklch(0.205 0 0);
@@ -147,19 +153,25 @@
 @media (prefers-reduced-transparency: reduce) {
   :root {
     --glass-bg: var(--background);
-    --glass-bg-strong: var(--card);
+    --glass-bg-strong: var(--card-opaque);
     --glass-border: var(--border);
     --glass-highlight: transparent;
     --glass-blur: none;
     --glass-blur-strong: none;
+    --card: var(--card-opaque);
+    --popover: var(--card-opaque);
+    --card-blur: none;
+    --popover-blur: none;
   }
 }
 
 @supports not (backdrop-filter: blur(1px)) {
   :root {
     --glass-bg: var(--background);
-    --glass-bg-strong: var(--card);
+    --glass-bg-strong: var(--card-opaque);
     --glass-highlight: transparent;
+    --card: var(--card-opaque);
+    --popover: var(--card-opaque);
   }
 }
 
@@ -192,8 +204,9 @@
   animation: printer-glow 1.6s ease-in-out infinite;
 }
 
-/* 컨트롤 레이어(네비/모달/토스트) 전용 유리 재질 — 콘텐츠 카드에는 쓰지 않는다.
-   화면당 한 겹만 겹치는 애플 Liquid Glass 원칙을 따른다.
+/* 네비/모달/토스트처럼 화면에 떠서 다른 텍스트 위에 겹칠 수 있는 컨트롤 레이어 전용.
+   콘텐츠 카드는 아래 [class*="bg-card"] 규칙으로 따로 처리한다 — 카드는 보통 빈 배경
+   위에 놓이지 뒤에 다른 글자가 있는 경우가 아니라서, 이 유틸보다 살짝 더 투명해도 안전하다.
    위쪽에서 빛을 받는 느낌을 주는 대각선 하이라이트를 배경에 얹어서 입체감을 준다 —
    단, 하이라이트는 장식일 뿐이고 실제 대비는 위 --glass-bg 불투명도가 책임진다. */
 @utility glass {
@@ -212,6 +225,20 @@
   -webkit-backdrop-filter: var(--glass-blur-strong);
   border: 1px solid var(--glass-border);
   box-shadow: 0 16px 48px -16px oklch(0 0 0 / 0.24), inset 0 1px 0 0 var(--glass-highlight);
+}
+
+/* bg-card/bg-popover는 site 전체 30여개 파일에 흩어진 문자열 그대로라 각 파일을 고치는 대신,
+   그 색 토큰 자체를 반투명으로 바꾸고(위 --card/--popover) 여기서 블러만 얹는다 — 클래스
+   문자열에 "bg-card"/"bg-popover"가 들어간 요소는 전부 자동으로 유리 재질이 된다. */
+[class*="bg-card"] {
+  background-image: linear-gradient(165deg, var(--glass-highlight), transparent 55%);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
+}
+[class*="bg-popover"] {
+  background-image: linear-gradient(165deg, var(--glass-highlight), transparent 45%);
+  backdrop-filter: var(--popover-blur);
+  -webkit-backdrop-filter: var(--popover-blur);
 }
 
 /* 모션 축소를 요청한 사용자에겐 트랜지션/애니메이션을 사실상 끈다 — 3D 프레스, 유리
@@ -238,10 +265,31 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    /* 파스텔 앰비언트 배경 — 유리 재질(navbar/card/popover)이 블러로 비칠 무언가가 있어야
+       "유리처럼" 보인다. 옅은 색이라 일반 텍스트 대비엔 영향이 없고, 카드/팝오버 자체의
+       불투명도가 이미 텍스트 대비를 책임진다. */
+    background-image:
+      radial-gradient(ellipse 55% 40% at 10% 5%, oklch(0.88 0.09 290 / 0.4), transparent 65%),
+      radial-gradient(ellipse 50% 40% at 90% 10%, oklch(0.9 0.08 350 / 0.32), transparent 65%),
+      radial-gradient(ellipse 55% 45% at 50% 100%, oklch(0.89 0.09 175 / 0.3), transparent 65%);
+    background-repeat: no-repeat;
   }
 
   .dark {
     color-scheme: dark;
+  }
+
+  .dark body {
+    background-image:
+      radial-gradient(ellipse 55% 40% at 10% 5%, oklch(0.32 0.13 290 / 0.45), transparent 65%),
+      radial-gradient(ellipse 50% 40% at 90% 10%, oklch(0.3 0.14 345 / 0.4), transparent 65%),
+      radial-gradient(ellipse 55% 45% at 50% 100%, oklch(0.3 0.12 190 / 0.35), transparent 65%);
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    body, .dark body {
+      background-image: none;
+    }
   }
 
   /* 도허티 임계/터치 피드백: 모든 네이티브 버튼에 기본 3D 프레스 효과를 준다 — 화면을
