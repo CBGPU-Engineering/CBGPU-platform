@@ -44,7 +44,7 @@ final _groups = [
   ]),
   _NavGroup('도구', Icons.build_outlined, [
     _NavLink('노트', '/soon/노트'),
-    _NavLink('도구', '/soon/도구'),
+    _NavLink('도구', '/tools'),
     _NavLink('Arcade', '/soon/Arcade'),
   ]),
   _NavGroup('정보', Icons.article_outlined, [
