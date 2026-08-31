@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app_shell.dart';
+import 'motion.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/home/home_screen.dart';
@@ -25,12 +26,13 @@ final router = GoRouter(
     ShellRoute(
       builder: (context, state, child) => AppShell(child: child),
       routes: [
-        GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
-        GoRoute(path: '/signup', builder: (context, state) => const SignupScreen()),
-        GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+        GoRoute(path: '/login', pageBuilder: (context, state) => springPage(state: state, child: const LoginScreen())),
+        GoRoute(path: '/signup', pageBuilder: (context, state) => springPage(state: state, child: const SignupScreen())),
+        GoRoute(path: '/', pageBuilder: (context, state) => springPage(state: state, child: const HomeScreen())),
         GoRoute(
           path: '/soon/:label',
-          builder: (context, state) => ComingSoonScreen(label: state.pathParameters['label'] ?? ''),
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: ComingSoonScreen(label: state.pathParameters['label'] ?? '')),
         ),
       ],
     ),

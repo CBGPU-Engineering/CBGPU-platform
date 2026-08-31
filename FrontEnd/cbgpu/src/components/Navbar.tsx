@@ -58,7 +58,7 @@ const BOTTOM_CATEGORIES_LEFT: BottomCategory[] = [
     { href: '/meal', label: '급식', Icon: UtensilsCrossed },
     { href: '/match', label: '스터디', Icon: Users },
   ] },
-  { key: 'gpu', label: 'GPU', Icon: Cpu, links: [
+  { key: 'gpu', label: '학교자원', Icon: Cpu, links: [
     { href: '/dashboard', label: 'GPU 예약', Icon: Cpu },
     { href: '/server',    label: '서버 배포', Icon: Server },
     { href: '/manufacturing', label: '제작', Icon: Printer },
