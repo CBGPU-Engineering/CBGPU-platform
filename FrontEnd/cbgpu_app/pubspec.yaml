@@ -49,6 +49,7 @@ dependencies:
   file_picker: ^12.1.2
   home_widget: ^0.9.3
   workmanager: ^0.10.9
+  archive: ^4.2.0
 
 dev_dependencies:
   flutter_test:
