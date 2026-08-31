@@ -28,7 +28,7 @@ final _features = [
   _Feature('GPU 대여', Icons.memory_outlined, AppColors.featureSlate),
   _Feature('서버 배포', Icons.dns_outlined, AppColors.featureEmerald),
   _Feature('제작', Icons.print_outlined, AppColors.featureOrange),
-  _Feature('도구', Icons.build_outlined, AppColors.featureCyan),
+  _Feature('도구', Icons.build_outlined, AppColors.featureCyan, '/tools'),
   _Feature('Arcade', Icons.sports_esports_outlined, AppColors.featureViolet),
   _Feature('Feed', Icons.article_outlined, AppColors.featureBlue),
 ];
