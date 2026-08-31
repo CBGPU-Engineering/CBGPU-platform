@@ -3,6 +3,8 @@
          call (Supabase, the Edge Functions backend) would have silently
          failed in a release build despite working fine under `flutter run`. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Runtime-granted on Android 13+ by FirebaseMessaging.requestPermission(). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
         android:label="CBGPU"
