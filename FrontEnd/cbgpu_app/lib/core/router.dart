@@ -11,6 +11,7 @@ import '../features/auth/signup_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/home/coming_soon_screen.dart';
 import '../features/meal/meal_screen.dart';
+import '../features/contact/contact_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/',
@@ -31,6 +32,7 @@ final router = GoRouter(
         GoRoute(path: '/signup', pageBuilder: (context, state) => springPage(state: state, child: const SignupScreen())),
         GoRoute(path: '/', pageBuilder: (context, state) => springPage(state: state, child: const HomeScreen())),
         GoRoute(path: '/meal', pageBuilder: (context, state) => springPage(state: state, child: const MealScreen())),
+        GoRoute(path: '/contact', pageBuilder: (context, state) => springPage(state: state, child: const ContactScreen())),
         GoRoute(
           path: '/soon/:label',
           pageBuilder: (context, state) =>
