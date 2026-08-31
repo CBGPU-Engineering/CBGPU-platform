@@ -70,21 +70,44 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     if (_confirmationSent) {
       return AmbientBackground(
-        child: Center(
+        child: Align(
+          alignment: Alignment.topCenter,
           child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: GlassCard(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.mark_email_read_outlined, size: 56),
-                  const SizedBox(height: 16),
-                  const Text('이메일을 확인해주세요', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22)),
-                  const SizedBox(height: 8),
-                  Text('${_emailController.text}로 인증 메일을 보냈습니다.', textAlign: TextAlign.center),
-                  const SizedBox(height: 24),
-                  TextButton(onPressed: () => context.go('/login'), child: const Text('로그인으로 이동')),
-                ],
+            padding: const EdgeInsets.fromLTRB(16, 80, 16, 112),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 448),
+              child: GlassCard(
+                radius: 28,
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.mark_email_read_outlined,
+                      size: 48,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      '이메일을 확인해주세요',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 24,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${_emailController.text}로 인증 메일을 보냈습니다. 메일의 링크를 눌러야 로그인할 수 있습니다.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    TextButton(
+                      onPressed: () => context.go('/auth/login'),
+                      child: const Text('로그인으로 이동'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -93,12 +116,14 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     return AmbientBackground(
-      child: Center(
+      child: Align(
+        alignment: Alignment.topCenter,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(16, 40, 16, 112),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
+            constraints: const BoxConstraints(maxWidth: 448),
             child: GlassCard(
+              radius: 28,
               padding: const EdgeInsets.all(32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -108,26 +133,41 @@ class _SignupScreenState extends State<SignupScreen> {
                     'JOIN CBGPU',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          fontStyle: FontStyle.italic,
-                          letterSpacing: -0.5,
-                        ),
+                      fontWeight: FontWeight.w900,
+                      fontStyle: FontStyle.italic,
+                      letterSpacing: -0.5,
+                    ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                   const FieldLabel('이름 (Name)'),
-                  TextField(controller: _nameController, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  TextField(
+                    controller: _nameController,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    decoration: const InputDecoration(hintText: 'Name'),
+                  ),
                   const SizedBox(height: 16),
                   const FieldLabel('학번 (Student ID)'),
                   TextField(
                     controller: _studentIdController,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(4)],
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(4),
+                    ],
                     style: const TextStyle(fontWeight: FontWeight.bold),
                     decoration: const InputDecoration(hintText: '2309'),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: 4, left: 4),
-                    child: Text(studentIdHint, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5))),
+                    child: Text(
+                      studentIdHint,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   const FieldLabel('Email'),
@@ -135,6 +175,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     style: const TextStyle(fontWeight: FontWeight.bold),
+                    decoration: const InputDecoration(
+                      hintText: 'your@email.com',
+                    ),
                   ),
                   const SizedBox(height: 16),
                   const FieldLabel('Password'),
@@ -142,21 +185,28 @@ class _SignupScreenState extends State<SignupScreen> {
                     controller: _passwordController,
                     obscureText: true,
                     style: const TextStyle(fontWeight: FontWeight.bold),
+                    decoration: const InputDecoration(hintText: '••••••••'),
                     onSubmitted: (_) => _handleSignup(),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
-                    Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.bold)),
+                    Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _isSubmitting ? null : _handleSignup,
                     child: Text(_isSubmitting ? 'CREATING...' : 'SIGN UP'),
                   ),
                   const SizedBox(height: 20),
                   TextButton(
-                    onPressed: () => context.go('/login'),
-                    child: const Text('이미 계정이 있으신가요? 로그인'),
+                    onPressed: () => context.go('/auth/login'),
+                    child: const Text('Already have an account?  Log In'),
                   ),
                 ],
               ),

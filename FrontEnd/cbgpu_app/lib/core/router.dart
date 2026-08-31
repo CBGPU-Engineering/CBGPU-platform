@@ -8,6 +8,8 @@ import 'app_shell.dart';
 import 'motion.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
+import '../features/auth/forgot_password_screen.dart';
+import '../features/auth/reset_password_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/home/coming_soon_screen.dart';
 import '../features/meal/meal_screen.dart';
@@ -33,52 +35,189 @@ import '../features/manufacturing/laser_detail_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/',
-  refreshListenable: GoRouterRefreshStream(Supabase.instance.client.auth.onAuthStateChange),
+  refreshListenable: GoRouterRefreshStream(
+    Supabase.instance.client.auth.onAuthStateChange,
+  ),
   redirect: (context, state) {
     final loggedIn = Supabase.instance.client.auth.currentSession != null;
-    final loggingInRoute = state.matchedLocation == '/login' || state.matchedLocation == '/signup';
+    final authRoute =
+        state.matchedLocation == '/login' ||
+        state.matchedLocation == '/signup' ||
+        state.matchedLocation.startsWith('/auth/');
+    final resetRoute = state.matchedLocation == '/auth/reset-password';
 
-    if (!loggedIn && !loggingInRoute) return '/login';
-    if (loggedIn && loggingInRoute) return '/';
+    if (!loggedIn && !authRoute) return '/auth/login';
+    // A recovery link creates an authenticated recovery session before this
+    // route renders. It must stay on the reset screen instead of being sent
+    // home like an already signed-in visitor opening login/signup.
+    if (loggedIn && authRoute && !resetRoute) return '/';
     return null;
   },
   routes: [
     ShellRoute(
       builder: (context, state, child) => AppShell(child: child),
       routes: [
-        GoRoute(path: '/login', pageBuilder: (context, state) => springPage(state: state, child: const LoginScreen())),
-        GoRoute(path: '/signup', pageBuilder: (context, state) => springPage(state: state, child: const SignupScreen())),
-        GoRoute(path: '/', pageBuilder: (context, state) => springPage(state: state, child: const HomeScreen())),
-        GoRoute(path: '/meal', pageBuilder: (context, state) => springPage(state: state, child: const MealScreen())),
-        GoRoute(path: '/timetable', pageBuilder: (context, state) => springPage(state: state, child: const TimetableScreen())),
-        GoRoute(path: '/tools', pageBuilder: (context, state) => springPage(state: state, child: const ToolsScreen())),
-        GoRoute(path: '/match', pageBuilder: (context, state) => springPage(state: state, child: const MatchScreen())),
-        GoRoute(path: '/profile', pageBuilder: (context, state) => springPage(state: state, child: const ProfileScreen())),
-        GoRoute(path: '/notes', pageBuilder: (context, state) => springPage(state: state, child: const NotesScreen())),
-        GoRoute(path: '/feed', pageBuilder: (context, state) => springPage(state: state, child: const FeedScreen())),
-        GoRoute(path: '/polls', pageBuilder: (context, state) => springPage(state: state, child: const PollsScreen())),
-        GoRoute(path: '/study', pageBuilder: (context, state) => springPage(state: state, child: const StudyScreen())),
-        GoRoute(path: '/dashboard', pageBuilder: (context, state) => springPage(state: state, child: const DashboardScreen())),
-        GoRoute(path: '/server', pageBuilder: (context, state) => springPage(state: state, child: const ServerListScreen())),
-        GoRoute(path: '/server/new', pageBuilder: (context, state) => springPage(state: state, child: const ServerNewScreen())),
-        GoRoute(path: '/server/:id', pageBuilder: (context, state) => springPage(state: state, child: ServerDetailScreen(id: state.pathParameters['id']!))),
-        GoRoute(path: '/admin', pageBuilder: (context, state) => springPage(state: state, child: const AdminScreen())),
-        GoRoute(path: '/admin/study', pageBuilder: (context, state) => springPage(state: state, child: const AdminStudyTokenScreen())),
-        GoRoute(path: '/arcade', pageBuilder: (context, state) => springPage(state: state, child: const ArcadeScreen())),
-        GoRoute(path: '/manufacturing', pageBuilder: (context, state) => springPage(state: state, child: const ManufacturingScreen())),
-        GoRoute(path: '/manufacturing/print/new', pageBuilder: (context, state) => springPage(state: state, child: const PrintNewScreen())),
-        GoRoute(path: '/manufacturing/laser/new', pageBuilder: (context, state) => springPage(state: state, child: const LaserNewScreen())),
-        GoRoute(path: '/manufacturing/print/:id', pageBuilder: (context, state) => springPage(state: state, child: PrintDetailScreen(id: state.pathParameters['id']!))),
-        GoRoute(path: '/manufacturing/laser/:id', pageBuilder: (context, state) => springPage(state: state, child: LaserDetailScreen(id: state.pathParameters['id']!))),
-        GoRoute(path: '/contact', pageBuilder: (context, state) => springPage(state: state, child: const ContactScreen())),
+        GoRoute(
+          path: '/login',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const LoginScreen()),
+        ),
+        GoRoute(
+          path: '/signup',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const SignupScreen()),
+        ),
+        GoRoute(
+          path: '/auth/login',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const LoginScreen()),
+        ),
+        GoRoute(
+          path: '/auth/signup',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const SignupScreen()),
+        ),
+        GoRoute(
+          path: '/auth/forgot-password',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const ForgotPasswordScreen()),
+        ),
+        GoRoute(
+          path: '/auth/reset-password',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const ResetPasswordScreen()),
+        ),
+        GoRoute(
+          path: '/',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const HomeScreen()),
+        ),
+        GoRoute(
+          path: '/meal',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const MealScreen()),
+        ),
+        GoRoute(
+          path: '/timetable',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const TimetableScreen()),
+        ),
+        GoRoute(
+          path: '/tools',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const ToolsScreen()),
+        ),
+        GoRoute(
+          path: '/match',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const MatchScreen()),
+        ),
+        GoRoute(
+          path: '/profile',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const ProfileScreen()),
+        ),
+        GoRoute(
+          path: '/notes',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const NotesScreen()),
+        ),
+        GoRoute(
+          path: '/feed',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const FeedScreen()),
+        ),
+        GoRoute(
+          path: '/polls',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const PollsScreen()),
+        ),
+        GoRoute(
+          path: '/study',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const StudyScreen()),
+        ),
+        GoRoute(
+          path: '/dashboard',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const DashboardScreen()),
+        ),
+        GoRoute(
+          path: '/server',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const ServerListScreen()),
+        ),
+        GoRoute(
+          path: '/server/new',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const ServerNewScreen()),
+        ),
+        GoRoute(
+          path: '/server/:id',
+          pageBuilder: (context, state) => springPage(
+            state: state,
+            child: ServerDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ),
+        GoRoute(
+          path: '/admin',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const AdminScreen()),
+        ),
+        GoRoute(
+          path: '/admin/study',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const AdminStudyTokenScreen()),
+        ),
+        GoRoute(
+          path: '/arcade',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const ArcadeScreen()),
+        ),
+        GoRoute(
+          path: '/manufacturing',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const ManufacturingScreen()),
+        ),
+        GoRoute(
+          path: '/manufacturing/print/new',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const PrintNewScreen()),
+        ),
+        GoRoute(
+          path: '/manufacturing/laser/new',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const LaserNewScreen()),
+        ),
+        GoRoute(
+          path: '/manufacturing/print/:id',
+          pageBuilder: (context, state) => springPage(
+            state: state,
+            child: PrintDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ),
+        GoRoute(
+          path: '/manufacturing/laser/:id',
+          pageBuilder: (context, state) => springPage(
+            state: state,
+            child: LaserDetailScreen(id: state.pathParameters['id']!),
+          ),
+        ),
+        GoRoute(
+          path: '/contact',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const ContactScreen()),
+        ),
         // Mirrors the web app's /schedule, which is just `redirect('/dashboard')` —
         // no actual page. Points at the GPU placeholder until Dashboard is ported,
         // same as the web app currently points at Dashboard.
         GoRoute(path: '/schedule', redirect: (context, state) => '/dashboard'),
         GoRoute(
           path: '/soon/:label',
-          pageBuilder: (context, state) =>
-              springPage(state: state, child: ComingSoonScreen(label: state.pathParameters['label'] ?? '')),
+          pageBuilder: (context, state) => springPage(
+            state: state,
+            child: ComingSoonScreen(label: state.pathParameters['label'] ?? ''),
+          ),
         ),
       ],
     ),
