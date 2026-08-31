@@ -91,13 +91,15 @@
   --ease-quick: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* 글래스 레이어 토큰 — 애플 Liquid Glass 가이드대로 네비/모달 같은 컨트롤 레이어 전용.
-     콘텐츠 카드에는 쓰지 않는다(반투명이 대비를 떨어뜨림). */
-  --glass-bg: oklch(1 0 0 / 0.55);
-  --glass-bg-strong: oklch(1 0 0 / 0.72);
-  --glass-border: oklch(1 0 0 / 0.5);
-  --glass-highlight: oklch(1 0 0 / 0.6);
-  --glass-blur: blur(20px) saturate(1.8);
-  --glass-blur-strong: blur(28px) saturate(1.8);
+     콘텐츠 카드에는 쓰지 않는다(반투명이 대비를 떨어뜨림).
+     불투명도는 일부러 높게 잡았다 — 뒤에 굵은 헤딩 텍스트가 있으면 블러만으론 못 가려서
+     드롭다운 메뉴 글자와 겹쳐 보이는 문제가 실제로 있었음(다크 모드 8% 불투명도가 원인). */
+  --glass-bg: oklch(1 0 0 / 0.65);
+  --glass-bg-strong: oklch(1 0 0 / 0.9);
+  --glass-border: oklch(1 0 0 / 0.55);
+  --glass-highlight: oklch(1 0 0 / 0.65);
+  --glass-blur: blur(20px) saturate(1.7);
+  --glass-blur-strong: blur(32px) saturate(1.6);
 }
 
 .dark {
@@ -135,10 +137,10 @@
   --success: oklch(0.65 0.16 145);
   --success-foreground: oklch(0.145 0 0);
 
-  --glass-bg: oklch(1 0 0 / 0.08);
-  --glass-bg-strong: oklch(0.205 0 0 / 0.75);
-  --glass-border: oklch(1 0 0 / 0.12);
-  --glass-highlight: oklch(1 0 0 / 0.08);
+  --glass-bg: oklch(0.145 0 0 / 0.55);
+  --glass-bg-strong: oklch(0.205 0 0 / 0.92);
+  --glass-border: oklch(1 0 0 / 0.14);
+  --glass-highlight: oklch(1 0 0 / 0.1);
 }
 
 /* 투명도 축소를 요청한 사용자에겐 유리 대신 기존 solid 톤으로 대체 */
@@ -191,18 +193,21 @@
 }
 
 /* 컨트롤 레이어(네비/모달/토스트) 전용 유리 재질 — 콘텐츠 카드에는 쓰지 않는다.
-   화면당 한 겹만 겹치는 애플 Liquid Glass 원칙을 따른다. */
+   화면당 한 겹만 겹치는 애플 Liquid Glass 원칙을 따른다.
+   위쪽에서 빛을 받는 느낌을 주는 대각선 하이라이트를 배경에 얹어서 입체감을 준다 —
+   단, 하이라이트는 장식일 뿐이고 실제 대비는 위 --glass-bg 불투명도가 책임진다. */
 @utility glass {
-  background: var(--glass-bg);
+  background: linear-gradient(165deg, var(--glass-highlight), transparent 45%), var(--glass-bg);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   box-shadow: 0 8px 32px -12px oklch(0 0 0 / 0.18), inset 0 1px 0 0 var(--glass-highlight);
 }
 
-/* 모달처럼 뒤 콘텐츠와 확실히 분리돼야 하는 곳 — 더 깊은 블러 + 더 높은 불투명도 */
+/* 얇은 네비 바가 아니라 드롭다운/모달/토스트처럼 "글자로 된 목록"이 떠 있는 곳 전용 —
+   뒤에 어떤 콘텐츠가 있어도 글자가 겹쳐 보이면 안 되므로 거의 불투명에 가깝게 잡았다. */
 @utility glass-strong {
-  background: var(--glass-bg-strong);
+  background: linear-gradient(165deg, var(--glass-highlight), transparent 45%), var(--glass-bg-strong);
   backdrop-filter: var(--glass-blur-strong);
   -webkit-backdrop-filter: var(--glass-blur-strong);
   border: 1px solid var(--glass-border);
