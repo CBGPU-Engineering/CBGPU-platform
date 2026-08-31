@@ -25,6 +25,11 @@ import '../features/server/server_screen.dart';
 import '../features/admin/admin_screen.dart';
 import '../features/admin/admin_study_token_screen.dart';
 import '../features/games/arcade_screen.dart';
+import '../features/manufacturing/manufacturing_screen.dart';
+import '../features/manufacturing/print_new_screen.dart';
+import '../features/manufacturing/laser_new_screen.dart';
+import '../features/manufacturing/print_detail_screen.dart';
+import '../features/manufacturing/laser_detail_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/',
@@ -60,6 +65,11 @@ final router = GoRouter(
         GoRoute(path: '/admin', pageBuilder: (context, state) => springPage(state: state, child: const AdminScreen())),
         GoRoute(path: '/admin/study', pageBuilder: (context, state) => springPage(state: state, child: const AdminStudyTokenScreen())),
         GoRoute(path: '/arcade', pageBuilder: (context, state) => springPage(state: state, child: const ArcadeScreen())),
+        GoRoute(path: '/manufacturing', pageBuilder: (context, state) => springPage(state: state, child: const ManufacturingScreen())),
+        GoRoute(path: '/manufacturing/print/new', pageBuilder: (context, state) => springPage(state: state, child: const PrintNewScreen())),
+        GoRoute(path: '/manufacturing/laser/new', pageBuilder: (context, state) => springPage(state: state, child: const LaserNewScreen())),
+        GoRoute(path: '/manufacturing/print/:id', pageBuilder: (context, state) => springPage(state: state, child: PrintDetailScreen(id: state.pathParameters['id']!))),
+        GoRoute(path: '/manufacturing/laser/:id', pageBuilder: (context, state) => springPage(state: state, child: LaserDetailScreen(id: state.pathParameters['id']!))),
         GoRoute(path: '/contact', pageBuilder: (context, state) => springPage(state: state, child: const ContactScreen())),
         // Mirrors the web app's /schedule, which is just `redirect('/dashboard')` —
         // no actual page. Points at the GPU placeholder until Dashboard is ported,
