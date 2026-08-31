@@ -137,9 +137,12 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
-          // Flutter applies desktop visual-density shrinkage on web; 56
-          // resolves to the same painted 48px height as Tailwind's py-6.
-          minimumSize: const Size.fromHeight(56),
+          // Never use Size.fromHeight here: it sets width to infinity. As a
+          // global style that made every button inside a Row consume all
+          // horizontal space and squeezed adjacent Korean headings into a
+          // one-character-wide vertical column.
+          minimumSize: const Size(0, 48),
+          visualDensity: VisualDensity.standard,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
