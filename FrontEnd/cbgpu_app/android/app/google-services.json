@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "274580224019",
+    "project_id": "cbgpu-35cdf",
+    "storage_bucket": "cbgpu-35cdf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:274580224019:android:5000b138d614530e7a27e6",
+        "android_client_info": {
+          "package_name": "com.cbgpu.cbgpu_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDpb5H7htTe2W3wKUhA6DvymK70OKrVq5Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

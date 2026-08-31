@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/glass.dart';
+import '../../core/push_notifications.dart';
 import '../../core/theme.dart';
 
 class _Feature {
@@ -44,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadProfile();
+    registerDeviceForPushNotifications();
   }
 
   Future<void> _loadProfile() async {
