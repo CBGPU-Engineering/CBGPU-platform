@@ -1,11 +1,11 @@
 {
-    "name": "cbgpu_app",
-    "short_name": "cbgpu_app",
+    "name": "CBGPU",
+    "short_name": "CBGPU",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#111827",
+    "description": "CBGPU — 충북과학고 동아리 GPU 대여, 시간표, 자습신청, 제작 등 학교 자원 플랫폼",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
