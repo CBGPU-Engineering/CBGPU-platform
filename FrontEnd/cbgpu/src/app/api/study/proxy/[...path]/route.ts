@@ -56,6 +56,15 @@ async function requireApprovedUser(request: NextRequest) {
 let cachedToken: { value: string | null; fetchedAt: number } | null = null;
 const TOKEN_CACHE_TTL_MS = 60_000;
 
+function getResponseContentType(headers: Headers): string {
+  // Some upstream responses contain the Content-Type header more than once.
+  // Fetch joins duplicate values with a comma, but that joined value is not a
+  // valid media type and runtimes such as Deno reject it when constructing the
+  // downstream response. Only forward the first complete media type.
+  const value = headers.get('content-type');
+  return value?.split(',')[0].trim() || 'application/json';
+}
+
 /** 관리자가 등록해둔 자습신청 토큰을 가져온다. 모든 방문자가 이 토큰으로 조회한다. */
 async function getSharedToken(): Promise<string | null> {
   if (cachedToken && Date.now() - cachedToken.fetchedAt < TOKEN_CACHE_TTL_MS) {
@@ -128,7 +137,7 @@ async function proxyRequest(request: NextRequest) {
   return new NextResponse(responseBody, {
     status: upstream.status,
     headers: {
-      'Content-Type': upstream.headers.get('content-type') ?? 'application/json',
+      'Content-Type': getResponseContentType(upstream.headers),
       'Cache-Control': 'no-store',
     },
   });
