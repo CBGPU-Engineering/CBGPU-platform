@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/api_config.dart';
 import '../../core/glass.dart';
 import '../../core/svg_converter.dart';
 
@@ -73,14 +76,14 @@ class _LaserNewScreenState extends State<LaserNewScreen> {
     );
     for (final f in files) {
       final ext = f.extension?.toLowerCase();
-      if (ext == 'dwg') {
-        _snack('"${f.name}"의 DWG 변환은 준비 중입니다. DXF 또는 SVG 파일을 선택해주세요.');
-        continue;
-      }
       try {
         final source = await f.readAsBytes();
-        final converted = ext == 'svg' ? convertSvgToDxf(source) : source;
-        final name = ext == 'svg'
+        final converted = switch (ext) {
+          'svg' => convertSvgToDxf(source),
+          'dwg' => await _convertDwg(source),
+          _ => source,
+        };
+        final name = ext == 'svg' || ext == 'dwg'
             ? '${f.name.substring(0, f.name.lastIndexOf('.'))}.dxf'
             : f.name;
         if (mounted) {
@@ -90,6 +93,30 @@ class _LaserNewScreenState extends State<LaserNewScreen> {
         _snack('"${f.name}" 변환 실패: $error');
       }
     }
+  }
+
+  Future<Uint8List> _convertDwg(Uint8List source) async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) throw Exception('로그인이 필요합니다.');
+    final response = await http
+        .post(
+          Uri.parse('${ApiConfig.functionsUrl}/convert-dwg'),
+          headers: {
+            'Authorization': 'Bearer ${session.accessToken}',
+            'Content-Type': 'application/octet-stream',
+          },
+          body: source,
+        )
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      try {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        throw Exception(body['error'] ?? 'DWG 변환 실패');
+      } on FormatException {
+        throw Exception('DWG 변환 실패 (HTTP ${response.statusCode})');
+      }
+    }
+    return response.bodyBytes;
   }
 
   void _snack(String msg) {
@@ -258,7 +285,7 @@ class _LaserNewScreenState extends State<LaserNewScreen> {
                     ),
                     const SizedBox(height: 2),
                     const Text(
-                      '.dxf · .svg (SVG는 앱에서 DXF로 자동 변환)',
+                      '.dxf · .svg · .dwg (SVG/DWG는 DXF로 자동 변환)',
                       style: TextStyle(fontSize: 9, color: Colors.grey),
                       textAlign: TextAlign.center,
                     ),
