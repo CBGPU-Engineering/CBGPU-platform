@@ -117,7 +117,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _checkGpuStatus() async {
     setState(() => _gpuStatus = {1: 'checking', 2: 'checking', 3: 'checking', 4: 'checking'});
     try {
-      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/gpu-status')).timeout(const Duration(seconds: 10));
+      final res = await http.get(Uri.parse('${ApiConfig.functionsUrl}/gpu-status')).timeout(const Duration(seconds: 10));
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       final map = <int, String>{};
       for (final g in body['gpus'] as List) {

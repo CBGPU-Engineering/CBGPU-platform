@@ -112,7 +112,7 @@ class _SchoolNewsViewState extends State<_SchoolNewsView> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/school-news?type=$_tab')).timeout(const Duration(seconds: 12));
+      final res = await http.get(Uri.parse('${ApiConfig.functionsUrl}/school-news?type=$_tab')).timeout(const Duration(seconds: 12));
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (body['error'] != null) throw Exception(body['error']);
       setState(() {
@@ -264,7 +264,7 @@ class _TechNewsViewState extends State<_TechNewsView> {
             .map((h) => _HnStory(id: h['objectID'], title: h['title'] ?? '', url: h['url'], points: h['points'] ?? 0, comments: h['num_comments'] ?? 0, createdAt: h['created_at'] ?? ''))
             .toList();
       } else {
-        final res = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/news?q=${Uri.encodeComponent(cfg.google)}&hl=${cfg.googleLang ?? 'en-US'}')).timeout(const Duration(seconds: 12));
+        final res = await http.get(Uri.parse('${ApiConfig.functionsUrl}/news?q=${Uri.encodeComponent(cfg.google)}&hl=${cfg.googleLang ?? 'en-US'}')).timeout(const Duration(seconds: 12));
         final body = jsonDecode(res.body) as Map<String, dynamic>;
         _gn = (body['items'] as List).map((r) => _GnItem(title: r['title'] ?? '', link: r['link'] ?? '', pubDate: r['pubDate'] ?? '', source: r['source'] ?? '')).toList();
       }

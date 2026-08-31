@@ -136,7 +136,7 @@ Future<LocationResult?> locateStudentNow(String? studentId) async {
 
   if (gridDay >= 0 && gridDay <= 4) {
     try {
-      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/timetable?grade=${identity.grade}&class=${identity.classNo}')).timeout(const Duration(seconds: 10));
+      final res = await http.get(Uri.parse('${ApiConfig.functionsUrl}/timetable?grade=${identity.grade}&class=${identity.classNo}')).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         final periods = _parseClassTimes(data['times'] as List? ?? []);
