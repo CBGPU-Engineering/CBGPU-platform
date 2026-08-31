@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'admin_state.dart';
 import 'glass.dart';
 import 'theme_controller.dart';
 
@@ -164,6 +165,7 @@ class AppShell extends StatelessWidget {
               ],
               const Divider(),
               ListTile(leading: const Icon(Icons.account_circle_outlined), title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.w900)), onTap: () => _go(context, '/profile')),
+              if (isAdminNotifier.value) ListTile(leading: const Icon(Icons.shield_outlined, color: Colors.orange), title: const Text('Admin Panel', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.orange)), onTap: () => _go(context, '/admin')),
               ListTile(title: const Text('Contact', style: TextStyle(fontWeight: FontWeight.bold)), onTap: () => _go(context, '/contact')),
               ListTile(
                 leading: const Icon(Icons.logout),
@@ -257,11 +259,13 @@ class _DesktopAccountButton extends StatelessWidget {
       tooltip: '',
       itemBuilder: (context) => [
         const PopupMenuItem(value: 'profile', child: Text('Profile', style: TextStyle(fontWeight: FontWeight.bold))),
+        if (isAdminNotifier.value) const PopupMenuItem(value: 'admin', child: Text('Admin', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange))),
         const PopupMenuItem(value: 'signout', child: Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red))),
       ],
       onSelected: (value) {
         if (value == 'signout') Supabase.instance.client.auth.signOut();
         if (value == 'profile') context.go('/profile');
+        if (value == 'admin') context.go('/admin');
       },
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 12),
