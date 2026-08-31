@@ -10,8 +10,8 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/auth/forgot_password_screen.dart';
 import '../features/auth/reset_password_screen.dart';
+import '../features/auth/auth_callback_screen.dart';
 import '../features/home/home_screen.dart';
-import '../features/home/coming_soon_screen.dart';
 import '../features/meal/meal_screen.dart';
 import '../features/contact/contact_screen.dart';
 import '../features/timetable/timetable_screen.dart';
@@ -86,6 +86,11 @@ final router = GoRouter(
           path: '/auth/reset-password',
           pageBuilder: (context, state) =>
               springPage(state: state, child: const ResetPasswordScreen()),
+        ),
+        GoRoute(
+          path: '/auth/callback',
+          pageBuilder: (context, state) =>
+              springPage(state: state, child: const AuthCallbackScreen()),
         ),
         GoRoute(
           path: '/',
@@ -170,10 +175,11 @@ final router = GoRouter(
               springPage(state: state, child: const AdminStudyTokenScreen()),
         ),
         GoRoute(
-          path: '/arcade',
+          path: '/games',
           pageBuilder: (context, state) =>
               springPage(state: state, child: const ArcadeScreen()),
         ),
+        GoRoute(path: '/arcade', redirect: (context, state) => '/games'),
         GoRoute(
           path: '/manufacturing',
           pageBuilder: (context, state) =>
@@ -208,17 +214,8 @@ final router = GoRouter(
           pageBuilder: (context, state) =>
               springPage(state: state, child: const ContactScreen()),
         ),
-        // Mirrors the web app's /schedule, which is just `redirect('/dashboard')` —
-        // no actual page. Points at the GPU placeholder until Dashboard is ported,
-        // same as the web app currently points at Dashboard.
+        // Mirrors the web app's /schedule, which redirects to the GPU dashboard.
         GoRoute(path: '/schedule', redirect: (context, state) => '/dashboard'),
-        GoRoute(
-          path: '/soon/:label',
-          pageBuilder: (context, state) => springPage(
-            state: state,
-            child: ComingSoonScreen(label: state.pathParameters['label'] ?? ''),
-          ),
-        ),
       ],
     ),
   ],
