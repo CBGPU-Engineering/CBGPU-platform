@@ -30,7 +30,7 @@ final _features = [
   _Feature('제작', Icons.print_outlined, AppColors.featureOrange),
   _Feature('도구', Icons.build_outlined, AppColors.featureCyan, '/tools'),
   _Feature('Arcade', Icons.sports_esports_outlined, AppColors.featureViolet),
-  _Feature('Feed', Icons.article_outlined, AppColors.featureBlue),
+  _Feature('Feed', Icons.article_outlined, AppColors.featureBlue, '/feed'),
 ];
 
 class HomeScreen extends StatefulWidget {

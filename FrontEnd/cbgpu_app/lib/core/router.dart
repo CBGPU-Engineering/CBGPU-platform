@@ -17,6 +17,7 @@ import '../features/tools/tools_screen.dart';
 import '../features/match/match_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/notes/notes_screen.dart';
+import '../features/feed/feed_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/',
@@ -42,6 +43,7 @@ final router = GoRouter(
         GoRoute(path: '/match', pageBuilder: (context, state) => springPage(state: state, child: const MatchScreen())),
         GoRoute(path: '/profile', pageBuilder: (context, state) => springPage(state: state, child: const ProfileScreen())),
         GoRoute(path: '/notes', pageBuilder: (context, state) => springPage(state: state, child: const NotesScreen())),
+        GoRoute(path: '/feed', pageBuilder: (context, state) => springPage(state: state, child: const FeedScreen())),
         GoRoute(path: '/contact', pageBuilder: (context, state) => springPage(state: state, child: const ContactScreen())),
         // Mirrors the web app's /schedule, which is just `redirect('/dashboard')` —
         // no actual page. Points at the GPU placeholder until Dashboard is ported,
