@@ -60,7 +60,7 @@ class _AdminStudyTokenScreenState extends State<AdminStudyTokenScreen> {
       return;
     }
     try {
-      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/study/admin-token'), headers: {'Authorization': 'Bearer ${session.accessToken}'});
+      final res = await http.get(Uri.parse('${ApiConfig.functionsUrl}/study-admin-token'), headers: {'Authorization': 'Bearer ${session.accessToken}'});
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
         if (mounted) setState(() => _updatedAt = body['updatedAt'] != null ? DateTime.tryParse(body['updatedAt'] as String) : null);
@@ -79,7 +79,7 @@ class _AdminStudyTokenScreenState extends State<AdminStudyTokenScreen> {
     try {
       final session = Supabase.instance.client.auth.currentSession;
       final res = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/api/study/admin-token'),
+        Uri.parse('${ApiConfig.functionsUrl}/study-admin-token'),
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${session?.accessToken}'},
         body: jsonEncode({'accessToken': trimmed}),
       );

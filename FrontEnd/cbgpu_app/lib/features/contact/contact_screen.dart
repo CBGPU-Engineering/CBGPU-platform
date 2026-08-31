@@ -56,7 +56,7 @@ class _ContactScreenState extends State<ContactScreen> {
     setState(() => _isSubmitting = true);
     try {
       final res = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/api/contact'),
+        Uri.parse('${ApiConfig.functionsUrl}/contact'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': _nameController.text.trim(),

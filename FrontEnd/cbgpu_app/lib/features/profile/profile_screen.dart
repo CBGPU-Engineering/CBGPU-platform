@@ -195,7 +195,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _snack('세션이 만료되었습니다. 다시 로그인해주세요.');
         return;
       }
-      final res = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/account/delete'), headers: {'Authorization': 'Bearer $token'});
+      final res = await http.post(Uri.parse('${ApiConfig.functionsUrl}/account-delete'), headers: {'Authorization': 'Bearer $token'});
       final body = res.body.isNotEmpty ? jsonDecode(res.body) as Map<String, dynamic> : <String, dynamic>{};
       if (res.statusCode != 200) {
         _snack(body['message'] as String? ?? '계정 삭제 실패');

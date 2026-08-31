@@ -65,7 +65,7 @@ class _MealScreenState extends State<MealScreen> {
     });
     try {
       final res = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}/api/meal?date=$date'))
+          .get(Uri.parse('${ApiConfig.functionsUrl}/meal?date=$date'))
           .timeout(const Duration(seconds: 10));
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (body['error'] != null) {

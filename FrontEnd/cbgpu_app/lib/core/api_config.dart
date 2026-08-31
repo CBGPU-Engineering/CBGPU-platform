@@ -1,10 +1,14 @@
-/// Base URL for the Next.js app's /api/* routes. Several web features (meal,
-/// timetable, school news, the eduset proxy) are server-side work — HTML
-/// scraping, third-party calls with server secrets — that can't just be
-/// re-run from a Flutter client. Rather than duplicating that logic in Dart,
-/// the Flutter app calls the same live API routes the web app already calls,
-/// same as any other backend. Only the pages became a landing page; the API
-/// routes stay as the shared backend regardless of which client calls them.
+/// Base URL for the app's server-side backend calls (meal, timetable, school
+/// news, tech news, GPU status, contact, account deletion, the eduset proxy).
+/// These are Supabase Edge Functions, not the Next.js app: cbgpu.vercel.app
+/// is becoming a landing/download page only, so nothing the Flutter app
+/// needs to keep running can depend on it staying up or reachable from a
+/// browser (CORS on a Vercel deployment is a deploy-and-hope story; a
+/// Supabase Edge Function is part of the same backend the app already talks
+/// to for auth/data, and ships its CORS headers with the function itself).
+/// Each route was ported line-for-line from the equivalent Next.js API route
+/// into `supabase/functions/*/index.ts` — see that folder for the actual
+/// implementations.
 class ApiConfig {
-  static const baseUrl = 'https://cbgpu.vercel.app';
+  static const functionsUrl = 'https://fclbzjlcepoaifvcoxdw.supabase.co/functions/v1';
 }

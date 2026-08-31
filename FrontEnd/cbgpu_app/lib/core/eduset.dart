@@ -135,7 +135,7 @@ Future<T> _apiFetch<T>(String path, T Function(dynamic) parse, {String method = 
   final session = Supabase.instance.client.auth.currentSession;
   if (session == null) throw EdusetError('로그인이 필요합니다.');
 
-  final uri = Uri.parse('${ApiConfig.baseUrl}/api/study/proxy$path');
+  final uri = Uri.parse('${ApiConfig.functionsUrl}/study-proxy$path');
   final headers = {'Content-Type': 'application/json', 'x-cbgpu-auth': 'Bearer ${session.accessToken}'};
   final res = method == 'GET' ? await http.get(uri, headers: headers).timeout(const Duration(seconds: 15)) : await http.post(uri, headers: headers, body: body != null ? jsonEncode(body) : null).timeout(const Duration(seconds: 15));
 

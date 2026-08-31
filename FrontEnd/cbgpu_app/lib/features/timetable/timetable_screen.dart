@@ -95,7 +95,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
     });
     try {
       final res = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}/api/timetable?grade=$grade&class=$cls${refresh ? '&refresh=1' : ''}'))
+          .get(Uri.parse('${ApiConfig.functionsUrl}/timetable?grade=$grade&class=$cls${refresh ? '&refresh=1' : ''}'))
           .timeout(const Duration(seconds: 12));
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (body['error'] != null) throw Exception(body['error']);
