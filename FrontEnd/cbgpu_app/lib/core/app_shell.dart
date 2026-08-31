@@ -49,10 +49,13 @@ final _groups = [
   ]),
 ];
 
-// Bottom floating tab bar categories — mirrors BOTTOM_CATEGORIES_LEFT/RIGHT.
+// Bottom floating tab bar categories (mobile only) — mirrors
+// BOTTOM_CATEGORIES_LEFT/RIGHT. GPU/Server/Manufacture grouped under
+// "학교자원" (school resources), not "GPU" — they're not all GPU-related,
+// the actual common thread is borrowing a school-owned resource.
 final _bottomLeft = [
   _NavGroup('학교생활', Icons.school_outlined, _groups[0].links),
-  _NavGroup('GPU', Icons.memory_outlined, _primaryLinks),
+  _NavGroup('학교자원', Icons.memory_outlined, _primaryLinks),
 ];
 final _bottomRight = [
   _NavGroup('도구', Icons.build_outlined, _groups[1].links),
@@ -60,26 +63,36 @@ final _bottomRight = [
 ];
 
 /// Wraps every route the same way the web app's root layout always renders
-/// Navbar above {children} — a persistent top bar (logo, theme toggle, menu)
-/// on every screen, plus the floating bottom tab bar when signed in (mirrors
-/// the web app's `{user && !isLoading && (...)}` gate on the bottom nav).
+/// Navbar above {children}. Responsive the same way the web navbar is: below
+/// the desktop breakpoint it's a hamburger menu + floating bottom tab bar
+/// (phone-shaped chrome); at or above it, a horizontal pill nav + account
+/// menu in the top bar and no bottom bar — the same split that was missing
+/// entirely at first (this app used phone-style chrome at every width).
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.child});
   final Widget child;
 
+  static const double _desktopBreakpoint = 900;
+
   @override
   Widget build(BuildContext context) {
     final loggedIn = Supabase.instance.client.auth.currentSession != null;
+    final isDesktop = MediaQuery.of(context).size.width >= _desktopBreakpoint;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).canvasColor,
+        titleSpacing: isDesktop ? 24 : null,
         title: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset(_logoAsset, width: 26, height: 26),
             const SizedBox(width: 8),
             const Text('CBGPU'),
+            if (isDesktop && loggedIn) ...[
+              const SizedBox(width: 32),
+              for (final l in _primaryLinks) _DesktopLinkButton(label: l.label, onTap: () => context.go(l.route)),
+              _DesktopMenuButton(groups: _groups),
+            ],
           ],
         ),
         actions: [
@@ -90,22 +103,28 @@ class AppShell extends StatelessWidget {
               onPressed: () => toggleThemeMode(context),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => _openMenu(context, loggedIn),
-          ),
+          if (!isDesktop)
+            IconButton(icon: const Icon(Icons.menu), onPressed: () => _openMobileMenu(context, loggedIn))
+          else if (loggedIn)
+            const _DesktopAccountButton()
+          else ...[
+            TextButton(onPressed: () => context.go('/login'), child: const Text('LOGIN')),
+            const SizedBox(width: 4),
+            FilledButton(onPressed: () => context.go('/signup'), child: const Text('JOIN')),
+            const SizedBox(width: 12),
+          ],
         ],
       ),
       body: Stack(
         children: [
           child,
-          if (loggedIn) const Positioned(left: 12, right: 12, bottom: 12, child: _BottomNav()),
+          if (!isDesktop && loggedIn) const Positioned(left: 12, right: 12, bottom: 12, child: _BottomNav()),
         ],
       ),
     );
   }
 
-  void _openMenu(BuildContext context, bool loggedIn) {
+  void _openMobileMenu(BuildContext context, bool loggedIn) {
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
@@ -151,6 +170,87 @@ class AppShell extends StatelessWidget {
   }
 }
 
+class _DesktopLinkButton extends StatelessWidget {
+  const _DesktopLinkButton({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onTap,
+      style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurface),
+      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5)),
+    );
+  }
+}
+
+/// Desktop equivalent of the mobile bottom sheet's grouped section list —
+/// same 학교생활/도구/정보 groups, collapsed into one dropdown (mirrors the
+/// web navbar's own "메뉴" dropdown that replaced 3 separate group pills).
+class _DesktopMenuButton extends StatelessWidget {
+  const _DesktopMenuButton({required this.groups});
+  final List<_NavGroup> groups;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: '',
+      offset: const Offset(0, 44),
+      itemBuilder: (context) => [
+        for (int i = 0; i < groups.length; i++) ...[
+          if (i > 0) const PopupMenuDivider(height: 8),
+          PopupMenuItem<String>(
+            enabled: false,
+            height: 28,
+            child: Text(groups[i].label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.grey.shade600)),
+          ),
+          for (final l in groups[i].links)
+            PopupMenuItem<String>(value: l.route, child: Text(l.label, style: const TextStyle(fontWeight: FontWeight.bold))),
+        ],
+      ],
+      onSelected: (route) => context.go(route),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('메뉴', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5, color: Theme.of(context).colorScheme.onSurface)),
+            const Icon(Icons.arrow_drop_down, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Desktop equivalent of the mobile menu's Sign Out row — a compact account
+/// menu instead of a full-name/email block, mirroring the web navbar's own
+/// avatar dropdown (which replaced an inline name+email+sign-out button for
+/// the same reason: it doesn't fit next to a horizontal nav row).
+class _DesktopAccountButton extends StatelessWidget {
+  const _DesktopAccountButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: '',
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: 'profile', child: Text('Profile', style: TextStyle(fontWeight: FontWeight.bold))),
+        const PopupMenuItem(value: 'signout', child: Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red))),
+      ],
+      onSelected: (value) {
+        if (value == 'signout') Supabase.instance.client.auth.signOut();
+        if (value == 'profile') context.go('/soon/Profile');
+      },
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 12),
+        child: Icon(Icons.account_circle_outlined, size: 28),
+      ),
+    );
+  }
+}
+
 class _BottomNav extends StatefulWidget {
   const _BottomNav();
   @override
@@ -158,31 +258,50 @@ class _BottomNav extends StatefulWidget {
 }
 
 class _BottomNavState extends State<_BottomNav> {
+  // The raised center button needs to sit OUTSIDE GlassCard's own clip
+  // region (it clips to its rounded rect for the blur to work) — putting it
+  // inside the card's Row like the web's -mt-7 button clipped its top half
+  // clean off. Stack it as a sibling instead, overlapping the card from
+  // above, so it's never subject to that ClipRRect.
+  static const _buttonSize = 52.0;
+  static const _peekAbove = 22.0;
+
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      radius: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: _bottomLeft.map(_categoryButton).toList())),
-          Transform.translate(
-            offset: const Offset(0, -14),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: () => context.go('/'),
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, shape: BoxShape.circle),
-                child: const Icon(Icons.home_rounded, color: Colors.white),
-              ),
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: _peekAbove),
+          child: GlassCard(
+            radius: 28,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: _bottomLeft.map(_categoryButton).toList())),
+                const SizedBox(width: _buttonSize + 12),
+                Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: _bottomRight.map(_categoryButton).toList())),
+              ],
             ),
           ),
-          Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: _bottomRight.map(_categoryButton).toList())),
-        ],
-      ),
+        ),
+        InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => context.go('/'),
+          child: Container(
+            width: _buttonSize,
+            height: _buttonSize,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+              shape: BoxShape.circle,
+              border: Border.all(color: Theme.of(context).canvasColor, width: 4),
+            ),
+            child: const Icon(Icons.home_rounded, color: Colors.white),
+          ),
+        ),
+      ],
     );
   }
 

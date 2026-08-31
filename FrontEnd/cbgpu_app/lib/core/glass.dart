@@ -71,14 +71,18 @@ class GlassCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(radius),
             border: Border.all(color: border),
+            // Spread across the full height (not just the top 40%) — on a
+            // short, wide element like the bottom nav bar, concentrating the
+            // transition into a small pixel band read as an odd stripe
+            // rather than an ambient sheen. Full-height + a lower peak alpha
+            // looks consistent whether the card is short or tall.
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.white.withValues(alpha: isDark ? 0.06 : 0.5),
+                Colors.white.withValues(alpha: isDark ? 0.05 : 0.28),
                 base.withValues(alpha: isDark ? 0.78 : 0.82),
               ],
-              stops: const [0.0, 0.4],
             ),
             boxShadow: [
               BoxShadow(
