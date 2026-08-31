@@ -20,6 +20,7 @@ import '../features/notes/notes_screen.dart';
 import '../features/feed/feed_screen.dart';
 import '../features/polls/polls_screen.dart';
 import '../features/study/study_screen.dart';
+import '../features/dashboard/dashboard_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/',
@@ -48,11 +49,12 @@ final router = GoRouter(
         GoRoute(path: '/feed', pageBuilder: (context, state) => springPage(state: state, child: const FeedScreen())),
         GoRoute(path: '/polls', pageBuilder: (context, state) => springPage(state: state, child: const PollsScreen())),
         GoRoute(path: '/study', pageBuilder: (context, state) => springPage(state: state, child: const StudyScreen())),
+        GoRoute(path: '/dashboard', pageBuilder: (context, state) => springPage(state: state, child: const DashboardScreen())),
         GoRoute(path: '/contact', pageBuilder: (context, state) => springPage(state: state, child: const ContactScreen())),
         // Mirrors the web app's /schedule, which is just `redirect('/dashboard')` —
         // no actual page. Points at the GPU placeholder until Dashboard is ported,
         // same as the web app currently points at Dashboard.
-        GoRoute(path: '/schedule', redirect: (context, state) => '/soon/GPU'),
+        GoRoute(path: '/schedule', redirect: (context, state) => '/dashboard'),
         GoRoute(
           path: '/soon/:label',
           pageBuilder: (context, state) =>
