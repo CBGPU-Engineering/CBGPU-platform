@@ -5,8 +5,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'glass.dart';
 import 'theme_controller.dart';
 
-const _logoUrl =
-    'https://i.namu.wiki/i/qMgg10XRSaTorhAnQaV-bKbUWK_xIlq2socc7pVyw1SJmovke8gEWfeofFitiIJ1VBMngGy4o1NuAnjrOA0m1w.webp';
+// Bundled locally (assets/logo.webp) instead of hotlinking the same
+// namu.wiki URL the web app uses — that host doesn't send CORS headers,
+// so Flutter Web's canvas-based image loading gets blocked outright
+// (a plain <img> tag on the web app doesn't have this restriction).
+const _logoAsset = 'assets/logo.webp';
 
 class _NavLink {
   const _NavLink(this.label, this.route);
@@ -74,7 +77,7 @@ class AppShell extends StatelessWidget {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.network(_logoUrl, width: 26, height: 26, errorBuilder: (_, _, _) => const SizedBox(width: 26)),
+            Image.asset(_logoAsset, width: 26, height: 26),
             const SizedBox(width: 8),
             const Text('CBGPU'),
           ],
