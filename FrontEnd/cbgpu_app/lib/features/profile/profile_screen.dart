@@ -18,7 +18,11 @@ const _maxAvatarBytes = 5 * 1024 * 1024;
 /// Mirrors the web app's canvas-based resizeImageToJpeg: avatars are never
 /// rendered above 112px, so downscale + re-encode before upload to cut
 /// storage and per-load download size.
-Uint8List _resizeToJpeg(Uint8List bytes, {int maxSize = 256, int quality = 85}) {
+Uint8List _resizeToJpeg(
+  Uint8List bytes, {
+  int maxSize = 256,
+  int quality = 85,
+}) {
   final decoded = img.decodeImage(bytes);
   if (decoded == null) throw Exception('이미지 처리에 실패했습니다.');
   final resized = img.copyResize(
@@ -74,7 +78,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _loading = false);
       return;
     }
-    final data = await Supabase.instance.client.from('profiles').select('full_name, student_id, avatar_url').eq('id', user.id).maybeSingle();
+    final data = await Supabase.instance.client
+        .from('profiles')
+        .select('full_name, student_id, avatar_url')
+        .eq('id', user.id)
+        .maybeSingle();
     if (!mounted) return;
     setState(() {
       _nameController.text = data?['full_name'] as String? ?? '';
@@ -85,7 +93,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _snack(String message) {
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 
   Future<void> _updateProfile() async {
@@ -97,10 +109,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     setState(() => _savingProfile = true);
     try {
-      await Supabase.instance.client.from('profiles').update({
-        'student_id': _studentIdController.text.trim(),
-        'full_name': _nameController.text.trim(),
-      }).eq('id', user.id);
+      await Supabase.instance.client
+          .from('profiles')
+          .update({
+            'student_id': _studentIdController.text.trim(),
+            'full_name': _nameController.text.trim(),
+          })
+          .eq('id', user.id);
       _snack('프로필이 업데이트됐습니다!');
     } catch (e) {
       _snack('업데이트 실패: $e');
@@ -123,12 +138,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _changingPassword = true);
     try {
       try {
-        await Supabase.instance.client.auth.signInWithPassword(email: user!.email!, password: _currentPasswordController.text);
+        await Supabase.instance.client.auth.signInWithPassword(
+          email: user!.email!,
+          password: _currentPasswordController.text,
+        );
       } catch (_) {
         _snack('현재 비밀번호가 올바르지 않습니다.');
         return;
       }
-      await Supabase.instance.client.auth.updateUser(UserAttributes(password: _newPasswordController.text));
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(password: _newPasswordController.text),
+      );
       _snack('비밀번호가 변경됐습니다!');
       _currentPasswordController.clear();
       _newPasswordController.clear();
@@ -143,7 +163,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pickAvatar() async {
     final user = _user;
     if (user == null) return;
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 95);
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 95,
+    );
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
     if (bytes.lengthInBytes > _maxAvatarBytes) {
@@ -154,14 +177,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final resized = _resizeToJpeg(bytes);
       final path = '${user.id}/avatar.jpg';
-      await Supabase.instance.client.storage.from('avatars').uploadBinary(
+      await Supabase.instance.client.storage
+          .from('avatars')
+          .uploadBinary(
             path,
             resized,
-            fileOptions: const FileOptions(upsert: true, cacheControl: '3600', contentType: 'image/jpeg'),
+            fileOptions: const FileOptions(
+              upsert: true,
+              cacheControl: '3600',
+              contentType: 'image/jpeg',
+            ),
           );
-      final publicUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(path);
+      final publicUrl = Supabase.instance.client.storage
+          .from('avatars')
+          .getPublicUrl(path);
       final avatarUrl = '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
-      await Supabase.instance.client.from('profiles').update({'avatar_url': avatarUrl}).eq('id', user.id);
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'avatar_url': avatarUrl})
+          .eq('id', user.id);
       if (mounted) setState(() => _avatarUrl = avatarUrl);
       _snack('프로필 사진이 변경됐습니다!');
     } catch (e) {
@@ -178,8 +212,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('계정을 삭제할까요?'),
         content: const Text('이름, 학번, 프로필 사진이 삭제되고 다시 로그인할 수 없습니다. 되돌릴 수 없습니다.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('계정 삭제', style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('계정 삭제', style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
@@ -195,8 +235,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _snack('세션이 만료되었습니다. 다시 로그인해주세요.');
         return;
       }
-      final res = await http.post(Uri.parse('${ApiConfig.functionsUrl}/account-delete'), headers: {'Authorization': 'Bearer $token'});
-      final body = res.body.isNotEmpty ? jsonDecode(res.body) as Map<String, dynamic> : <String, dynamic>{};
+      final res = await http.post(
+        Uri.parse('${ApiConfig.functionsUrl}/account-delete'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      final body = res.body.isNotEmpty
+          ? jsonDecode(res.body) as Map<String, dynamic>
+          : <String, dynamic>{};
       if (res.statusCode != 200) {
         _snack(body['message'] as String? ?? '계정 삭제 실패');
         return;
@@ -217,155 +262,326 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final user = _user;
     if (_loading) {
-      return const AmbientBackground(child: Center(child: CircularProgressIndicator()));
+      return const AmbientBackground(
+        child: Center(child: CircularProgressIndicator()),
+      );
     }
     if (user == null) {
       return const AmbientBackground(
-        child: Center(child: Text('Access Denied', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20))),
+        child: Center(
+          child: Text(
+            'Access Denied',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
+          ),
+        ),
       );
     }
 
     return AmbientBackground(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-        children: [
-          TextButton.icon(
-            onPressed: () => context.go('/'),
-            icon: const Icon(Icons.arrow_back, size: 16),
-            label: const Text('Profile', style: TextStyle(fontWeight: FontWeight.w900)),
-          ),
-          const SizedBox(height: 12),
-          GlassCard(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: _uploadingAvatar ? null : _pickAvatar,
-                  child: Stack(
-                    children: [
-                      ClipOval(
-                        child: _avatarUrl != null
-                            ? Image.network(_avatarUrl!, width: 88, height: 88, fit: BoxFit.cover, errorBuilder: (_, _, _) => _avatarPlaceholder(context))
-                            : _avatarPlaceholder(context),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          child: _uploadingAvatar
-                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.camera_alt, size: 14, color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_nameController.text.isEmpty ? 'Anonymous User' : _nameController.text, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
-                      Row(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 704),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 40, 16, 112),
+            children: [
+              GlassCard(
+                radius: 40,
+                padding: const EdgeInsets.all(32),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 560;
+                    final avatar = GestureDetector(
+                      onTap: _uploadingAvatar ? null : _pickAvatar,
+                      child: Stack(
                         children: [
-                          const Icon(Icons.mail_outline, size: 12, color: Colors.grey),
-                          const SizedBox(width: 4),
-                          Expanded(child: Text(user.email ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey), overflow: TextOverflow.ellipsis)),
+                          ClipOval(
+                            child: _avatarUrl != null
+                                ? Image.network(
+                                    _avatarUrl!,
+                                    width: 112,
+                                    height: 112,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) =>
+                                        _avatarPlaceholder(context),
+                                  )
+                                : _avatarPlaceholder(context),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: CircleAvatar(
+                              radius: 18,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary,
+                              child: _uploadingAvatar
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.camera_alt,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
+                            ),
+                          ),
                         ],
                       ),
-                    ],
-                  ),
+                    );
+                    final identity = Column(
+                      crossAxisAlignment: compact
+                          ? CrossAxisAlignment.center
+                          : CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _nameController.text.isEmpty
+                              ? 'Anonymous User'
+                              : _nameController.text,
+                          textAlign: compact
+                              ? TextAlign.center
+                              : TextAlign.left,
+                          style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.w900,
+                            fontStyle: FontStyle.italic,
+                            letterSpacing: -1.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.mail_outline,
+                              size: 12,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                user.email ?? '',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                    if (compact) {
+                      return Column(
+                        children: [
+                          avatar,
+                          const SizedBox(height: 24),
+                          identity,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        avatar,
+                        const SizedBox(width: 24),
+                        Expanded(child: identity),
+                      ],
+                    );
+                  },
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 40),
+              GlassCard(
+                radius: 40,
+                padding: const EdgeInsets.all(40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const FieldLabel('이름 (Name)'),
+                    TextField(
+                      controller: _nameController,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                      decoration: const InputDecoration(hintText: 'Your Name'),
+                    ),
+                    const SizedBox(height: 16),
+                    const FieldLabel('학번 (Student ID)'),
+                    TextField(
+                      controller: _studentIdController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 4,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: '2309',
+                        counterText: '',
+                      ),
+                    ),
+                    Text(
+                      studentIdHint,
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _savingProfile ? null : _updateProfile,
+                      icon: _savingProfile
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save, size: 16),
+                      label: Text(
+                        _savingProfile ? 'Saving Changes...' : 'Save Profile',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+              GlassCard(
+                radius: 40,
+                padding: const EdgeInsets.all(40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.key,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          '비밀번호 변경',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const FieldLabel('현재 비밀번호'),
+                    TextField(
+                      controller: _currentPasswordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(hintText: '••••••••'),
+                    ),
+                    const SizedBox(height: 16),
+                    const FieldLabel('새 비밀번호'),
+                    TextField(
+                      controller: _newPasswordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(hintText: '••••••••'),
+                    ),
+                    const SizedBox(height: 16),
+                    const FieldLabel('새 비밀번호 확인'),
+                    TextField(
+                      controller: _confirmPasswordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(hintText: '••••••••'),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed:
+                          (_changingPassword ||
+                              _currentPasswordController.text.isEmpty ||
+                              _newPasswordController.text.isEmpty ||
+                              _confirmPasswordController.text.isEmpty)
+                          ? null
+                          : _changePassword,
+                      icon: _changingPassword
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.key, size: 16),
+                      label: Text(_changingPassword ? '변경 중...' : '비밀번호 변경'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+              GlassCard(
+                radius: 40,
+                padding: const EdgeInsets.all(40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.warning_amber, size: 18, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text(
+                          '위험 구역',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '계정을 삭제하면 로그인할 수 없게 되고 이름, 학번, 프로필 사진이 모두 삭제됩니다. 되돌릴 수 없습니다.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: _deletingAccount
+                          ? null
+                          : _confirmDeleteAccount,
+                      icon: const Icon(Icons.delete_forever, size: 16),
+                      label: Text(_deletingAccount ? '삭제 중...' : '계정 삭제'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          GlassCard(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const FieldLabel('이름 (Name)'),
-                TextField(controller: _nameController, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16), decoration: const InputDecoration(hintText: 'Your Name')),
-                const SizedBox(height: 16),
-                const FieldLabel('학번 (Student ID)'),
-                TextField(
-                  controller: _studentIdController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 4,
-                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                  decoration: const InputDecoration(hintText: '2309', counterText: ''),
-                ),
-                Text(studentIdHint, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: _savingProfile ? null : _updateProfile,
-                  icon: _savingProfile ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save, size: 16),
-                  label: Text(_savingProfile ? 'Saving Changes...' : 'Save Profile'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          GlassCard(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(children: [Icon(Icons.key, size: 18, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 8), const Text('비밀번호 변경', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16))]),
-                const SizedBox(height: 16),
-                const FieldLabel('현재 비밀번호'),
-                TextField(controller: _currentPasswordController, obscureText: true, decoration: const InputDecoration(hintText: '••••••••')),
-                const SizedBox(height: 16),
-                const FieldLabel('새 비밀번호'),
-                TextField(controller: _newPasswordController, obscureText: true, decoration: const InputDecoration(hintText: '••••••••')),
-                const SizedBox(height: 16),
-                const FieldLabel('새 비밀번호 확인'),
-                TextField(controller: _confirmPasswordController, obscureText: true, decoration: const InputDecoration(hintText: '••••••••')),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: (_changingPassword || _currentPasswordController.text.isEmpty || _newPasswordController.text.isEmpty || _confirmPasswordController.text.isEmpty)
-                      ? null
-                      : _changePassword,
-                  icon: _changingPassword ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.key, size: 16),
-                  label: Text(_changingPassword ? '변경 중...' : '비밀번호 변경'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          GlassCard(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Row(children: [Icon(Icons.warning_amber, size: 18, color: Colors.red), SizedBox(width: 8), Text('위험 구역', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.red))]),
-                const SizedBox(height: 12),
-                const Text('계정을 삭제하면 로그인할 수 없게 되고 이름, 학번, 프로필 사진이 모두 삭제됩니다. 되돌릴 수 없습니다.', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                  onPressed: _deletingAccount ? null : _confirmDeleteAccount,
-                  icon: const Icon(Icons.delete_forever, size: 16),
-                  label: Text(_deletingAccount ? '삭제 중...' : '계정 삭제'),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _avatarPlaceholder(BuildContext context) {
     return Container(
-      width: 88,
-      height: 88,
-      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
-      child: Icon(Icons.person, size: 44, color: Theme.of(context).colorScheme.primary),
+      width: 112,
+      height: 112,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        Icons.person,
+        size: 64,
+        color: Theme.of(context).colorScheme.primary,
+      ),
     );
   }
 }
