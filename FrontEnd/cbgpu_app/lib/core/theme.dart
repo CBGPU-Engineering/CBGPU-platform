@@ -36,24 +36,24 @@ class AppColors {
 
 class AppTheme {
   static ThemeData light() => _base(
-        brightness: Brightness.light,
-        background: AppColors.lightBackground,
-        card: AppColors.lightCard,
-        foreground: AppColors.lightForeground,
-        muted: AppColors.lightMuted,
-        mutedForeground: AppColors.lightMutedForeground,
-        border: AppColors.lightBorder,
-      );
+    brightness: Brightness.light,
+    background: AppColors.lightBackground,
+    card: AppColors.lightCard,
+    foreground: AppColors.lightForeground,
+    muted: AppColors.lightMuted,
+    mutedForeground: AppColors.lightMutedForeground,
+    border: AppColors.lightBorder,
+  );
 
   static ThemeData dark() => _base(
-        brightness: Brightness.dark,
-        background: AppColors.darkBackground,
-        card: AppColors.darkCard,
-        foreground: AppColors.darkForeground,
-        muted: AppColors.darkMuted,
-        mutedForeground: AppColors.darkMutedForeground,
-        border: AppColors.darkBorder,
-      );
+    brightness: Brightness.dark,
+    background: AppColors.darkBackground,
+    card: AppColors.darkCard,
+    foreground: AppColors.darkForeground,
+    muted: AppColors.darkMuted,
+    mutedForeground: AppColors.darkMutedForeground,
+    border: AppColors.darkBorder,
+  );
 
   static ThemeData _base({
     required Brightness brightness,
@@ -84,7 +84,9 @@ class AppTheme {
     // Noto Sans KR for the Hangul glyphs the default font is missing —
     // instead of forcing Noto Sans KR onto Latin text too, which reads as a
     // different, more distinctive typeface than the site actually uses.
-    final base = brightness == Brightness.dark ? ThemeData.dark() : ThemeData.light();
+    final base = brightness == Brightness.dark
+        ? ThemeData.dark()
+        : ThemeData.light();
     final notoFamily = GoogleFonts.notoSansKr().fontFamily;
     final textTheme = base.textTheme.apply(
       bodyColor: foreground,
@@ -105,33 +107,47 @@ class AppTheme {
         foregroundColor: foreground,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, fontStyle: FontStyle.italic),
+        titleTextStyle: textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w900,
+          fontStyle: FontStyle.italic,
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: card,
+        isDense: true,
         hintStyle: TextStyle(color: mutedForeground),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: AppColors.primary, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        // shadcn Input is h-8 with px-2.5. Keep Flutter fields on the same
+        // compact baseline instead of the Material default's 48px control.
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(52),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 13),
+          // Flutter applies desktop visual-density shrinkage on web; 56
+          // resolves to the same painted 48px height as Tailwind's py-6.
+          minimumSize: const Size.fromHeight(56),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1,
+            fontSize: 13,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(

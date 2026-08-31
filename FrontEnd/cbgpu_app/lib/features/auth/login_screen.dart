@@ -51,7 +51,8 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Align(
         alignment: Alignment.topCenter,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 80, 16, 112),
+          // Web layout adds main.py-10 (40) before this page's mt-20 (80).
+          padding: const EdgeInsets.fromLTRB(16, 120, 16, 112),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 448),
             child: GlassCard(

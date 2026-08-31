@@ -102,14 +102,52 @@ class AppShell extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Image.asset(
-                      _logoAsset,
-                      width: 32,
-                      height: 32,
-                      filterQuality: FilterQuality.high,
+                    Opacity(
+                      opacity: 0.7,
+                      child: ColorFiltered(
+                        colorFilter: const ColorFilter.matrix(<double>[
+                          0.2126,
+                          0.7152,
+                          0.0722,
+                          0,
+                          0,
+                          0.2126,
+                          0.7152,
+                          0.0722,
+                          0,
+                          0,
+                          0.2126,
+                          0.7152,
+                          0.0722,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          1,
+                          0,
+                        ]),
+                        child: Image.asset(
+                          _logoAsset,
+                          width: 32,
+                          height: 32,
+                          filterQuality: FilterQuality.high,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    const Text('CBGPU'),
+                    Text(
+                      'CBGPU',
+                      style: TextStyle(
+                        fontSize: isDesktop ? 24 : 20,
+                        fontWeight: FontWeight.w900,
+                        fontStyle: FontStyle.italic,
+                        letterSpacing: -1,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -128,7 +166,7 @@ class AppShell extends StatelessWidget {
         actions: [
           if (isDesktop)
             _DesktopLinkButton(
-              label: 'Contact',
+              label: 'CONTACT',
               onTap: () => context.go('/contact'),
             ),
           ValueListenableBuilder<ThemeMode>(
