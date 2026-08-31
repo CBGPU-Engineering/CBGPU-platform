@@ -77,7 +77,8 @@ class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.child});
   final Widget child;
 
-  static const double _desktopBreakpoint = 900;
+  // Tailwind's `xl` breakpoint used by Navbar.tsx.
+  static const double _desktopBreakpoint = 1280;
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +88,10 @@ class AppShell extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).canvasColor,
-        titleSpacing: isDesktop ? 24 : null,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: 72,
+        titleSpacing: isDesktop ? 40 : 24,
         title: Row(
           children: [
             InkWell(
@@ -98,7 +102,12 @@ class AppShell extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Image.asset(_logoAsset, width: 30, height: 30, filterQuality: FilterQuality.high),
+                    Image.asset(
+                      _logoAsset,
+                      width: 32,
+                      height: 32,
+                      filterQuality: FilterQuality.high,
+                    ),
                     const SizedBox(width: 8),
                     const Text('CBGPU'),
                   ],
@@ -107,28 +116,49 @@ class AppShell extends StatelessWidget {
             ),
             if (isDesktop && loggedIn) ...[
               const SizedBox(width: 32),
-              for (final l in _primaryLinks) _DesktopLinkButton(label: l.label, onTap: () => context.go(l.route)),
+              for (final l in _primaryLinks)
+                _DesktopLinkButton(
+                  label: l.label,
+                  onTap: () => context.go(l.route),
+                ),
               _DesktopMenuButton(groups: _groups),
             ],
           ],
         ),
         actions: [
-          if (isDesktop) _DesktopLinkButton(label: 'Contact', onTap: () => context.go('/contact')),
+          if (isDesktop)
+            _DesktopLinkButton(
+              label: 'Contact',
+              onTap: () => context.go('/contact'),
+            ),
           ValueListenableBuilder<ThemeMode>(
             valueListenable: themeModeNotifier,
             builder: (context, mode, _) => IconButton(
-              icon: Icon(Theme.of(context).brightness == Brightness.dark ? Icons.dark_mode_outlined : Icons.light_mode_outlined),
+              icon: Icon(
+                Theme.of(context).brightness == Brightness.dark
+                    ? Icons.dark_mode_outlined
+                    : Icons.light_mode_outlined,
+              ),
               onPressed: () => toggleThemeMode(context),
             ),
           ),
           if (!isDesktop)
-            IconButton(icon: const Icon(Icons.menu), onPressed: () => _openMobileMenu(context, loggedIn))
+            IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => _openMobileMenu(context, loggedIn),
+            )
           else if (loggedIn)
             const _DesktopAccountButton()
           else ...[
-            TextButton(onPressed: () => context.go('/login'), child: const Text('LOGIN')),
+            TextButton(
+              onPressed: () => context.go('/login'),
+              child: const Text('LOGIN'),
+            ),
             const SizedBox(width: 4),
-            FilledButton(onPressed: () => context.go('/signup'), child: const Text('JOIN')),
+            FilledButton(
+              onPressed: () => context.go('/signup'),
+              child: const Text('JOIN'),
+            ),
             const SizedBox(width: 12),
           ],
         ],
@@ -136,7 +166,13 @@ class AppShell extends StatelessWidget {
       body: Stack(
         children: [
           child,
-          if (!isDesktop && loggedIn) const Positioned(left: 12, right: 12, bottom: 12, child: _BottomNav()),
+          if (!isDesktop && loggedIn)
+            const Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: _BottomNav(),
+            ),
         ],
       ),
     );
@@ -153,32 +189,99 @@ class AppShell extends StatelessWidget {
           children: [
             if (loggedIn) ...[
               for (final l in _primaryLinks)
-                ListTile(title: Text(l.label, style: const TextStyle(fontWeight: FontWeight.w900)), onTap: () => _go(context, l.route)),
+                ListTile(
+                  title: Text(
+                    l.label,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  onTap: () => _go(context, l.route),
+                ),
               const Divider(),
               for (final g in _groups) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                  child: Text(g.label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.grey.shade600)),
+                  child: Text(
+                    g.label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
                 ),
                 for (final l in g.links)
-                  ListTile(title: Text(l.label, style: const TextStyle(fontWeight: FontWeight.bold)), onTap: () => _go(context, l.route)),
+                  ListTile(
+                    title: Text(
+                      l.label,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    onTap: () => _go(context, l.route),
+                  ),
               ],
               const Divider(),
-              ListTile(leading: const Icon(Icons.account_circle_outlined), title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.w900)), onTap: () => _go(context, '/profile')),
-              if (isAdminNotifier.value) ListTile(leading: const Icon(Icons.shield_outlined, color: Colors.orange), title: const Text('Admin Panel', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.orange)), onTap: () => _go(context, '/admin')),
-              ListTile(title: const Text('Contact', style: TextStyle(fontWeight: FontWeight.bold)), onTap: () => _go(context, '/contact')),
+              ListTile(
+                leading: const Icon(Icons.account_circle_outlined),
+                title: const Text(
+                  'My Profile',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+                onTap: () => _go(context, '/profile'),
+              ),
+              if (isAdminNotifier.value)
+                ListTile(
+                  leading: const Icon(
+                    Icons.shield_outlined,
+                    color: Colors.orange,
+                  ),
+                  title: const Text(
+                    'Admin Panel',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: Colors.orange,
+                    ),
+                  ),
+                  onTap: () => _go(context, '/admin'),
+                ),
+              ListTile(
+                title: const Text(
+                  'Contact',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onTap: () => _go(context, '/contact'),
+              ),
               ListTile(
                 leading: const Icon(Icons.logout),
-                title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
+                title: const Text(
+                  'Sign Out',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   Supabase.instance.client.auth.signOut();
                 },
               ),
             ] else ...[
-              ListTile(title: const Text('Contact', style: TextStyle(fontWeight: FontWeight.bold)), onTap: () => _go(context, '/contact')),
-              ListTile(title: const Text('Login', style: TextStyle(fontWeight: FontWeight.w900)), onTap: () => _go(context, '/login')),
-              ListTile(title: const Text('Join', style: TextStyle(fontWeight: FontWeight.w900)), onTap: () => _go(context, '/signup')),
+              ListTile(
+                title: const Text(
+                  'Contact',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onTap: () => _go(context, '/contact'),
+              ),
+              ListTile(
+                title: const Text(
+                  'Login',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+                onTap: () => _go(context, '/login'),
+              ),
+              ListTile(
+                title: const Text(
+                  'Join',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+                onTap: () => _go(context, '/signup'),
+              ),
             ],
           ],
         ),
@@ -201,8 +304,17 @@ class _DesktopLinkButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton(
       onPressed: onTap,
-      style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurface),
-      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5)),
+      style: TextButton.styleFrom(
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontWeight: FontWeight.w900,
+          fontSize: 12,
+          letterSpacing: 0.5,
+        ),
+      ),
     );
   }
 }
@@ -225,10 +337,23 @@ class _DesktopMenuButton extends StatelessWidget {
           PopupMenuItem<String>(
             enabled: false,
             height: 28,
-            child: Text(groups[i].label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.grey.shade600)),
+            child: Text(
+              groups[i].label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                color: Colors.grey.shade600,
+              ),
+            ),
           ),
           for (final l in groups[i].links)
-            PopupMenuItem<String>(value: l.route, child: Text(l.label, style: const TextStyle(fontWeight: FontWeight.bold))),
+            PopupMenuItem<String>(
+              value: l.route,
+              child: Text(
+                l.label,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
         ],
       ],
       onSelected: (route) => context.go(route),
@@ -237,7 +362,15 @@ class _DesktopMenuButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('메뉴', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5, color: Theme.of(context).colorScheme.onSurface)),
+            Text(
+              '메뉴',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 12,
+                letterSpacing: 0.5,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
             const Icon(Icons.arrow_drop_down, size: 18),
           ],
         ),
@@ -258,9 +391,28 @@ class _DesktopAccountButton extends StatelessWidget {
     return PopupMenuButton<String>(
       tooltip: '',
       itemBuilder: (context) => [
-        const PopupMenuItem(value: 'profile', child: Text('Profile', style: TextStyle(fontWeight: FontWeight.bold))),
-        if (isAdminNotifier.value) const PopupMenuItem(value: 'admin', child: Text('Admin', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange))),
-        const PopupMenuItem(value: 'signout', child: Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red))),
+        const PopupMenuItem(
+          value: 'profile',
+          child: Text('Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        if (isAdminNotifier.value)
+          const PopupMenuItem(
+            value: 'admin',
+            child: Text(
+              'Admin',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+          ),
+        const PopupMenuItem(
+          value: 'signout',
+          child: Text(
+            'Sign Out',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+          ),
+        ),
       ],
       onSelected: (value) {
         if (value == 'signout') Supabase.instance.client.auth.signOut();
@@ -304,9 +456,19 @@ class _BottomNavState extends State<_BottomNav> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: _bottomLeft.map(_categoryButton).toList())),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: _bottomLeft.map(_categoryButton).toList(),
+                  ),
+                ),
                 const SizedBox(width: _buttonSize + 12),
-                Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: _bottomRight.map(_categoryButton).toList())),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: _bottomRight.map(_categoryButton).toList(),
+                  ),
+                ),
               ],
             ),
           ),
@@ -320,7 +482,10 @@ class _BottomNavState extends State<_BottomNav> {
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primary,
               shape: BoxShape.circle,
-              border: Border.all(color: Theme.of(context).canvasColor, width: 4),
+              border: Border.all(
+                color: Theme.of(context).canvasColor,
+                width: 4,
+              ),
             ),
             child: const Icon(Icons.home_rounded, color: Colors.white),
           ),
@@ -339,9 +504,24 @@ class _BottomNavState extends State<_BottomNav> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(group.icon, size: 20, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+              Icon(
+                group.icon,
+                size: 20,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
               const SizedBox(height: 2),
-              Text(group.label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
+              Text(
+                group.label,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
             ],
           ),
         ),
@@ -354,12 +534,20 @@ class _BottomNavState extends State<_BottomNav> {
     final position = box.localToGlobal(Offset.zero);
     showMenu(
       context: context,
-      position: RelativeRect.fromLTRB(position.dx, position.dy - 10, position.dx, position.dy),
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy - 10,
+        position.dx,
+        position.dy,
+      ),
       items: [
         for (final l in group.links)
           PopupMenuItem(
             value: l.route,
-            child: Text(l.label, style: const TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(
+              l.label,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
       ],
     ).then((route) {
