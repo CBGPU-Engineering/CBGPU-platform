@@ -21,6 +21,26 @@ const nextConfig: NextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],
       },
+      {
+        // The Flutter app calls these same /api/* routes directly (see
+        // cbgpu_app's lib/core/api_config.dart) instead of duplicating their
+        // server-side logic — Flutter Web enforces CORS the same way any
+        // browser does, so without this every one of those calls gets
+        // silently blocked client-side despite the server responding fine
+        // (confirmed: curl succeeds, but no Access-Control-Allow-Origin
+        // header was ever set). Native builds (Android/iOS/desktop) aren't
+        // subject to CORS at all, only the web target needs this. Every
+        // route here already does its own auth checks internally (bearer
+        // tokens, admin checks) — CORS only controls which origins' JS can
+        // read the response, not authorization, so opening it doesn't
+        // weaken anything those routes already enforce.
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization, x-cbgpu-auth, x-jwt' },
+        ],
+      },
     ];
   },
 };
