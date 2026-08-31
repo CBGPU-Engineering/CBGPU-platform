@@ -10,7 +10,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import {
-  Menu, X, ChevronDown, Home, GraduationCap,
+  Menu, X, ChevronDown, Home, GraduationCap, UserCircle2,
   BookOpen, CalendarDays, UtensilsCrossed, Users, Cpu, Vote, NotebookPen, Wrench, Gamepad2, Newspaper, Server, Printer,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
@@ -125,8 +125,8 @@ export default function Navbar() {
 
   useEffect(() => { setOpenCat(null); }, [pathname]);
 
-  const activeGroup = GROUPS.find(g => g.links.some(l => l.href === pathname));
-  const activeKey = PRIMARY_LINKS.some(l => l.href === pathname) ? pathname : (activeGroup?.label ?? null);
+  const activeGroupLink = GROUPS.some(g => g.links.some(l => l.href === pathname));
+  const activeKey = PRIMARY_LINKS.some(l => l.href === pathname) ? pathname : (activeGroupLink ? 'menu' : null);
 
   // 활성 항목 뒤에서 슬라이드하는 인디케이터 위치 계산
   const railRef = useRef<HTMLDivElement>(null);
@@ -171,7 +171,7 @@ export default function Navbar() {
         </Link>
 
         {user && !isLoading && (
-          <div ref={railRef} className="hidden lg:flex items-center gap-1 relative">
+          <div ref={railRef} className="hidden xl:flex items-center gap-1 relative">
             {indicator && (
               <div
                 className="absolute top-0 bottom-0 rounded-lg bg-primary shadow-lg transition-all duration-200 ease-[var(--ease-spring)]"
@@ -188,48 +188,46 @@ export default function Navbar() {
                 {l.label}
               </Link>
             ))}
-            {GROUPS.map(group => (
-              <DropdownMenuPrimitive.Root key={group.label}>
-                <DropdownMenuPrimitive.Trigger asChild>
-                  <button
-                    ref={(el) => { if (el) itemRefs.current.set(group.label, el); }}
-                    className={`${PILL} flex items-center gap-1 ${activeGroup?.label === group.label ? `text-primary-foreground ${indicator ? '' : 'bg-primary shadow-md'}` : 'text-muted-foreground hover:text-foreground'}`}
-                  >
-                    {group.label}
-                    <ChevronDown className="size-3" />
-                  </button>
-                </DropdownMenuPrimitive.Trigger>
-                <DropdownMenuPrimitive.Portal>
-                  <DropdownMenuPrimitive.Content
-                    align="start"
-                    sideOffset={8}
-                    className="z-50 min-w-36 rounded-xl glass-strong p-1.5 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
-                  >
-                    {group.links.map(l => (
-                      <DropdownMenuPrimitive.Item key={l.href} asChild>
-                        <Link
-                          href={l.href}
-                          className={`block px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest outline-none transition-colors ${pathname === l.href ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'}`}
-                        >
-                          {l.label}
-                        </Link>
-                      </DropdownMenuPrimitive.Item>
-                    ))}
-                  </DropdownMenuPrimitive.Content>
-                </DropdownMenuPrimitive.Portal>
-              </DropdownMenuPrimitive.Root>
-            ))}
-            {isAdmin && (
-              <Link href="/admin" className={`text-xs transition-colors font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/admin' ? 'bg-orange-500 text-white shadow-lg' : 'text-orange-500 hover:bg-orange-500/10'}`}>
-                Admin
-              </Link>
-            )}
+            <DropdownMenuPrimitive.Root>
+              <DropdownMenuPrimitive.Trigger asChild>
+                <button
+                  ref={(el) => { if (el) itemRefs.current.set('menu', el); }}
+                  className={`${PILL} flex items-center gap-1 ${activeGroupLink ? `text-primary-foreground ${indicator ? '' : 'bg-primary shadow-md'}` : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  메뉴
+                  <ChevronDown className="size-3" />
+                </button>
+              </DropdownMenuPrimitive.Trigger>
+              <DropdownMenuPrimitive.Portal>
+                <DropdownMenuPrimitive.Content
+                  align="start"
+                  sideOffset={8}
+                  className="z-50 min-w-44 rounded-xl glass-strong p-1.5 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+                >
+                  {GROUPS.map((group, gi) => (
+                    <div key={group.label} className={gi > 0 ? 'mt-1 pt-1 border-t border-border/40' : ''}>
+                      <p className="px-3 pt-1.5 pb-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">{group.label}</p>
+                      {group.links.map(l => (
+                        <DropdownMenuPrimitive.Item key={l.href} asChild>
+                          <Link
+                            href={l.href}
+                            className={`block px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest outline-none transition-colors ${pathname === l.href ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'}`}
+                          >
+                            {l.label}
+                          </Link>
+                        </DropdownMenuPrimitive.Item>
+                      ))}
+                    </div>
+                  ))}
+                </DropdownMenuPrimitive.Content>
+              </DropdownMenuPrimitive.Portal>
+            </DropdownMenuPrimitive.Root>
           </div>
         )}
       </div>
 
       <div className="flex gap-2 md:gap-4 items-center">
-        <div className="hidden lg:flex items-center gap-4">
+        <div className="hidden xl:flex items-center gap-2">
           <Link href="/contact" className={`text-xs transition-colors font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/contact' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
             Contact
           </Link>
@@ -237,25 +235,49 @@ export default function Navbar() {
 
           {!isLoading && (
             user ? (
-              <div className="flex items-center gap-4 pl-4 border-l border-border/50">
-                <Link href="/profile" className="flex items-center gap-2 group transition-all">
-                  <div className="flex flex-col items-end text-right">
-                    <span className="text-[10px] font-black uppercase text-primary leading-none group-hover:underline max-w-[150px] truncate">
-                      {profile?.full_name || 'My Profile'}
-                    </span>
-                    <span className="text-[9px] text-muted-foreground font-medium opacity-70 max-w-[150px] truncate">
-                      {user.email}
-                    </span>
-                  </div>
-                  {profile?.avatar_url && (
-                    <Image src={profile.avatar_url} alt="" width={32} height={32} className="size-8 rounded-full object-cover ring-2 ring-background shadow-sm" />
-                  )}
-                </Link>
-
-                <Button variant="outline" size="xs" onClick={handleLogout} className="font-black text-[10px] uppercase h-8 px-3 border-border hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors">
-                  Sign Out
-                </Button>
-              </div>
+              <DropdownMenuPrimitive.Root>
+                <DropdownMenuPrimitive.Trigger asChild>
+                  <button className="flex items-center gap-1.5 rounded-full pl-1 pr-2 py-1 ml-2 hover:bg-muted/60 transition-colors">
+                    {profile?.avatar_url ? (
+                      <Image src={profile.avatar_url} alt="" width={32} height={32} className="size-8 rounded-full object-cover ring-2 ring-background shadow-sm" />
+                    ) : (
+                      <span className="flex items-center justify-center size-8 rounded-full bg-muted text-muted-foreground">
+                        <UserCircle2 className="size-5" />
+                      </span>
+                    )}
+                    <ChevronDown className="size-3 text-muted-foreground" />
+                  </button>
+                </DropdownMenuPrimitive.Trigger>
+                <DropdownMenuPrimitive.Portal>
+                  <DropdownMenuPrimitive.Content
+                    align="end"
+                    sideOffset={10}
+                    className="z-50 min-w-48 rounded-xl glass-strong p-1.5 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+                  >
+                    <div className="px-3 py-2 mb-1 border-b border-border/40">
+                      <p className="text-xs font-black uppercase text-primary truncate max-w-[180px]">{profile?.full_name || 'My Profile'}</p>
+                      <p className="text-[10px] text-muted-foreground font-medium opacity-70 truncate max-w-[180px]">{user.email}</p>
+                    </div>
+                    <DropdownMenuPrimitive.Item asChild>
+                      <Link href="/profile" className="block px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-foreground hover:bg-muted transition-colors outline-none">
+                        Profile
+                      </Link>
+                    </DropdownMenuPrimitive.Item>
+                    {isAdmin && (
+                      <DropdownMenuPrimitive.Item asChild>
+                        <Link href="/admin" className="block px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-orange-500 hover:bg-orange-500/10 transition-colors outline-none">
+                          Admin
+                        </Link>
+                      </DropdownMenuPrimitive.Item>
+                    )}
+                    <DropdownMenuPrimitive.Item asChild>
+                      <button onClick={handleLogout} className="w-full text-left px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-destructive hover:bg-destructive/10 transition-colors outline-none">
+                        Sign Out
+                      </button>
+                    </DropdownMenuPrimitive.Item>
+                  </DropdownMenuPrimitive.Content>
+                </DropdownMenuPrimitive.Portal>
+              </DropdownMenuPrimitive.Root>
             ) : (
               <div className="flex gap-2">
                 <Link href="/auth/login">
@@ -270,9 +292,9 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Menu Toggle */}
-        <div className="lg:hidden flex items-center gap-2">
+        <div className="xl:hidden flex items-center gap-2">
           <ThemeToggle />
-          <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)} className="lg:hidden">
+          <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)} className="xl:hidden">
             {isMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </Button>
         </div>
@@ -280,7 +302,7 @@ export default function Navbar() {
 
       {/* Mobile Menu Overlay */}
       {isMenuOpen && (
-        <div className="absolute top-full left-0 w-full glass-strong py-6 px-6 lg:hidden flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-300 max-h-[calc(100vh-72px)] overflow-y-auto">
+        <div className="absolute top-full left-0 w-full glass-strong py-6 px-6 xl:hidden flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-300 max-h-[calc(100vh-72px)] overflow-y-auto">
           {user ? (
             <>
               <div className="flex items-center justify-between pb-4 mb-3 border-b border-border/50">
@@ -355,8 +377,8 @@ export default function Navbar() {
 
     {user && !isLoading && (
       <>
-        {openCat && <div className="lg:hidden fixed inset-0 z-40" onClick={() => setOpenCat(null)} />}
-        <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-50 flex items-end gap-1 rounded-[28px] glass-strong px-2 py-2 tilt-3d">
+        {openCat && <div className="xl:hidden fixed inset-0 z-40" onClick={() => setOpenCat(null)} />}
+        <nav className="xl:hidden fixed bottom-3 left-3 right-3 z-50 flex items-end gap-1 rounded-[28px] glass-strong px-2 py-2 tilt-3d">
           <div className="flex-1 flex items-end justify-evenly">
             {BOTTOM_CATEGORIES_LEFT.map(cat => (
               <BottomCategoryButton
