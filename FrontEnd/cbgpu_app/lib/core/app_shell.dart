@@ -43,7 +43,7 @@ final _groups = [
     _NavLink('스터디', '/match'),
   ]),
   _NavGroup('도구', Icons.build_outlined, [
-    _NavLink('노트', '/soon/노트'),
+    _NavLink('노트', '/notes'),
     _NavLink('도구', '/tools'),
     _NavLink('Arcade', '/soon/Arcade'),
   ]),
