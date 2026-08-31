@@ -39,7 +39,7 @@ final _groups = [
   _NavGroup('학교생활', Icons.school_outlined, [
     _NavLink('자습신청', '/soon/자습신청'),
     _NavLink('시간표', '/soon/시간표'),
-    _NavLink('급식', '/soon/급식'),
+    _NavLink('급식', '/meal'),
     _NavLink('스터디', '/soon/스터디'),
   ]),
   _NavGroup('도구', Icons.build_outlined, [

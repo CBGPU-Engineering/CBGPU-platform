@@ -7,10 +7,12 @@ import '../../core/push_notifications.dart';
 import '../../core/theme.dart';
 
 class _Feature {
-  const _Feature(this.label, this.icon, this.color);
+  const _Feature(this.label, this.icon, this.color, [this.route]);
   final String label;
   final IconData icon;
   final Color color;
+  /// Real route once migrated; falls back to /soon/:label until then.
+  final String? route;
 }
 
 // Mirrors FEATURES in the Next.js home page (src/app/page.tsx) — same order,
@@ -19,7 +21,7 @@ class _Feature {
 final _features = [
   _Feature('자습신청', Icons.menu_book_outlined, AppColors.featureBlue),
   _Feature('시간표', Icons.calendar_month_outlined, AppColors.featureIndigo),
-  _Feature('급식', Icons.restaurant_outlined, AppColors.featureAmber),
+  _Feature('급식', Icons.restaurant_outlined, AppColors.featureAmber, '/meal'),
   _Feature('투표', Icons.how_to_vote_outlined, AppColors.featureViolet),
   _Feature('연구노트', Icons.edit_note_outlined, AppColors.featureTeal),
   _Feature('스터디 매칭', Icons.groups_outlined, AppColors.featureSky),
@@ -127,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             itemBuilder: (context, i) {
               final f = _features[i];
-              return _FeatureCard(feature: f, onTap: () => context.go('/soon/${Uri.encodeComponent(f.label)}'));
+              return _FeatureCard(feature: f, onTap: () => context.go(f.route ?? '/soon/${Uri.encodeComponent(f.label)}'));
             },
           ),
         ],
