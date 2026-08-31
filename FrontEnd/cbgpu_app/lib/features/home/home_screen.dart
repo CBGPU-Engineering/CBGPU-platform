@@ -26,7 +26,7 @@ final _features = [
   _Feature('연구노트', Icons.edit_note_outlined, AppColors.featureTeal, '/notes'),
   _Feature('스터디 매칭', Icons.groups_outlined, AppColors.featureSky, '/match'),
   _Feature('GPU 대여', Icons.memory_outlined, AppColors.featureSlate, '/dashboard'),
-  _Feature('서버 배포', Icons.dns_outlined, AppColors.featureEmerald),
+  _Feature('서버 배포', Icons.dns_outlined, AppColors.featureEmerald, '/server'),
   _Feature('제작', Icons.print_outlined, AppColors.featureOrange),
   _Feature('도구', Icons.build_outlined, AppColors.featureCyan, '/tools'),
   _Feature('Arcade', Icons.sports_esports_outlined, AppColors.featureViolet),

@@ -31,7 +31,7 @@ class _NavGroup {
 // Mirrors Navbar.tsx's GROUPS + PRIMARY_LINKS.
 final _primaryLinks = [
   _NavLink('GPU', '/dashboard'),
-  _NavLink('Server', '/soon/Server'),
+  _NavLink('Server', '/server'),
   _NavLink('Manufacture', '/soon/Manufacture'),
 ];
 
