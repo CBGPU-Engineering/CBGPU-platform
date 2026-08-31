@@ -265,13 +265,12 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    /* 파스텔 앰비언트 배경 — 유리 재질(navbar/card/popover)이 블러로 비칠 무언가가 있어야
-       "유리처럼" 보인다. 옅은 색이라 일반 텍스트 대비엔 영향이 없고, 카드/팝오버 자체의
-       불투명도가 이미 텍스트 대비를 책임진다. */
-    background-image:
-      radial-gradient(ellipse 55% 40% at 10% 5%, oklch(0.88 0.09 290 / 0.4), transparent 65%),
-      radial-gradient(ellipse 50% 40% at 90% 10%, oklch(0.9 0.08 350 / 0.32), transparent 65%),
-      radial-gradient(ellipse 55% 45% at 50% 100%, oklch(0.89 0.09 175 / 0.3), transparent 65%);
+    /* 앰비언트 배경 — 유리 재질(navbar/card/popover)이 블러로 비칠 무언가가 있어야
+       "유리처럼" 보인다. 처음엔 라벤더/핑크/민트 세 가지 색을 흩뿌렸는데 흔한 "AI스러운
+       그라데이션 블롭" 느낌이라 별로였음 — 브랜드 색(--primary) 하나만, 위에서 은은하게
+       비추는 느낌으로 훨씬 절제해서 바꿈. 옅은 색이라 일반 텍스트 대비엔 영향이 없고,
+       카드/팝오버 자체의 불투명도가 이미 텍스트 대비를 책임진다. */
+    background-image: radial-gradient(ellipse 80% 50% at 50% -10%, oklch(0.6 0.18 250 / 0.12), transparent 70%);
     background-repeat: no-repeat;
   }
 
@@ -280,10 +279,7 @@
   }
 
   .dark body {
-    background-image:
-      radial-gradient(ellipse 55% 40% at 10% 5%, oklch(0.32 0.13 290 / 0.45), transparent 65%),
-      radial-gradient(ellipse 50% 40% at 90% 10%, oklch(0.3 0.14 345 / 0.4), transparent 65%),
-      radial-gradient(ellipse 55% 45% at 50% 100%, oklch(0.3 0.12 190 / 0.35), transparent 65%);
+    background-image: radial-gradient(ellipse 80% 50% at 50% -10%, oklch(0.6 0.18 250 / 0.2), transparent 70%);
   }
 
   @media (prefers-reduced-transparency: reduce) {
