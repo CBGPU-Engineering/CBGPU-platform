@@ -3,10 +3,10 @@ import Image from 'next/image';
 /** Generic modern-smartphone bezel (no particular brand) around a screenshot
  * — CSS only, no device-frame image asset needed. */
 export function PhoneMockup({
-  src, alt, className = '',
-}: { src: string; alt: string; className?: string }) {
+  src, alt, className = '', width = 260,
+}: { src: string; alt: string; className?: string; width?: number }) {
   return (
-    <div className={`relative mx-auto ${className}`} style={{ width: 260 }}>
+    <div className={`relative mx-auto ${className}`} style={{ width }}>
       <div className="relative rounded-[2.5rem] bg-neutral-900 p-2.5 shadow-2xl">
         <div className="relative rounded-[2rem] overflow-hidden bg-black aspect-[9/19.5]">
           <Image src={src} alt={alt} fill sizes="260px" className="object-cover object-top" />
