@@ -44,6 +44,17 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
+        <!-- Shown once per widget placement (android:configure in each
+             res/xml/*_widget_info.xml) — see WidgetConfigureActivity. -->
+        <activity
+            android:name=".widgets.WidgetConfigureActivity"
+            android:exported="true"
+            android:theme="@style/NormalTheme">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <!-- Home screen widgets — data pushed from lib/core/home_widgets.dart via
              the home_widget plugin (foreground refresh + a periodic WorkManager
              task); see widgets/BaseTextWidgetProvider.kt for the shared render code. -->

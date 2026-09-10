@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Non-day/night-qualified copies of colors_widget.xml's two palettes, for a
+  widget that's been explicitly set to "라이트"/"다크" in
+  WidgetConfigureActivity rather than "자동" — those must NOT follow the
+  system theme, so they can't use the same @color names the auto (default)
+  path resolves via values/values-night.
+-->
+<resources>
+    <color name="widget_title_color_light">#8A8A8E</color>
+    <color name="widget_body_color_light">#111111</color>
+    <color name="widget_meta_color_light">#AEAEB2</color>
+
+    <color name="widget_title_color_dark">#9A9AA0</color>
+    <color name="widget_body_color_dark">#F2F2F7</color>
+    <color name="widget_meta_color_dark">#7C7C80</color>
+</resources>
