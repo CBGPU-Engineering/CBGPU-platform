@@ -3,17 +3,22 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import {
-  CalendarDays, UtensilsCrossed, Cpu, Printer, Vote, NotebookPen, Users, Newspaper, Server,
+  CalendarDays, UtensilsCrossed, Cpu, Printer, Vote, NotebookPen, Users, Newspaper, Server, Smartphone,
 } from 'lucide-react';
 
 /**
  * Logged-out web visitors land here instead of the personalized dashboard —
  * loosely modeled on Apple's product-page rhythm (apple.com/kr/macbook-neo):
  * one big confident hero statement, then a handful of generously-spaced
- * alternating feature sections, then a single closing CTA. No native app
- * counterpart on purpose — this is only ever shown on the web (see page.tsx),
- * an app user is already past the point of needing to be sold on the idea.
+ * alternating feature sections, then a single closing CTA. It's a
+ * platform promo, not just an app-install pitch — every CTA offers both
+ * "web으로 시작하기" and "앱 설치하기" side by side, deliberately not steering
+ * toward one. No native app counterpart on purpose — this is only ever
+ * shown on the web (see page.tsx), an app user is already past the point
+ * of needing to be sold on the idea.
  */
+
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.cbgpu.cbgpu_app';
 
 const OVERVIEW = [
   { href: '/study', label: '자습신청', icon: NotebookPen },
@@ -42,18 +47,28 @@ export default function LaunchPage() {
             시간표부터 GPU 예약까지, 흩어져 있던 모든 걸 하나로.
           </p>
         </div>
-        <div className="flex items-center justify-center gap-3 pt-2">
-          <Link
-            href="/auth/signup"
-            className="bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest px-8 py-4 rounded-2xl shadow-xl shadow-primary/20 transition-transform active:scale-95 hover:scale-[1.02]"
-          >
-            지금 시작하기
-          </Link>
+        <div className="flex flex-col items-center gap-4 pt-2">
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/auth/signup"
+              className="bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest px-8 py-4 rounded-2xl shadow-xl shadow-primary/20 transition-transform active:scale-95 hover:scale-[1.02]"
+            >
+              웹으로 바로 시작하기
+            </Link>
+            <a
+              href={PLAY_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-card ring-1 ring-foreground/10 font-black text-sm uppercase tracking-widest px-8 py-4 rounded-2xl shadow-sm transition-transform active:scale-95 hover:scale-[1.02]"
+            >
+              <Smartphone className="size-4" /> 앱 설치하기
+            </a>
+          </div>
           <Link
             href="/auth/login"
-            className="text-sm font-black uppercase tracking-widest px-6 py-4 text-muted-foreground hover:text-foreground transition-colors"
+            className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
           >
-            로그인
+            이미 계정이 있어요 · 로그인
           </Link>
         </div>
       </section>
@@ -127,15 +142,25 @@ export default function LaunchPage() {
       {/* ── Closing CTA ────────────────────────────────────────────────── */}
       <section className="py-24 px-6 text-center space-y-6">
         <h2 className="text-4xl md:text-5xl font-black tracking-tighter italic">지금 바로 시작해보세요</h2>
-        <p className="text-muted-foreground font-medium">가입은 1분이면 충분해요.</p>
-        <Link
-          href="/auth/signup"
-          className="inline-block bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest px-10 py-4 rounded-2xl shadow-xl shadow-primary/20 transition-transform active:scale-95 hover:scale-[1.02]"
-        >
-          회원가입
-        </Link>
+        <p className="text-muted-foreground font-medium">가입은 1분이면 충분해요. 웹으로 바로, 또는 앱으로.</p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/auth/signup"
+            className="bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest px-10 py-4 rounded-2xl shadow-xl shadow-primary/20 transition-transform active:scale-95 hover:scale-[1.02]"
+          >
+            회원가입
+          </Link>
+          <a
+            href={PLAY_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-card ring-1 ring-foreground/10 font-black text-sm uppercase tracking-widest px-10 py-4 rounded-2xl shadow-sm transition-transform active:scale-95 hover:scale-[1.02]"
+          >
+            <Smartphone className="size-4" /> 앱 설치하기
+          </a>
+        </div>
         <p className="text-xs text-muted-foreground pt-2">
-          안드로이드 앱도 있어요 — <Link href="/download" className="underline underline-offset-2 hover:text-foreground transition-colors">다운로드 페이지 보기</Link>
+          <Link href="/download" className="underline underline-offset-2 hover:text-foreground transition-colors">앱 다운로드 페이지</Link> · <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground transition-colors">개인정보처리방침</Link>
         </p>
       </section>
     </div>
