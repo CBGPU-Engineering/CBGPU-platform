@@ -109,10 +109,10 @@ Future<void> _refreshGpuStatus() async {
     final gpus = (body['gpus'] as List).cast<Map<String, dynamic>>();
     final text = gpus.map((g) => 'GPU${g['id']} ${g['status'] == 'online' ? '켜짐' : '꺼짐'}').join('\n');
     await _save('gpu_status', text.isEmpty ? '정보 없음' : text);
-    await HomeWidget.updateWidget(androidName: 'GpuStatusWidgetProvider');
+    await HomeWidget.updateWidget(androidName: 'widgets.GpuStatusWidgetProvider');
   } catch (_) {
     await _save('gpu_status', '불러오기 실패');
-    await HomeWidget.updateWidget(androidName: 'GpuStatusWidgetProvider');
+    await HomeWidget.updateWidget(androidName: 'widgets.GpuStatusWidgetProvider');
   }
 }
 
@@ -120,7 +120,7 @@ Future<void> _refreshPrinter3d() async {
   final user = Supabase.instance.client.auth.currentUser;
   if (user == null) {
     await _save('printer3d', '로그인 필요');
-    await HomeWidget.updateWidget(androidName: 'Printer3dWidgetProvider');
+    await HomeWidget.updateWidget(androidName: 'widgets.Printer3dWidgetProvider');
     return;
   }
   try {
@@ -131,14 +131,14 @@ Future<void> _refreshPrinter3d() async {
   } catch (_) {
     await _save('printer3d', '불러오기 실패');
   }
-  await HomeWidget.updateWidget(androidName: 'Printer3dWidgetProvider');
+  await HomeWidget.updateWidget(androidName: 'widgets.Printer3dWidgetProvider');
 }
 
 Future<void> _refreshLaser() async {
   final user = Supabase.instance.client.auth.currentUser;
   if (user == null) {
     await _save('laser', '로그인 필요');
-    await HomeWidget.updateWidget(androidName: 'LaserWidgetProvider');
+    await HomeWidget.updateWidget(androidName: 'widgets.LaserWidgetProvider');
     return;
   }
   try {
@@ -148,7 +148,7 @@ Future<void> _refreshLaser() async {
   } catch (_) {
     await _save('laser', '불러오기 실패');
   }
-  await HomeWidget.updateWidget(androidName: 'LaserWidgetProvider');
+  await HomeWidget.updateWidget(androidName: 'widgets.LaserWidgetProvider');
 }
 
 Future<void> _refreshMeal() async {
@@ -165,14 +165,14 @@ Future<void> _refreshMeal() async {
   } catch (_) {
     await _save('meal', '불러오기 실패');
   }
-  await HomeWidget.updateWidget(androidName: 'MealWidgetProvider');
+  await HomeWidget.updateWidget(androidName: 'widgets.MealWidgetProvider');
 }
 
 Future<void> _refreshTimetable() async {
   final user = Supabase.instance.client.auth.currentUser;
   if (user == null) {
     await _save('timetable', '로그인 필요');
-    await HomeWidget.updateWidget(androidName: 'TimetableWidgetProvider');
+    await HomeWidget.updateWidget(androidName: 'widgets.TimetableWidgetProvider');
     return;
   }
   try {
@@ -180,14 +180,14 @@ Future<void> _refreshTimetable() async {
     final identity = parseStudentId(profile?['student_id'] as String?);
     if (identity == null) {
       await _save('timetable', '학번 정보 없음');
-      await HomeWidget.updateWidget(androidName: 'TimetableWidgetProvider');
+      await HomeWidget.updateWidget(androidName: 'widgets.TimetableWidgetProvider');
       return;
     }
     final now = DateTime.now();
     final gridDay = now.weekday - 1; // 0=Mon..4=Fri
     if (gridDay < 0 || gridDay > 4) {
       await _save('timetable', '오늘은 수업이 없습니다');
-      await HomeWidget.updateWidget(androidName: 'TimetableWidgetProvider');
+      await HomeWidget.updateWidget(androidName: 'widgets.TimetableWidgetProvider');
       return;
     }
     final res = await http.get(Uri.parse('${ApiConfig.functionsUrl}/timetable?grade=${identity.grade}&class=${identity.classNo}')).timeout(const Duration(seconds: 12));
@@ -204,14 +204,14 @@ Future<void> _refreshTimetable() async {
   } catch (_) {
     await _save('timetable', '불러오기 실패');
   }
-  await HomeWidget.updateWidget(androidName: 'TimetableWidgetProvider');
+  await HomeWidget.updateWidget(androidName: 'widgets.TimetableWidgetProvider');
 }
 
 Future<void> _refreshSelfStudy() async {
   final user = Supabase.instance.client.auth.currentUser;
   if (user == null) {
     await _save('selfstudy', '로그인 필요');
-    await HomeWidget.updateWidget(androidName: 'SelfStudyWidgetProvider');
+    await HomeWidget.updateWidget(androidName: 'widgets.SelfStudyWidgetProvider');
     return;
   }
   try {
@@ -219,7 +219,7 @@ Future<void> _refreshSelfStudy() async {
     final identity = parseStudentId(profile?['student_id'] as String?);
     if (identity == null) {
       await _save('selfstudy', '학번 정보 없음');
-      await HomeWidget.updateWidget(androidName: 'SelfStudyWidgetProvider');
+      await HomeWidget.updateWidget(androidName: 'widgets.SelfStudyWidgetProvider');
       return;
     }
     final entries = await eduset.searchSelfStudy(eduset.localDateStr());
@@ -233,5 +233,5 @@ Future<void> _refreshSelfStudy() async {
   } catch (_) {
     await _save('selfstudy', '불러오기 실패');
   }
-  await HomeWidget.updateWidget(androidName: 'SelfStudyWidgetProvider');
+  await HomeWidget.updateWidget(androidName: 'widgets.SelfStudyWidgetProvider');
 }
