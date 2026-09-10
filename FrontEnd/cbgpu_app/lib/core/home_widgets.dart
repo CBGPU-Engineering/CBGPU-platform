@@ -9,8 +9,13 @@ import 'package:workmanager/workmanager.dart';
 import 'api_config.dart';
 import 'eduset.dart' as eduset;
 import 'locate_student.dart' show parseStudentId;
-import 'router.dart';
 import 'supabase_config.dart';
+
+/// Path (e.g. `/timetable`) from the most recent home-widget tap, for
+/// [WebViewShellScreen] to navigate the WebView to — the app has no native
+/// router to hand this to since the [WebViewShellScreen] pivot, so the
+/// widget tap and its consumer are decoupled through this notifier instead.
+final pendingWidgetPath = ValueNotifier<String?>(null);
 
 /// Six Android home screen widgets (GPU status, 3D printer queue, laser
 /// queue, today's meal, today's timetable, self-study status) — data is
@@ -72,7 +77,7 @@ Future<void> initializeHomeWidgets() async {
 
 void _handleWidgetLaunch(Uri? uri) {
   if (uri == null || uri.path.isEmpty) return;
-  router.go(uri.path);
+  pendingWidgetPath.value = uri.path;
 }
 
 /// Fetches fresh data for all six widgets and pushes it to their native
@@ -119,7 +124,7 @@ Future<void> _refreshPrinter3d() async {
     return;
   }
   try {
-    final rows = await Supabase.instance.client.from('printers').select('name, status').order('id');
+    final rows = await Supabase.instance.client.from('printers').select('name, status').order('id', ascending: true);
     const labels = {'idle': '대기', 'printing': '사용중', 'done': '회수대기', 'maintenance': '고장'};
     final text = (rows as List).map((p) => '${p['name']} ${labels[p['status']] ?? p['status']}').join('\n');
     await _save('printer3d', text.isEmpty ? '등록된 프린터 없음' : text);
