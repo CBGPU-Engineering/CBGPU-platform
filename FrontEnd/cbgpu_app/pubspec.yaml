@@ -54,6 +54,9 @@ dependencies:
   archive: ^4.2.0
   path_parsing: ^1.1.0
   xml: ^7.0.1
+  webview_flutter: ^4.13.0
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.1
 
 dev_dependencies:
   flutter_test:
@@ -80,6 +83,7 @@ flutter:
 
   assets:
     - assets/logo.png
+    - assets/bambu-x1c.png
 
 flutter_launcher_icons:
   android: true

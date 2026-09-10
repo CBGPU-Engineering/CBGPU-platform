@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Sunrise, Sun, Moon, UtensilsCrossed } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sunrise, Sun, Moon, UtensilsCrossed, Bell, BellOff } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import { getNativeBridge, onNativeBridgeReady } from '@/lib/nativeBridge';
 
 interface MealItem {
   type: string;
@@ -50,12 +51,83 @@ function shiftDate(ymd: string, delta: number) {
   return fmtDate(d);
 }
 
+const MEAL_ALARM_KEY = 'cbgpu.mealAlarm';
+const MEAL_ALARM_ID = 'meal-daily';
+
+/** "12:20" -> ISO datetime for today at that local time. */
+function todayAt(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+}
+
 export default function MealPage() {
   const [date, setDate] = useState(() => fmtDate(new Date()));
   const [data, setData] = useState<MealData | null>(null);
   const [loading, setLoading] = useState(true);
   const [justLoaded, setJustLoaded] = useState(false);
   const [slideDir, setSlideDir] = useState<'left' | 'right'>('right');
+  const [nativeReady, setNativeReady] = useState(false);
+  const [alarmOn, setAlarmOn] = useState(false);
+  const [alarmTime, setAlarmTime] = useState('12:20');
+
+  // 급식 알림은 앱(WebView) 안에서만 의미가 있다 — 순수 브라우저 탭에는 이걸
+  // 예약해둘 방법이 없다. 준비되면 저장해둔 설정을 복원해 다시 예약한다.
+  useEffect(() => {
+    return onNativeBridgeReady(() => {
+      setNativeReady(true);
+      try {
+        const saved = JSON.parse(localStorage.getItem(MEAL_ALARM_KEY) || 'null');
+        if (saved?.enabled) {
+          setAlarmOn(true);
+          if (saved.time) setAlarmTime(saved.time);
+          getNativeBridge()?.scheduleAlarm({
+            id: MEAL_ALARM_ID,
+            title: '오늘 급식',
+            body: '오늘 급식 메뉴를 확인해보세요',
+            whenIso: todayAt(saved.time || '12:20'),
+            repeat: 'daily',
+          });
+        }
+      } catch {
+        // Malformed/missing localStorage entry — leave the alarm off.
+      }
+    });
+  }, []);
+
+  const applyMealAlarm = useCallback(async (enabled: boolean, time: string) => {
+    const bridge = getNativeBridge();
+    if (!bridge) return;
+    try {
+      localStorage.setItem(MEAL_ALARM_KEY, JSON.stringify({ enabled, time }));
+    } catch {
+      // Best-effort persistence — alarm still (un)schedules for this session.
+    }
+    if (enabled) {
+      await bridge.requestNotificationPermission();
+      await bridge.scheduleAlarm({
+        id: MEAL_ALARM_ID,
+        title: '오늘 급식',
+        body: '오늘 급식 메뉴를 확인해보세요',
+        whenIso: todayAt(time),
+        repeat: 'daily',
+      });
+    } else {
+      await bridge.cancelAlarm(MEAL_ALARM_ID);
+    }
+  }, []);
+
+  function toggleMealAlarm() {
+    const next = !alarmOn;
+    setAlarmOn(next);
+    applyMealAlarm(next, alarmTime);
+  }
+
+  function changeMealAlarmTime(time: string) {
+    setAlarmTime(time);
+    if (alarmOn) applyMealAlarm(true, time);
+  }
 
   const load = useCallback(async (d: string) => {
     setLoading(true);
@@ -88,6 +160,31 @@ export default function MealPage() {
         <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">충북과학고 학교급식</p>
         <h1 className="text-3xl font-black tracking-tight">오늘 뭐 나와요?</h1>
       </div>
+
+      {nativeReady && (
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-card ring-1 ring-foreground/5">
+          <button
+            onClick={toggleMealAlarm}
+            className={`flex items-center justify-center size-10 rounded-xl shrink-0 transition-colors ${
+              alarmOn ? 'bg-primary/15 text-primary' : 'bg-foreground/5 text-muted-foreground'
+            }`}
+            aria-pressed={alarmOn}
+          >
+            {alarmOn ? <Bell className="size-5" /> : <BellOff className="size-5" />}
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold">매일 급식 알림</p>
+            <p className="text-[11px] text-muted-foreground">{alarmOn ? `매일 ${alarmTime}에 알려드려요` : '꺼져 있어요'}</p>
+          </div>
+          <input
+            type="time"
+            value={alarmTime}
+            disabled={!alarmOn}
+            onChange={(e) => changeMealAlarmTime(e.target.value)}
+            className="text-sm font-bold bg-transparent disabled:opacity-40 rounded-lg px-2 py-1 ring-1 ring-foreground/10"
+          />
+        </div>
+      )}
 
       {/* 날짜 네비게이션 — 큰 날짜 카드, 좌우로 물리적으로 밀어내는 느낌 */}
       <div className="flex items-center gap-3">

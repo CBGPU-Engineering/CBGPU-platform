@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
+import { getNativeBridge, onNativeBridgeReady } from '@/lib/nativeBridge';
 
 type AuthContextType = {
   user: User | null;
@@ -83,9 +84,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setProfile(null);
         setManagedPrinterIds([]);
       }
+
+      // Keep the native app's own Supabase client (used for its home-screen
+      // widgets, which this site's session can't reach on its own) in sync.
+      const bridge = getNativeBridge();
+      if (bridge) {
+        if (session) {
+          bridge.syncSession({ accessToken: session.access_token, refreshToken: session.refresh_token });
+        } else {
+          bridge.clearSession();
+        }
+      }
     });
 
-    return () => subscription.unsubscribe();
+    // The app injects window.CBGPUNative asynchronously after its WebView
+    // finishes loading, which can land after the auth listener above has
+    // already fired once — cover that race by syncing again once it's ready.
+    const unsubscribeBridge = onNativeBridgeReady(async (bridge) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        bridge.syncSession({ accessToken: session.access_token, refreshToken: session.refresh_token });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      unsubscribeBridge();
+    };
   }, []);
 
   const value = {
