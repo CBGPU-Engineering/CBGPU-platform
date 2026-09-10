@@ -104,7 +104,7 @@ function BottomCategoryButton({ cat, isOpen, onToggle, pathname }: {
       <button
         type="button"
         onClick={onToggle}
-        className={`flex flex-col items-center gap-0.5 py-1 w-12 rounded-2xl transition-all duration-300 ${(active || isOpen) ? '-translate-y-1.5' : ''}`}
+        className={`relative z-10 flex flex-col items-center gap-0.5 py-1 w-12 rounded-2xl transition-all duration-150 active:scale-90 ${(active || isOpen) ? '-translate-y-1.5' : ''}`}
       >
         <cat.Icon className={`size-5 transition-colors duration-300 ${active || isOpen ? 'text-primary' : 'text-muted-foreground'}`} strokeWidth={active || isOpen ? 2.5 : 2} />
         <span className={`text-[9px] font-black uppercase tracking-wide ${active || isOpen ? 'text-primary' : 'text-muted-foreground'}`}>
@@ -302,7 +302,7 @@ export default function Navbar() {
 
       {/* Mobile Menu Overlay */}
       {isMenuOpen && (
-        <div className="absolute top-full left-0 w-full glass-strong py-6 px-6 xl:hidden flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-300 max-h-[calc(100vh-72px)] overflow-y-auto">
+        <div className="absolute top-full left-0 w-full glass-strong pt-6 px-6 pb-28 xl:hidden flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-300 max-h-[calc(100vh-72px)] overflow-y-auto">
           {user ? (
             <>
               <div className="flex items-center justify-between pb-4 mb-3 border-b border-border/50">
