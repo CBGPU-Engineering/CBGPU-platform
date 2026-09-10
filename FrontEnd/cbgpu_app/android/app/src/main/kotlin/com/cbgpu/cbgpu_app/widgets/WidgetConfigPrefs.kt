@@ -6,7 +6,7 @@ import android.content.Context
 enum class WidgetTheme { AUTO, LIGHT, DARK }
 
 /** One of the 5 baked opacity levels — see the widget_background*_a{N}.xml drawables. */
-val OPACITY_LEVELS = listOf(100, 80, 60, 40, 20)
+val OPACITY_LEVELS = listOf(100, 80, 60, 40, 20, 0)
 
 /**
  * Per-widget-instance appearance settings, set from WidgetConfigureActivity
