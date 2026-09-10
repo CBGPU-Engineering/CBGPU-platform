@@ -6,6 +6,9 @@ import {
   Cpu, CalendarDays, BookOpen, UtensilsCrossed, Vote,
   NotebookPen, Users, Gamepad2, Wrench, Newspaper, Server, Printer,
 } from 'lucide-react';
+import { isNativeApp, onNativeBridgeReady } from '@/lib/nativeBridge';
+import LaunchPage from '@/components/LaunchPage';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 /** 서버/클라이언트 시각이 다를 수 있어 SSR에서는 중립적인 기본값만 쓰고,
  * 마운트 후 클라이언트 시계 + 날씨로만 인사를 골라서 하이드레이션 불일치를 피한다 */
@@ -110,9 +113,19 @@ const FEATURES = [
 ];
 
 export default function Home() {
-  const { user, profile } = useAuth();
+  const { user, profile, isLoading } = useAuth();
   const firstName = profile?.full_name?.trim() || null;
   const [greeting, setGreeting] = useState('안녕하세요');
+  // 앱(WebView) 안에서는 로그인 여부와 상관없이 절대 런치 페이지를 보여주지
+  // 않는다 — 이미 앱을 쓰고 있는 사람한테 "시작해보세요"는 말이 안 되니까.
+  // isNativeApp()은 브릿지가 아직 주입되기 전이면 false를 반환하므로,
+  // onNativeBridgeReady로 뒤늦게 확정되는 경우까지 함께 잡는다.
+  const [native, setNative] = useState(isNativeApp());
+
+  useEffect(() => {
+    if (native) return;
+    return onNativeBridgeReady(() => setNative(true));
+  }, [native]);
 
   useEffect(() => {
     const bracket = timeBracket(new Date().getHours());
@@ -127,6 +140,19 @@ export default function Home() {
       })
       .catch(() => {});
   }, []);
+
+  // 웹 + 로그아웃 상태에서만 런치 페이지 — 로그인했거나 앱 안이면 평소 대시보드.
+  if (!native && !isLoading && !user) {
+    return <LaunchPage />;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <LoadingSpinner size={56} />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-10">

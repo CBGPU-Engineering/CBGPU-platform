@@ -10,6 +10,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 import DeferredStylesheet from '@/components/DeferredStylesheet';
 import ApprovalNotice from '@/components/ApprovalNotice';
 import SiteBanner from '@/components/SiteBanner';
+import InstallAppNudge from '@/components/InstallAppNudge';
 
 const siteUrl = 'https://cbgpu.vercel.app';
 const schoolLogo = 'https://i.namu.wiki/i/qMgg10XRSaTorhAnQaV-bKbUWK_xIlq2socc7pVyw1SJmovke8gEWfeofFitiIJ1VBMngGy4o1NuAnjrOA0m1w.webp';
@@ -113,6 +114,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   </div>
                 </div>
               </footer>
+              <InstallAppNudge />
               <Analytics />
               <SpeedInsights />
             </AlertProvider>
