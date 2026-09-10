@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Sunrise, Sun, Moon, UtensilsCrossed, Bell, BellOff } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { getNativeBridge, onNativeBridgeReady } from '@/lib/nativeBridge';
+import { TimePicker } from '@/components/ui/time-picker';
 
 interface MealItem {
   type: string;
@@ -176,13 +177,7 @@ export default function MealPage() {
             <p className="text-sm font-bold">매일 급식 알림</p>
             <p className="text-[11px] text-muted-foreground">{alarmOn ? `매일 ${alarmTime}에 알려드려요` : '꺼져 있어요'}</p>
           </div>
-          <input
-            type="time"
-            value={alarmTime}
-            disabled={!alarmOn}
-            onChange={(e) => changeMealAlarmTime(e.target.value)}
-            className="text-sm font-bold bg-transparent disabled:opacity-40 rounded-lg px-2 py-1 ring-1 ring-foreground/10"
-          />
+          <TimePicker value={alarmTime} disabled={!alarmOn} onChange={changeMealAlarmTime} />
         </div>
       )}
 
