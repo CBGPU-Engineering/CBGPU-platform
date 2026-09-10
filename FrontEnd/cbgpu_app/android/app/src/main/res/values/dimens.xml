@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fallback for API <31, where the system doesn't hand out its own widget
+     corner radius — overridden in values-v31 to match whatever radius the
+     device's actual launcher (One UI included) uses for every other widget
+     on the home screen, per Android's own "Building more modern app widgets
+     in Android 12" guidance. -->
+<resources>
+    <dimen name="widget_corner_radius">20dp</dimen>
+</resources>

@@ -4,4 +4,10 @@
     <!-- Always white regardless of day/night — sits on widget_accent_color,
          which is dark enough in both themes for white text to stay legible. -->
     <color name="widget_period_badge_text">#FFFFFF</color>
+    <!-- CBGPU's own brand blue (lib/core/theme.dart AppColors.primary) — used
+         for WidgetConfigureActivity's own chrome (it's an app screen, not a
+         home-screen element, so it should read as "CBGPU" rather than
+         match the system's Material You accent the way the widgets
+         themselves do — see values-v31/colors_widget.xml). -->
+    <color name="cbgpu_brand_color">#0082E6</color>
 </resources>
