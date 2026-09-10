@@ -28,6 +28,11 @@ final pendingWidgetPath = ValueNotifier<String?>(null);
 const _refreshTaskName = 'cbgpu-widget-refresh';
 const _weekdaysMon = ['월', '화', '수', '목', '금'];
 
+const _printerStatusIcon = {'idle': '⚪', 'printing': '🟢', 'done': '🟡', 'maintenance': '🔴'};
+const _mealTypeIcon = {'조식': '🌅', '중식': '☀️', '석식': '🌙'};
+
+String _periodLabel(int period) => '$period교시';
+
 String _timeLabel([DateTime? at]) {
   final d = at ?? DateTime.now();
   return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')} 업데이트';
@@ -102,12 +107,24 @@ Future<void> _save(String prefix, String body) async {
   await HomeWidget.saveWidgetData('$prefix.updatedAt', _timeLabel());
 }
 
+/// TimetableWidgetProvider reads this separately from `.body` to render an
+/// actual table instead of one run-on line — each entry is "period::subject",
+/// entries joined by "\n". Cleared (empty string, not just left stale)
+/// whenever `.body` is a status message instead of real period data, so the
+/// widget doesn't keep showing yesterday's schedule under a "로그인 필요"
+/// message.
+Future<void> _saveTimetableRows(String rows) async {
+  await HomeWidget.saveWidgetData('timetable.rows', rows);
+}
+
 Future<void> _refreshGpuStatus() async {
   try {
     final res = await http.get(Uri.parse('${ApiConfig.functionsUrl}/gpu-status')).timeout(const Duration(seconds: 12));
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final gpus = (body['gpus'] as List).cast<Map<String, dynamic>>();
-    final text = gpus.map((g) => 'GPU${g['id']} ${g['status'] == 'online' ? '켜짐' : '꺼짐'}').join('\n');
+    final text = gpus
+        .map((g) => '${g['status'] == 'online' ? '🟢' : '⚫'} GPU${g['id']} ${g['status'] == 'online' ? '켜짐' : '꺼짐'}')
+        .join('\n');
     await _save('gpu_status', text.isEmpty ? '정보 없음' : text);
     await HomeWidget.updateWidget(androidName: 'widgets.GpuStatusWidgetProvider');
   } catch (_) {
@@ -126,7 +143,9 @@ Future<void> _refreshPrinter3d() async {
   try {
     final rows = await Supabase.instance.client.from('printers').select('name, status').order('id', ascending: true);
     const labels = {'idle': '대기', 'printing': '사용중', 'done': '회수대기', 'maintenance': '고장'};
-    final text = (rows as List).map((p) => '${p['name']} ${labels[p['status']] ?? p['status']}').join('\n');
+    final text = (rows as List)
+        .map((p) => '${_printerStatusIcon[p['status']] ?? '⚪'} ${p['name']} ${labels[p['status']] ?? p['status']}')
+        .join('\n');
     await _save('printer3d', text.isEmpty ? '등록된 프린터 없음' : text);
   } catch (_) {
     await _save('printer3d', '불러오기 실패');
@@ -144,7 +163,7 @@ Future<void> _refreshLaser() async {
   try {
     final rows = await Supabase.instance.client.from('laser_jobs').select('id').inFilter('status', ['pending', 'accepted', 'in_progress']);
     final count = (rows as List).length;
-    await _save('laser', count == 0 ? '대기열 없음' : '대기열 $count건');
+    await _save('laser', count == 0 ? '🟢 대기열 없음' : '🟠 대기열 $count건');
   } catch (_) {
     await _save('laser', '불러오기 실패');
   }
@@ -159,7 +178,9 @@ Future<void> _refreshMeal() async {
     if (meals.isEmpty) {
       await _save('meal', '급식 정보 없음');
     } else {
-      final text = meals.map((m) => '${m['type']}: ${(m['items'] as List).take(3).join(', ')}').join('\n');
+      final text = meals
+          .map((m) => '${_mealTypeIcon[m['type']] ?? '🍽️'} ${m['type']}: ${(m['items'] as List).take(2).join(', ')}')
+          .join('\n');
       await _save('meal', text);
     }
   } catch (_) {
@@ -187,6 +208,7 @@ Future<void> _refreshTimetable() async {
     final gridDay = now.weekday - 1; // 0=Mon..4=Fri
     if (gridDay < 0 || gridDay > 4) {
       await _save('timetable', '오늘은 수업이 없습니다');
+      await _saveTimetableRows('');
       await HomeWidget.updateWidget(androidName: 'widgets.TimetableWidgetProvider');
       return;
     }
@@ -196,13 +218,19 @@ Future<void> _refreshTimetable() async {
     final dayGrid = grid?['$gridDay'] as Map<String, dynamic>?;
     if (dayGrid == null || dayGrid.isEmpty) {
       await _save('timetable', '${_weekdaysMon[gridDay]}요일 시간표 없음');
+      await _saveTimetableRows('');
     } else {
       final periods = dayGrid.keys.map(int.parse).toList()..sort();
-      final text = periods.take(6).map((p) => '$p.${(dayGrid['$p'] as Map<String, dynamic>)['subject']}').join(' · ');
-      await _save('timetable', text);
+      final rows = periods
+          .take(6)
+          .map((p) => '$p::${(dayGrid['$p'] as Map<String, dynamic>)['subject']}')
+          .join('\n');
+      await _save('timetable', rows.replaceAll('::', '. ').replaceAll('\n', ' · ')); // fallback text for older clients
+      await _saveTimetableRows(rows);
     }
   } catch (_) {
     await _save('timetable', '불러오기 실패');
+    await _saveTimetableRows('');
   }
   await HomeWidget.updateWidget(androidName: 'widgets.TimetableWidgetProvider');
 }
@@ -225,10 +253,10 @@ Future<void> _refreshSelfStudy() async {
     final entries = await eduset.searchSelfStudy(eduset.localDateStr());
     final mine = entries.where((e) => e.student.grade == identity.grade && e.student.classNo == identity.classNo && e.student.number == identity.number).toList();
     if (mine.isEmpty) {
-      await _save('selfstudy', '오늘 자습신청 안 함');
+      await _save('selfstudy', '❌ 오늘 자습신청 안 함');
     } else {
-      final periods = mine.map((e) => '${e.period}교시').join(', ');
-      await _save('selfstudy', '신청 완료 ($periods)');
+      final periods = mine.map((e) => _periodLabel(e.period)).join(' ');
+      await _save('selfstudy', '✅ 신청 완료\n$periods');
     }
   } catch (_) {
     await _save('selfstudy', '불러오기 실패');

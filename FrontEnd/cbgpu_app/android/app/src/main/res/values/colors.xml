@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Always white regardless of day/night — sits on widget_accent_color,
+         which is dark enough in both themes for white text to stay legible. -->
+    <color name="widget_period_badge_text">#FFFFFF</color>
 </resources>

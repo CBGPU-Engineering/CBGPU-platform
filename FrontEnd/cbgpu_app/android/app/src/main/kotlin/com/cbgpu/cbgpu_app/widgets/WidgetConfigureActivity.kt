@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
 import android.widget.RadioGroup
+import androidx.core.content.ContextCompat
 import com.cbgpu.cbgpu_app.R
 
 /**
@@ -44,23 +45,55 @@ class WidgetConfigureActivity : Activity() {
       WidgetOpacity.OPAQUE -> opacityGroup.check(R.id.opacity_opaque)
     }
 
+    updatePreview()
+    themeGroup.setOnCheckedChangeListener { _, _ -> updatePreview() }
+    opacityGroup.setOnCheckedChangeListener { _, _ -> updatePreview() }
+
     findViewById<android.widget.Button>(R.id.confirm_button).setOnClickListener {
-      val theme =
-          when (themeGroup.checkedRadioButtonId) {
-            R.id.theme_light -> WidgetTheme.LIGHT
-            R.id.theme_dark -> WidgetTheme.DARK
-            else -> WidgetTheme.AUTO
-          }
-      val opacity =
-          if (opacityGroup.checkedRadioButtonId == R.id.opacity_translucent) WidgetOpacity.TRANSLUCENT
-          else WidgetOpacity.OPAQUE
-      WidgetConfigPrefs.save(this, appWidgetId, theme, opacity)
+      WidgetConfigPrefs.save(this, appWidgetId, selectedTheme(), selectedOpacity())
       requestRedraw()
 
       val result = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
       setResult(RESULT_OK, result)
       finish()
     }
+  }
+
+  private fun selectedTheme(): WidgetTheme =
+      when (findViewById<RadioGroup>(R.id.theme_group).checkedRadioButtonId) {
+        R.id.theme_light -> WidgetTheme.LIGHT
+        R.id.theme_dark -> WidgetTheme.DARK
+        else -> WidgetTheme.AUTO
+      }
+
+  private fun selectedOpacity(): WidgetOpacity =
+      if (findViewById<RadioGroup>(R.id.opacity_group).checkedRadioButtonId == R.id.opacity_translucent) {
+        WidgetOpacity.TRANSLUCENT
+      } else {
+        WidgetOpacity.OPAQUE
+      }
+
+  /** Mirrors applyWidgetAppearance's own resource picking, against the local preview card. */
+  private fun updatePreview() {
+    val theme = selectedTheme()
+    val opacity = selectedOpacity()
+    val translucent = opacity == WidgetOpacity.TRANSLUCENT
+
+    val backgroundRes =
+        when (theme) {
+          WidgetTheme.AUTO -> if (translucent) R.drawable.widget_background_translucent else R.drawable.widget_background
+          WidgetTheme.LIGHT -> if (translucent) R.drawable.widget_background_light_translucent else R.drawable.widget_background_light_opaque
+          WidgetTheme.DARK -> if (translucent) R.drawable.widget_background_dark_translucent else R.drawable.widget_background_dark_opaque
+        }
+    findViewById<android.view.View>(R.id.preview_card).setBackgroundResource(backgroundRes)
+
+    val bodyColorRes =
+        when (theme) {
+          WidgetTheme.LIGHT -> R.color.widget_body_color_light
+          WidgetTheme.DARK -> R.color.widget_body_color_dark
+          WidgetTheme.AUTO -> R.color.widget_body_color
+        }
+    findViewById<android.widget.TextView>(R.id.preview_body).setTextColor(ContextCompat.getColor(this, bodyColorRes))
   }
 
   /**

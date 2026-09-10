@@ -13,40 +13,117 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="위젯 설정"
-            android:textSize="22sp"
+            android:textSize="24sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="테마와 투명도를 골라주세요"
+            android:textSize="13sp"
+            android:alpha="0.6" />
+
+        <!-- Live preview — same drawable the real widget will use, so
+             what's shown here is exactly what gets placed. -->
+        <FrameLayout
+            android:layout_width="140dp"
+            android:layout_height="140dp"
             android:layout_marginTop="24dp"
+            android:layout_gravity="center_horizontal">
+
+            <FrameLayout
+                android:id="@+id/preview_card"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/widget_background"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="📅 시간표"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/widget_title_color" />
+
+                    <TextView
+                        android:id="@+id/preview_body"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="1 국어\n2 수학\n3 영어"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/widget_body_color" />
+                </LinearLayout>
+            </FrameLayout>
+        </FrameLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
             android:text="테마"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:alpha="0.7" />
 
         <RadioGroup
             android:id="@+id/theme_group"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
 
             <RadioButton
                 android:id="@+id/theme_auto"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="자동 (기기 설정을 따름)"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:button="@null"
+                android:gravity="center"
+                android:paddingVertical="12dp"
+                android:background="@drawable/widget_config_chip_bg"
+                android:textColor="@color/widget_config_chip_text"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:text="자동"
                 android:checked="true" />
 
             <RadioButton
                 android:id="@+id/theme_light"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:button="@null"
+                android:gravity="center"
+                android:paddingVertical="12dp"
+                android:background="@drawable/widget_config_chip_bg"
+                android:textColor="@color/widget_config_chip_text"
+                android:textSize="13sp"
+                android:textStyle="bold"
                 android:text="라이트" />
 
             <RadioButton
                 android:id="@+id/theme_dark"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:button="@null"
+                android:gravity="center"
+                android:paddingVertical="12dp"
+                android:background="@drawable/widget_config_chip_bg"
+                android:textColor="@color/widget_config_chip_text"
+                android:textSize="13sp"
+                android:textStyle="bold"
                 android:text="다크" />
         </RadioGroup>
 
@@ -55,34 +132,57 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:text="투명도"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:alpha="0.7" />
 
         <RadioGroup
             android:id="@+id/opacity_group"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
 
             <RadioButton
                 android:id="@+id/opacity_opaque"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:button="@null"
+                android:gravity="center"
+                android:paddingVertical="12dp"
+                android:background="@drawable/widget_config_chip_bg"
+                android:textColor="@color/widget_config_chip_text"
+                android:textSize="13sp"
+                android:textStyle="bold"
                 android:text="불투명"
                 android:checked="true" />
 
             <RadioButton
                 android:id="@+id/opacity_translucent"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:button="@null"
+                android:gravity="center"
+                android:paddingVertical="12dp"
+                android:background="@drawable/widget_config_chip_bg"
+                android:textColor="@color/widget_config_chip_text"
+                android:textSize="13sp"
+                android:textStyle="bold"
                 android:text="반투명" />
         </RadioGroup>
 
         <Button
             android:id="@+id/confirm_button"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="52dp"
             android:layout_marginTop="32dp"
+            android:background="@drawable/widget_config_confirm_bg"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"
             android:text="완료" />
     </LinearLayout>
 </ScrollView>

@@ -48,7 +48,7 @@
             android:textStyle="bold"
             android:textColor="@color/widget_body_color"
             android:lineSpacingExtra="2dp"
-            android:maxLines="4"
+            android:maxLines="6"
             tools:text="GPU1 사용중\nGPU2 대기\nGPU3 대기\nGPU4 고장" />
 
         <TextView
