@@ -80,14 +80,26 @@ class _StudyScreenState extends State<StudyScreen> {
       _error = null;
     });
     try {
+      // eduset.SelfStudyPolicy is non-nullable, so a plain
+      // `.catchError((_) => null)` on that future makes Dart try to complete
+      // a Future<SelfStudyPolicy> with null — that throws a "type 'Null' is
+      // not a subtype of type 'FutureOr<SelfStudyPolicy>'" error inside the
+      // Future machinery itself, outside this try/catch, which leaves the
+      // Future.wait below permanently unresolved (an infinite spinner) any
+      // time the policy fetch fails. Fetch it separately with a real
+      // try/catch instead so a failure just yields a null policy.
+      eduset.SelfStudyPolicy? policy;
+      try {
+        policy = await eduset.getSelfStudyPolicy();
+      } catch (_) {
+        policy = null;
+      }
       final results = await Future.wait([
         eduset.getRooms(),
-        eduset.getSelfStudyPolicy().catchError((_) => null as dynamic),
         eduset.getStudents().catchError((_) => <eduset.Student>[]),
       ]);
       final rooms = results[0] as List<eduset.Room>;
-      final policy = results[1] as eduset.SelfStudyPolicy?;
-      final students = results[2] as List<eduset.Student>;
+      final students = results[1] as List<eduset.Student>;
       _allStudents = students;
 
       final today = DateTime.now();
@@ -108,18 +120,46 @@ class _StudyScreenState extends State<StudyScreen> {
         });
       }
 
+      // A single direct test against the upstream (a handful of rapid
+      // back-to-back calls, no delay between them) always got a 500 for
+      // this shared token, which looked like a permanent, role-based
+      // failure — so the 3x retry here was removed as pure wasted latency.
+      // That was wrong: side-by-side against the real web app (which does
+      // retry, with delay, like `withRetry` below), the web app consistently
+      // gets real occupancy data back and this single-attempt version
+      // consistently got all-zero rooms. So the 500 is transient after all,
+      // and the retry's backoff delay (giving the upstream a moment to
+      // recover) is exactly what made the difference — matching the web
+      // app's own withRetry(searchSelfStudy, 3, 400) here for real, not the
+      // "looks pointless from one bad test" guess.
       List<eduset.SelfStudyEntry>? selfStudyEntries;
-      try {
-        // A failed aggregate search already has a room-by-room fallback in
-        // _loadRoom. Retrying it three times made a temporary upstream stall
-        // look like an infinite spinner for over a minute.
-        selfStudyEntries = await eduset.searchSelfStudy(dateStr);
-      } catch (_) {
-        selfStudyEntries = null;
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          selfStudyEntries = await eduset.searchSelfStudy(dateStr);
+          break;
+        } catch (_) {
+          selfStudyEntries = null;
+          if (attempt < 2) {
+            await Future.delayed(Duration(milliseconds: 400 * (attempt + 1)));
+          }
+        }
       }
 
+      // Reuse the student list already fetched above instead of resolving
+      // each occupant's name with its own /students/{id} call in the
+      // fallback path below — with ~80 rooms and /selfstudy/search always
+      // failing (see above), that fallback ran on every single room on every
+      // load, firing potentially 100+ concurrent per-student requests and
+      // making the page feel like it "doesn't load properly". A single
+      // /students list call (already made above) covers every occupant.
+      final studentLabels = <int, String>{
+        for (final s in students) s.id: eduset.formatStudentLabel(s),
+      };
+
       final data = await Future.wait(
-        rooms.map((room) => _loadRoom(room, selfStudyEntries, dateStr)),
+        rooms.map(
+          (room) => _loadRoom(room, selfStudyEntries, dateStr, studentLabels),
+        ),
       );
       _roomData = data;
 
@@ -153,6 +193,7 @@ class _StudyScreenState extends State<StudyScreen> {
     eduset.Room room,
     List<eduset.SelfStudyEntry>? selfStudyEntries,
     String dateStr,
+    Map<int, String> studentLabels,
   ) async {
     if (!room.hasSeats) {
       try {
@@ -180,20 +221,11 @@ class _StudyScreenState extends State<StudyScreen> {
           }
         } else {
           final occupations = await eduset.getSeatOccupations(room.id, dateStr);
-          final studentIds = occupations.map((o) => o.studentId).toSet();
-          final labelById = <int, String>{};
-          await Future.wait(
-            studentIds.map((id) async {
-              try {
-                labelById[id] = eduset.formatStudentLabel(
-                  await eduset.getStudent(id),
-                );
-              } catch (_) {}
-            }),
-          );
           for (final o in occupations) {
-            final label = labelById[o.studentId];
-            if (label == null) continue;
+            // Looked up from the /students list fetched once in _load()
+            // instead of one /students/{id} call per occupant — see the
+            // comment where studentLabels is built.
+            final label = studentLabels[o.studentId] ?? '학번 ${o.studentId}';
             occupancy.add(
               _OccupancyEntry(
                 roomId: room.id,
@@ -265,20 +297,10 @@ class _StudyScreenState extends State<StudyScreen> {
         }
       } else {
         final occupations = await eduset.getSeatOccupations(room.id, dateStr);
-        final studentIds = occupations.map((o) => o.studentId).toSet();
-        final labelById = <int, String>{};
-        await Future.wait(
-          studentIds.map((id) async {
-            try {
-              labelById[id] = eduset.formatStudentLabel(
-                await eduset.getStudent(id),
-              );
-            } catch (_) {}
-          }),
-        );
         for (final o in occupations) {
-          final label = labelById[o.studentId];
-          if (label == null) continue;
+          // Same reasoning as the non-seat fallback above: looked up from
+          // the /students list fetched once in _load().
+          final label = studentLabels[o.studentId] ?? '학번 ${o.studentId}';
           addEntry(
             o.seatId,
             seatNameById[o.seatId] ?? '',

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/glass.dart';
+import '../../core/segmented_tabs.dart';
 
 class ToolsScreen extends StatefulWidget {
   const ToolsScreen({super.key});
@@ -50,19 +51,27 @@ class _ToolsScreenState extends State<ToolsScreen> {
               ),
               const SizedBox(height: 32),
               Center(
-                child: SegmentedButton<int>(
-                  segments: const [
-                    ButtonSegment(
+                child: AppSegmentedTabs<int>(
+                  value: _tab,
+                  onChanged: (v) => setState(() => _tab = v),
+                  items: [
+                    AppTabItem(
                       value: 0,
-                      label: _ToolTabLabel('⏱ 포모도로', '집중 타이머'),
+                      builder: (active) => _ToolTabLabel(
+                        '⏱ 포모도로',
+                        '집중 타이머',
+                        active: active,
+                      ),
                     ),
-                    ButtonSegment(
+                    AppTabItem(
                       value: 1,
-                      label: _ToolTabLabel('📅 D-day', '목표일까지'),
+                      builder: (active) => _ToolTabLabel(
+                        '📅 D-day',
+                        '목표일까지',
+                        active: active,
+                      ),
                     ),
                   ],
-                  selected: {_tab},
-                  onSelectionChanged: (s) => setState(() => _tab = s.first),
                 ),
               ),
               const SizedBox(height: 32),
@@ -76,9 +85,10 @@ class _ToolsScreenState extends State<ToolsScreen> {
 }
 
 class _ToolTabLabel extends StatelessWidget {
-  const _ToolTabLabel(this.title, this.description);
+  const _ToolTabLabel(this.title, this.description, {this.active = false});
   final String title;
   final String description;
+  final bool active;
   @override
   Widget build(BuildContext context) => Column(
     mainAxisSize: MainAxisSize.min,
@@ -86,10 +96,10 @@ class _ToolTabLabel extends StatelessWidget {
       Text(title),
       Text(
         description,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 9,
           fontWeight: FontWeight.w500,
-          color: Colors.grey,
+          color: active ? Colors.white70 : Colors.grey,
         ),
       ),
     ],

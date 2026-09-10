@@ -166,12 +166,12 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Future<void> _fetchAllProfiles() async {
-    final rows = await Supabase.instance.client.from('profiles').select('id, full_name, student_id').order('student_id');
+    final rows = await Supabase.instance.client.from('profiles').select('id, full_name, student_id').order('student_id', ascending: true);
     if (mounted) setState(() => _allProfiles = (rows as List).cast<Map<String, dynamic>>());
   }
 
   Future<void> _fetchPrinters() async {
-    final rows = await Supabase.instance.client.from('printers').select('*').order('id');
+    final rows = await Supabase.instance.client.from('printers').select('*').order('id', ascending: true);
     if (mounted) setState(() => _printers = (rows as List).cast<Map<String, dynamic>>());
   }
 
@@ -181,7 +181,7 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Future<void> _fetchLaserManagers() async {
-    final rows = await Supabase.instance.client.from('profiles').select('id, full_name, student_id').eq('is_laser_cut_manager', true).order('student_id');
+    final rows = await Supabase.instance.client.from('profiles').select('id, full_name, student_id').eq('is_laser_cut_manager', true).order('student_id', ascending: true);
     if (mounted) setState(() => _laserManagers = (rows as List).cast<Map<String, dynamic>>());
   }
 
@@ -255,12 +255,30 @@ class _AdminScreenState extends State<AdminScreen> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.shield_outlined, size: 56, color: Colors.red),
-              const SizedBox(height: 12),
-              const Text('Access Denied', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 24)),
-              const Text('Administrator privileges required.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
+                ),
+                child: Icon(Icons.shield_outlined, size: 40, color: Theme.of(context).colorScheme.error),
+              ),
               const SizedBox(height: 16),
-              OutlinedButton(onPressed: () => context.go('/'), child: const Text('Return Home')),
+              const Text(
+                'ACCESS DENIED',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 28, fontStyle: FontStyle.italic, letterSpacing: -0.5),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'ADMINISTRATOR PRIVILEGES REQUIRED.',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1),
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton(
+                onPressed: () => context.go('/'),
+                child: const Text('RETURN HOME', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
+              ),
             ]),
           ),
         ),

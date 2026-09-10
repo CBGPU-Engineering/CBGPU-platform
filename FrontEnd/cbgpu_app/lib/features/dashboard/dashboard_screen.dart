@@ -11,7 +11,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_config.dart';
+import '../../core/badge.dart';
 import '../../core/glass.dart';
+import '../../core/motion.dart';
+import '../../core/theme.dart';
 
 const _weekdaysMon = ['월', '화', '수', '목', '금', '토', '일'];
 const _gpuColors = {
@@ -202,7 +205,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _gridEnd.add(const Duration(days: 1)).toIso8601String(),
           )
           .gt('end_time', _gridStart.toIso8601String())
-          .order('start_time');
+          .order('start_time', ascending: true);
       if (mounted) {
         setState(
           () => _calendarReservations = (rows as List)
@@ -439,11 +442,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 20),
           const Text(
             '예약하기',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 18,
+              fontStyle: FontStyle.italic,
+              letterSpacing: -0.4,
+            ),
           ),
-          const Text(
+          Text(
             'GPU를 선택하고 예약을 신청하세요',
-            style: TextStyle(fontSize: 11, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -485,20 +498,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
           else ...[
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'My Reservations',
+                      const Text(
+                        'MY RESERVATIONS',
                         style: TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 18,
+                          fontStyle: FontStyle.italic,
+                          letterSpacing: -0.4,
                         ),
                       ),
                       Text(
                         '내 예약 관리',
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
                       ),
                     ],
                   ),
@@ -525,29 +547,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_myReservations.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: Center(
-                  child: Text(
-                    '예약 내역이 없습니다.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-              )
+              const EmptyStateCard(emoji: '📅', message: '예약 내역이 없습니다.')
             else
-              for (final r in _myReservations) ...[
-                _ReservationCard(
-                  reservation: r,
-                  now: _now,
-                  password: _gpuPasswords[r.gpuId],
-                  expanded: _openReservationId == r.id,
-                  onToggle: () => setState(
-                    () => _openReservationId = _openReservationId == r.id
-                        ? null
-                        : r.id,
+              for (var i = 0; i < _myReservations.length; i++) ...[
+                StaggeredFadeIn(
+                  index: i,
+                  child: _ReservationCard(
+                    reservation: _myReservations[i],
+                    now: _now,
+                    password: _gpuPasswords[_myReservations[i].gpuId],
+                    expanded: _openReservationId == _myReservations[i].id,
+                    onToggle: () => setState(
+                      () => _openReservationId =
+                          _openReservationId == _myReservations[i].id
+                          ? null
+                          : _myReservations[i].id,
+                    ),
+                    onCancel: () => _cancelReservation(_myReservations[i].id),
+                    onEndSession: () => _endSession(_myReservations[i].id),
                   ),
-                  onCancel: () => _cancelReservation(r.id),
-                  onEndSession: () => _endSession(r.id),
                 ),
                 const SizedBox(height: 10),
               ],
@@ -570,8 +588,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         decoration: BoxDecoration(
-          color: Colors.grey.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
+          color: Theme.of(context).colorScheme.secondary,
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -579,8 +597,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Icon(icon, size: 10, color: color),
             const SizedBox(width: 3),
             Text(
-              'GPU$id',
-              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900),
+              'GPU$id ${status == 'checking' ? '...' : (status == 'online' ? 'ON' : 'OFF')}',
+              style: const TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+              ),
             ),
           ],
         ),
@@ -603,6 +625,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         GlassCard(
           padding: const EdgeInsets.all(4),
+          radius: 22, // web: rounded-3xl
+          borderWidth: 2, // web: border-2
           child: Column(
             children: [
               Padding(
@@ -889,8 +913,13 @@ class _StatsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final max = hours.values.fold(1.0, (a, b) => a > b ? a : b);
-    return GlassCard(
+    final mutedText = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6);
+    // Web: "mb-8 p-4 bg-muted/20 border border-border/40 rounded-2xl" — a
+    // flat tinted box, not glass (was wrongly a GlassCard).
+    return SolidTintCard(
       padding: const EdgeInsets.all(14),
+      radius: 18,
+      tint: 0.06,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -899,7 +928,7 @@ class _StatsBar extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w900,
-              color: Colors.grey.shade600,
+              color: mutedText,
               letterSpacing: 1,
             ),
           ),
@@ -913,20 +942,28 @@ class _StatsBar extends StatelessWidget {
                     width: 46,
                     child: Text(
                       'GPU $id',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
-                        color: Colors.grey,
+                        color: mutedText,
                       ),
                     ),
                   ),
                   Expanded(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: (hours[id] ?? 0) / max,
-                        minHeight: 10,
-                        backgroundColor: Colors.grey.withValues(alpha: 0.15),
+                      child: TweenAnimationBuilder<double>(
+                        // Web: "h-full bg-primary rounded-full transition-all
+                        // duration-700" — the bar fill animates on data
+                        // change; a plain LinearProgressIndicator jumps.
+                        tween: Tween(begin: 0, end: (hours[id] ?? 0) / max),
+                        duration: const Duration(milliseconds: 700),
+                        curve: springCurve,
+                        builder: (context, value, _) => LinearProgressIndicator(
+                          value: value,
+                          minHeight: 10,
+                          backgroundColor: Theme.of(context).colorScheme.secondary,
+                        ),
                       ),
                     ),
                   ),
@@ -935,10 +972,10 @@ class _StatsBar extends StatelessWidget {
                     child: Text(
                       '${hours[id] ?? 0}h',
                       textAlign: TextAlign.right,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
-                        color: Colors.grey,
+                        color: mutedText,
                       ),
                     ),
                   ),
@@ -994,6 +1031,7 @@ class _ReservationCard extends StatelessWidget {
 
     return GlassCard(
       padding: const EdgeInsets.all(16),
+      radius: 18, // web: rounded-2xl
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1054,11 +1092,18 @@ class _ReservationCard extends StatelessWidget {
           ),
           if (expanded && canStart) ...[
             const Divider(height: 24),
+            // Web: "border-2 border-dashed border-primary/20 bg-muted/30
+            // rounded-2xl" — Flutter has no native dashed border, so a solid
+            // primary-tinted border stands in for it.
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(14),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                  width: 2,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1097,8 +1142,8 @@ class _ReservationCard extends StatelessWidget {
                               fontWeight: FontWeight.w900,
                               fontSize: 15,
                               color: password != null
-                                  ? Colors.blue
-                                  : Colors.grey,
+                                  ? AppColors.primary
+                                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                             ),
                           ),
                         ),
@@ -1122,11 +1167,11 @@ class _ReservationCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     '※ 이 비밀번호는 예약된 시간에만 유효하며, 세션 종료 후 자동 무효화됩니다.',
                     style: TextStyle(
                       fontSize: 9,
-                      color: Colors.grey,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -1144,7 +1189,7 @@ class _ReservationCard extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                        backgroundColor: Theme.of(context).colorScheme.error,
                         foregroundColor: Colors.white,
                       ),
                       onPressed: onEndSession,
@@ -1168,27 +1213,15 @@ class _ReservationCard extends StatelessWidget {
     bool started,
     bool ended,
   ) {
-    if (pending) return _badge('Pending', Colors.amber);
-    if (rejected) return _badge('Rejected', Colors.red);
-    if (approved && !started) return _badge('Upcoming', Colors.blue);
+    if (pending) return const AppBadge('Pending', variant: AppBadgeVariant.warning);
+    if (rejected) return const AppBadge('Rejected', variant: AppBadgeVariant.danger);
+    if (approved && !started) return const AppBadge('Upcoming', variant: AppBadgeVariant.primary);
     if (approved && started && !ended) {
-      return _badge('Active Now', Colors.green);
+      return const AppBadge('Active Now', variant: AppBadgeVariant.success);
     }
-    if (approved && ended) return _badge('Finished', Colors.grey);
+    if (approved && ended) return const AppBadge('Finished', variant: AppBadgeVariant.muted);
     return const SizedBox.shrink();
   }
-
-  Widget _badge(String label, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.15),
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: color),
-    ),
-  );
 }
 
 // ─── Daily booking (GPU #1) ─────────────────────────────────────────────────
@@ -1244,7 +1277,7 @@ class _DailyBookingCardState extends State<_DailyBookingCard> {
         .eq('gpu_id', widget.gpuId)
         .eq('status', 'approved')
         .gte('end_time', now.toIso8601String())
-        .order('start_time');
+        .order('start_time', ascending: true);
     if (mounted) {
       setState(
         () => _approved = (rows as List)
@@ -1567,7 +1600,7 @@ class _WeeklyBookingCardState extends State<_WeeklyBookingCard> {
         .eq('gpu_id', widget.gpuId)
         .eq('status', 'approved')
         .gte('end_time', DateTime.now().toIso8601String())
-        .order('start_time');
+        .order('start_time', ascending: true);
     if (mounted) {
       setState(() {
         _approved = (rows as List)

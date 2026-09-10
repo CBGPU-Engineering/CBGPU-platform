@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/api_config.dart';
 import '../../core/glass.dart';
+import '../../core/segmented_tabs.dart';
 
 const _days = ['월', '화', '수', '목', '금'];
 const _maxPeriod = 7;
@@ -23,6 +24,17 @@ Color _subjectColor(String name) {
   if (name.isEmpty) return _subjectColors[0];
   final h = name.codeUnits.fold<int>(0, (a, c) => a + c);
   return _subjectColors[h % _subjectColors.length];
+}
+
+// The timetable edge function's response already includes `teacher` and
+// `changed` per cell (comcigan tracks real-time substitutions), but the
+// client was only reading `subject` and silently dropping both — so no
+// teacher name ever showed, and a live 보강/결강 change never got flagged.
+class _Cell {
+  const _Cell(this.subject, this.teacher, this.changed);
+  final String subject;
+  final String teacher;
+  final bool changed;
 }
 
 /// grade(1자리)+class(1자리)+number(2자리) 학번 형식 — 교사는 로그인용 아이디로 이
@@ -47,8 +59,8 @@ class _TimetableScreenState extends State<TimetableScreen> {
   int _cls = 1;
   List<int> _grades = [1, 2, 3];
   List<int> _classes = [1, 2, 3, 4];
-  // grid[weekday][period] = subject
-  Map<int, Map<int, String>> _grid = {};
+  // grid[weekday][period] = cell
+  Map<int, Map<int, _Cell>> _grid = {};
   Map<int, Map<int, String>> _draft = {};
   bool _editing = false;
   bool _loading = true;
@@ -107,7 +119,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (body['error'] != null) throw Exception(body['error']);
 
-      final grid = <int, Map<int, String>>{};
+      final grid = <int, Map<int, _Cell>>{};
       final rawGrid = body['grid'] as Map<String, dynamic>? ?? {};
       rawGrid.forEach((wd, periods) {
         final wdInt = int.tryParse(wd);
@@ -116,9 +128,15 @@ class _TimetableScreenState extends State<TimetableScreen> {
         (periods as Map<String, dynamic>).forEach((p, cell) {
           final pInt = int.tryParse(p);
           if (pInt == null) return;
-          final subject =
-              (cell as Map<String, dynamic>)['subject'] as String? ?? '';
-          if (subject.isNotEmpty) grid[wdInt]![pInt] = subject;
+          final map = cell as Map<String, dynamic>;
+          final subject = map['subject'] as String? ?? '';
+          if (subject.isNotEmpty) {
+            grid[wdInt]![pInt] = _Cell(
+              subject,
+              map['teacher'] as String? ?? '',
+              map['changed'] as bool? ?? false,
+            );
+          }
         });
       });
 
@@ -146,11 +164,15 @@ class _TimetableScreenState extends State<TimetableScreen> {
         .select('weekday, period, subject')
         .eq('grade', grade)
         .eq('class_num', cls);
-    final grid = <int, Map<int, String>>{};
+    final grid = <int, Map<int, _Cell>>{};
     for (final row in data) {
       final wd = row['weekday'] as int;
       grid.putIfAbsent(wd, () => {});
-      grid[wd]![row['period'] as int] = row['subject'] as String? ?? '';
+      grid[wd]![row['period'] as int] = _Cell(
+        row['subject'] as String? ?? '',
+        '',
+        false,
+      );
     }
     setState(() {
       _grid = grid;
@@ -169,7 +191,12 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
   void _startEdit() {
     setState(() {
-      _draft = {for (final e in _grid.entries) e.key: Map.of(e.value)};
+      _draft = {
+        for (final e in _grid.entries)
+          e.key: {
+            for (final e2 in e.value.entries) e2.key: e2.value.subject,
+          },
+      };
       _editing = true;
     });
   }
@@ -196,7 +223,8 @@ class _TimetableScreenState extends State<TimetableScreen> {
           for (var wd = 0; wd < 5; wd++)
             wd: {
               for (var p = 1; p <= _maxPeriod; p++)
-                if ((_draft[wd]?[p] ?? '').isNotEmpty) p: _draft[wd]![p]!,
+                if ((_draft[wd]?[p] ?? '').isNotEmpty)
+                  p: _Cell(_draft[wd]![p]!, '', false),
             },
         };
         _editing = false;
@@ -302,16 +330,40 @@ class _TimetableScreenState extends State<TimetableScreen> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _PillTabs(
-                    items: _grades.map((g) => '$g학년').toList(),
-                    selectedIndex: _grades.indexOf(_grade),
-                    onSelect: (i) => _switchTo(_grades[i], _cls),
+                  AppSegmentedTabs<int>(
+                    value: _grade,
+                    onChanged: (g) => _switchTo(g, _cls),
+                    items: [
+                      for (final g in _grades)
+                        AppTabItem(
+                          value: g,
+                          builder: (active) => Text(
+                            '$g학년',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(width: 8),
-                  _PillTabs(
-                    items: _classes.map((c) => '$c반').toList(),
-                    selectedIndex: _classes.indexOf(_cls),
-                    onSelect: (i) => _switchTo(_grade, _classes[i]),
+                  AppSegmentedTabs<int>(
+                    value: _cls,
+                    onChanged: (c) => _switchTo(_grade, c),
+                    items: [
+                      for (final c in _classes)
+                        AppTabItem(
+                          value: c,
+                          builder: (active) => Text(
+                            '$c반',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -410,15 +462,46 @@ class _TimetableScreenState extends State<TimetableScreen> {
                   ),
                 ),
               const SizedBox(height: 12),
-              Text(
-                '컴시간 알리미 자동 연동 · 실패 시 수동 데이터 표시${_isAdmin ? ' · 직접 편집 가능' : ''}',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  Text(
+                    '컴시간 알리미 자동 연동 · 실패 시 수동 데이터 표시${_isAdmin ? ' · 직접 편집 가능' : ''}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  if (_source == 'comcigan')
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.amber,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '실시간 보강/결강 변경',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
             ],
           ),
@@ -451,24 +534,33 @@ class _TimetableScreenState extends State<TimetableScreen> {
         ),
       );
     }
-    final subject = _grid[weekday]?[period] ?? '';
+    final cell = _grid[weekday]?[period];
+    final subject = cell?.subject ?? '';
+    final teacher = cell?.teacher ?? '';
+    final changed = cell?.changed ?? false;
     return Padding(
       padding: const EdgeInsets.all(2),
       child: Container(
-        height: 56,
+        height: 60,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: subject.isEmpty
               ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.03)
               : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(10),
-          border: isToday && subject.isNotEmpty
-              ? Border.all(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.2),
-                )
-              : null,
+          // A live substitution/cancellation (실시간 보강/결강 변경) gets an
+          // amber ring instead of the usual faint today-highlight — this
+          // data was already coming back from the edge function but was
+          // discarded before it ever reached this widget.
+          border: changed
+              ? Border.all(color: Colors.amber, width: 1.5)
+              : (isToday && subject.isNotEmpty
+                    ? Border.all(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.2),
+                      )
+                    : null),
         ),
         child: subject.isEmpty
             ? null
@@ -482,16 +574,34 @@ class _TimetableScreenState extends State<TimetableScreen> {
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Text(
-                      subject,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        color: _subjectColor(subject),
-                      ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          subject,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            color: _subjectColor(subject),
+                          ),
+                        ),
+                        if (teacher.isNotEmpty)
+                          Text(
+                            teacher,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -501,31 +611,3 @@ class _TimetableScreenState extends State<TimetableScreen> {
   }
 }
 
-class _PillTabs extends StatelessWidget {
-  const _PillTabs({
-    required this.items,
-    required this.selectedIndex,
-    required this.onSelect,
-  });
-  final List<String> items;
-  final int selectedIndex;
-  final ValueChanged<int> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 4,
-      children: [
-        for (var i = 0; i < items.length; i++)
-          ChoiceChip(
-            label: Text(
-              items[i],
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
-            ),
-            selected: selectedIndex == i,
-            onSelected: (_) => onSelect(i),
-          ),
-      ],
-    );
-  }
-}

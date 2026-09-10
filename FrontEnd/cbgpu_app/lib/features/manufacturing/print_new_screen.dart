@@ -57,12 +57,12 @@ class _PrintNewScreenState extends State<PrintNewScreen> {
     final printers = await Supabase.instance.client
         .from('printers')
         .select('*')
-        .order('id');
+        .order('id', ascending: true);
     final filaments = await Supabase.instance.client
         .from('print_materials')
         .select('*')
-        .order('material')
-        .order('color');
+        .order('material', ascending: true)
+        .order('color', ascending: true);
     try {
       final rows = await Supabase.instance.client.rpc('printer_plate_backlog');
       final map = <int, int>{};
@@ -98,7 +98,7 @@ class _PrintNewScreenState extends State<PrintNewScreen> {
         .from('profiles')
         .select('id, full_name, student_id')
         .inFilter('id', ids)
-        .order('student_id');
+        .order('student_id', ascending: true);
     if (mounted) {
       setState(() => _managers = (rows as List).cast<Map<String, dynamic>>());
     }

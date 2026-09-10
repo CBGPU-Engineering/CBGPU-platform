@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/glass.dart';
+import '../../core/segmented_tabs.dart';
 
 const _subjects = [
   '수학',
@@ -346,18 +347,26 @@ class _MatchScreenState extends State<MatchScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              Row(
-                children: [
-                  ChoiceChip(
-                    label: const Text('전체'),
-                    selected: _tab == 'all',
-                    onSelected: (_) => setState(() => _tab = 'all'),
+              // Web uses the shared SegmentedTabs here (sliding pill), not
+              // plain filter chips — ChoiceChip's default checkmark was also
+              // clipping these short labels ("전체" -> "전").
+              AppSegmentedTabs<String>(
+                value: _tab,
+                onChanged: (v) => setState(() => _tab = v),
+                items: [
+                  AppTabItem(
+                    value: 'all',
+                    builder: (active) => const Text(
+                      '전체',
+                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+                    ),
                   ),
-                  const SizedBox(width: 6),
-                  ChoiceChip(
-                    label: const Text('참여 중'),
-                    selected: _tab == 'mine',
-                    onSelected: (_) => setState(() => _tab = 'mine'),
+                  AppTabItem(
+                    value: 'mine',
+                    builder: (active) => const Text(
+                      '참여 중',
+                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+                    ),
                   ),
                 ],
               ),
@@ -775,6 +784,7 @@ class _CreateStudyDialogState extends State<_CreateStudyDialog> {
                 children: [
                   for (final s in _subjects)
                     ChoiceChip(
+                      showCheckmark: false,
                       label: Text(
                         s,
                         style: const TextStyle(
