@@ -11,6 +11,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import 'alarm_service.dart';
 import 'home_widgets.dart';
+import 'push_notifications.dart';
 
 const _siteUrl = 'https://cbgpu.vercel.app/';
 const _siteHost = 'cbgpu.vercel.app';
@@ -63,8 +64,8 @@ final _bridgeScript = '''
 /// Whether this platform has an official webview_flutter backend. Desktop
 /// (Linux/Windows) doesn't — those builds fall back to opening the site in
 /// the system browser instead of crashing on an unsupported platform view.
+/// (Web isn't a build target for this app at all — see .metadata.)
 bool get _webViewSupported =>
-    kIsWeb ||
     defaultTargetPlatform == TargetPlatform.android ||
     defaultTargetPlatform == TargetPlatform.iOS ||
     defaultTargetPlatform == TargetPlatform.macOS;
@@ -229,6 +230,7 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
         }
         await Supabase.instance.client.auth.setSession(refreshToken);
         unawaited(refreshAllHomeWidgets());
+        unawaited(registerDeviceForPushNotifications());
         return {'ok': true};
       case 'clearSession':
         await Supabase.instance.client.auth.signOut();
@@ -285,7 +287,7 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
         if (didPop) return;
         if (await _controller.canGoBack()) {
           await _controller.goBack();
-        } else if (!kIsWeb && Platform.isAndroid) {
+        } else if (Platform.isAndroid) {
           SystemNavigator.pop();
         }
       },
