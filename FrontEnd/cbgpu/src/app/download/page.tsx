@@ -3,8 +3,9 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
-  Cpu, Printer, Server, CalendarDays, UtensilsCrossed, LayoutGrid,
+  Cpu, Printer, Server, CalendarDays, UtensilsCrossed, LayoutGrid, Smartphone,
 } from 'lucide-react';
 import { isNativeApp, onNativeBridgeReady } from '@/lib/nativeBridge';
 
@@ -46,14 +47,20 @@ export default function DownloadPage() {
             시간표, 급식부터 GPU 예약, 제작 신청까지 — 학교생활을 앱 하나로.
           </p>
         </div>
-        <a
-          href={PLAY_STORE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest px-8 py-4 rounded-2xl shadow-xl shadow-primary/20 transition-transform active:scale-95 hover:scale-[1.02]"
-        >
-          Google Play에서 다운로드
-        </a>
+
+        <div className="flex flex-col items-center gap-3">
+          <a
+            href={PLAY_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest px-8 py-4 rounded-2xl shadow-xl shadow-primary/20 transition-transform active:scale-95 hover:scale-[1.02]"
+          >
+            Google Play에서 다운로드
+          </a>
+          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-bold">
+            <Smartphone className="size-3" /> 안드로이드 전용 · iOS는 아직 준비 중이에요
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -68,9 +75,32 @@ export default function DownloadPage() {
         ))}
       </div>
 
-      <p className="text-center text-xs text-muted-foreground">
-        충북과학고등학교 학생 전용 서비스입니다.
-      </p>
+      {/* 컴퓨터로 보고 있는 경우를 위한 QR — 모바일에선 굳이 필요 없어서 숨김 */}
+      <div className="hidden md:flex flex-col items-center gap-3 py-8 border-y border-border/50">
+        <Image
+          src="/img/cbgpu-play-qr.png"
+          alt="Google Play 다운로드 QR코드"
+          width={140}
+          height={140}
+          className="rounded-xl ring-1 ring-foreground/10"
+        />
+        <p className="text-xs text-muted-foreground font-bold">휴대폰으로 QR코드를 스캔해서 설치하세요</p>
+      </div>
+
+      <div className="text-center space-y-3">
+        <p className="text-xs text-muted-foreground">
+          충북과학고등학교 학생 전용 서비스입니다.
+        </p>
+        <div className="flex items-center justify-center gap-4 text-[11px] font-bold text-muted-foreground">
+          <Link href="/" className="hover:text-foreground transition-colors underline underline-offset-2">
+            설치 없이 웹으로 계속하기
+          </Link>
+          <span className="opacity-30">·</span>
+          <Link href="/privacy" className="hover:text-foreground transition-colors underline underline-offset-2">
+            개인정보처리방침
+          </Link>
+        </div>
+      </div>
     </main>
   );
 }
