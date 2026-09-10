@@ -46,6 +46,7 @@ fun backgroundResFor(theme: WidgetTheme, opacity: Int): Int =
             60 -> R.drawable.widget_background_a60
             40 -> R.drawable.widget_background_a40
             20 -> R.drawable.widget_background_a20
+            0 -> R.drawable.widget_background_a0
             else -> R.drawable.widget_background
           }
       WidgetTheme.LIGHT ->
@@ -54,6 +55,7 @@ fun backgroundResFor(theme: WidgetTheme, opacity: Int): Int =
             60 -> R.drawable.widget_background_light_a60
             40 -> R.drawable.widget_background_light_a40
             20 -> R.drawable.widget_background_light_a20
+            0 -> R.drawable.widget_background_light_a0
             else -> R.drawable.widget_background_light_opaque
           }
       WidgetTheme.DARK ->
@@ -62,6 +64,7 @@ fun backgroundResFor(theme: WidgetTheme, opacity: Int): Int =
             60 -> R.drawable.widget_background_dark_a60
             40 -> R.drawable.widget_background_dark_a40
             20 -> R.drawable.widget_background_dark_a20
+            0 -> R.drawable.widget_background_dark_a0
             else -> R.drawable.widget_background_dark_opaque
           }
     }
