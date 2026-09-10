@@ -5,6 +5,7 @@ import Image from 'next/image';
 import {
   CalendarDays, UtensilsCrossed, Cpu, Printer, Vote, NotebookPen, Users, Newspaper, Server, Smartphone,
 } from 'lucide-react';
+import { PhoneMockup } from './PhoneMockup';
 
 /**
  * Logged-out web visitors land here instead of the personalized dashboard —
@@ -71,6 +72,9 @@ export default function LaunchPage() {
             이미 계정이 있어요 · 로그인
           </Link>
         </div>
+        <div className="pt-10 animate-in fade-in zoom-in-95 duration-1000 ease-[var(--ease-spring)]">
+          <PhoneMockup src="/img/screens/home.png" alt="CBGPU 홈 화면" width={300} />
+        </div>
       </section>
 
       {/* ── Story section 1 ───────────────────────────────────────────── */}
@@ -84,14 +88,12 @@ export default function LaunchPage() {
               앱을 여러 개 오갈 필요 없이 한 곳에서 확인하세요.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="tilt-3d aspect-square rounded-[28px] bg-card ring-1 ring-foreground/5 shadow-sm flex flex-col items-center justify-center gap-3">
-              <CalendarDays className="size-10 text-indigo-400" strokeWidth={1.5} />
-              <span className="text-sm font-black">시간표</span>
+          <div className="grid grid-cols-2 gap-4 items-end">
+            <div className="tilt-3d">
+              <PhoneMockup src="/img/screens/timetable.png" alt="CBGPU 시간표 화면" width={200} className="translate-y-4" />
             </div>
-            <div className="tilt-3d aspect-square rounded-[28px] bg-card ring-1 ring-foreground/5 shadow-sm flex flex-col items-center justify-center gap-3">
-              <UtensilsCrossed className="size-10 text-amber-400" strokeWidth={1.5} />
-              <span className="text-sm font-black">급식</span>
+            <div className="tilt-3d">
+              <PhoneMockup src="/img/screens/meal.png" alt="CBGPU 급식 화면" width={200} />
             </div>
           </div>
         </div>
@@ -100,14 +102,12 @@ export default function LaunchPage() {
       {/* ── Story section 2 (reversed) ────────────────────────────────── */}
       <section className="py-24 px-6">
         <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-10 items-center">
-          <div className="grid grid-cols-2 gap-4 md:order-1 order-2">
-            <div className="tilt-3d aspect-square rounded-[28px] bg-card ring-1 ring-foreground/5 shadow-sm flex flex-col items-center justify-center gap-3">
-              <Cpu className="size-10 text-slate-400" strokeWidth={1.5} />
-              <span className="text-sm font-black">GPU 예약</span>
+          <div className="grid grid-cols-2 gap-4 items-end md:order-1 order-2">
+            <div className="tilt-3d">
+              <PhoneMockup src="/img/screens/gpu.png" alt="CBGPU GPU 예약 화면" width={200} className="translate-y-4" />
             </div>
-            <div className="tilt-3d aspect-square rounded-[28px] bg-card ring-1 ring-foreground/5 shadow-sm flex flex-col items-center justify-center gap-3">
-              <Printer className="size-10 text-orange-400" strokeWidth={1.5} />
-              <span className="text-sm font-black">제작</span>
+            <div className="tilt-3d">
+              <PhoneMockup src="/img/screens/manufacturing.png" alt="CBGPU 3D 프린터 제작 화면" width={200} />
             </div>
           </div>
           <div className="space-y-4 md:order-2 order-1 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-[var(--ease-spring)]">
