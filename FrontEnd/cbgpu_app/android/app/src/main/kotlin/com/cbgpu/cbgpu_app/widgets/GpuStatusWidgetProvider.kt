@@ -14,17 +14,22 @@ import es.antonborri.home_widget.HomeWidgetProvider
 /**
  * Mirrors Printer3dWidgetProvider's per-item grid, one mini card per GPU
  * (numbered top-left) — same real RTX 5000 photo the web app's GPUCard.tsx
- * uses (public/img/rtx5000.jpg), full color while reachable, grayscale
- * (drawable-nodpi/rtx5000_gray.png, baked rather than a runtime filter, same
- * reasoning as the printer widget's two PNGs). Unlike the printer widget, no
- * X mark here — X specifically means "broken/needs maintenance" there, and
- * an unreachable GPU isn't necessarily broken (supabase/functions/gpu-status
- * is just an HTTP ping); grayscale alone says "not available right now"
- * without implying a fault.
+ * uses (public/img/rtx5000.jpg), full color while reachable (online or
+ * occupied), grayscale while unreachable (drawable-nodpi/rtx5000_gray.png,
+ * baked rather than a runtime filter, same reasoning as the printer
+ * widget's two PNGs). Unlike the printer widget, no X mark here — X
+ * specifically means "broken/needs maintenance" there, and an unreachable
+ * GPU isn't necessarily broken (supabase/functions/gpu-status is just an
+ * HTTP ping); grayscale alone says "not available right now" without
+ * implying a fault. "occupied" (someone has it reserved *right now*, not
+ * just reachability — see the reservations query in
+ * lib/core/home_widgets.dart's _refreshGpuStatus) gets a "사용중" suffix on
+ * the label so it reads differently from an idle-but-reachable GPU.
  *
- * Reads "gpu_status.rows" (lib/core/home_widgets.dart, "GPU1::online" style
- * lines) — empty only if the fetch itself failed, in which case
- * "gpu_status.body" is shown as plain status text instead.
+ * Reads "gpu_status.rows" (lib/core/home_widgets.dart, "GPU1::online" /
+ * "GPU1::occupied" / "GPU1::offline" lines) — empty only if the fetch
+ * itself failed, in which case "gpu_status.body" is shown as plain status
+ * text instead.
  */
 class GpuStatusWidgetProvider : HomeWidgetProvider() {
   override fun onUpdate(
@@ -62,13 +67,14 @@ class GpuStatusWidgetProvider : HomeWidgetProvider() {
           val rowViews = RemoteViews(context.packageName, R.layout.widget_status_row)
           for ((label, status) in pairRow) {
             index++
-            val online = status == "online"
+            val occupied = status == "occupied"
+            val reachable = status == "online" || occupied
             val cell = RemoteViews(context.packageName, R.layout.widget_status_cell)
             cell.setTextViewText(R.id.cell_badge, index.toString())
-            cell.setTextViewText(R.id.cell_label, label)
+            cell.setTextViewText(R.id.cell_label, if (occupied) "$label 사용중" else label)
             cell.setImageViewResource(
                 R.id.cell_image,
-                if (online) R.drawable.rtx5000_color else R.drawable.rtx5000_gray,
+                if (reachable) R.drawable.rtx5000_color else R.drawable.rtx5000_gray,
             )
             cell.setViewVisibility(R.id.cell_x_mark, View.GONE)
             rowViews.addView(R.id.status_row, cell)
