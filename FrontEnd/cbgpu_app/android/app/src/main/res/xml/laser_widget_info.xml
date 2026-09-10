@@ -10,4 +10,5 @@
     android:previewLayout="@layout/widget_common"
     android:configure="com.cbgpu.cbgpu_app.widgets.WidgetConfigureActivity"
     android:resizeMode="horizontal|vertical"
-    android:widgetCategory="home_screen" />
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable" />
