@@ -50,3 +50,10 @@ supabase/.temp/
 # Firebase service account keys should never sit in the repo — stored as a Supabase secret instead
 *firebase-adminsdk*.json
 /google-services.json
+
+# Play Store release signing key — losing this from git history is fine (it
+# never should have been there); losing the actual file without a backup
+# means never being able to publish an update under this app listing again.
+*.jks
+*.keystore
+key.properties
