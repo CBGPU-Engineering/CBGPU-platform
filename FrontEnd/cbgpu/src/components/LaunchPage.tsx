@@ -1,0 +1,143 @@
+'use client';
+
+import Link from 'next/link';
+import Image from 'next/image';
+import {
+  CalendarDays, UtensilsCrossed, Cpu, Printer, Vote, NotebookPen, Users, Newspaper, Server,
+} from 'lucide-react';
+
+/**
+ * Logged-out web visitors land here instead of the personalized dashboard —
+ * loosely modeled on Apple's product-page rhythm (apple.com/kr/macbook-neo):
+ * one big confident hero statement, then a handful of generously-spaced
+ * alternating feature sections, then a single closing CTA. No native app
+ * counterpart on purpose — this is only ever shown on the web (see page.tsx),
+ * an app user is already past the point of needing to be sold on the idea.
+ */
+
+const OVERVIEW = [
+  { href: '/study', label: '자습신청', icon: NotebookPen },
+  { href: '/timetable', label: '시간표', icon: CalendarDays },
+  { href: '/meal', label: '급식', icon: UtensilsCrossed },
+  { href: '/polls', label: '투표', icon: Vote },
+  { href: '/match', label: '스터디 매칭', icon: Users },
+  { href: '/dashboard', label: 'GPU 대여', icon: Cpu },
+  { href: '/server', label: '서버 배포', icon: Server },
+  { href: '/manufacturing', label: '제작', icon: Printer },
+  { href: '/feed', label: 'Feed', icon: Newspaper },
+];
+
+export default function LaunchPage() {
+  return (
+    <div className="-mx-4 md:-mx-6 -my-10">
+      {/* ── Hero ───────────────────────────────────────────────────────── */}
+      <section className="px-6 pt-20 pb-24 md:pt-32 md:pb-36 text-center space-y-8 max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-[var(--ease-spring)]">
+        <Image src="/img/cbgpu-logo.png" alt="CBGPU" width={72} height={72} className="mx-auto" />
+        <div className="space-y-3">
+          <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">충북과학고 학생 종합 플랫폼</p>
+          <h1 className="text-5xl md:text-7xl font-black tracking-tighter italic leading-[0.95]">
+            학교생활의 전부,<br />CBGPU
+          </h1>
+          <p className="text-lg text-muted-foreground font-medium max-w-md mx-auto pt-2">
+            시간표부터 GPU 예약까지, 흩어져 있던 모든 걸 하나로.
+          </p>
+        </div>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <Link
+            href="/auth/signup"
+            className="bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest px-8 py-4 rounded-2xl shadow-xl shadow-primary/20 transition-transform active:scale-95 hover:scale-[1.02]"
+          >
+            지금 시작하기
+          </Link>
+          <Link
+            href="/auth/login"
+            className="text-sm font-black uppercase tracking-widest px-6 py-4 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            로그인
+          </Link>
+        </div>
+      </section>
+
+      {/* ── Story section 1 ───────────────────────────────────────────── */}
+      <section className="bg-muted/30 py-24 px-6">
+        <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-10 items-center">
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-[var(--ease-spring)]">
+            <p className="text-[11px] font-black uppercase tracking-widest text-primary">매일 확인하는 것들</p>
+            <h2 className="text-4xl font-black tracking-tight leading-tight">시간표, 급식,<br />자습신청까지</h2>
+            <p className="text-muted-foreground font-medium leading-relaxed">
+              대강까지 실시간으로 반영되는 시간표와 오늘의 급식 메뉴, 자습신청 현황을
+              앱을 여러 개 오갈 필요 없이 한 곳에서 확인하세요.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="tilt-3d aspect-square rounded-[28px] bg-card ring-1 ring-foreground/5 shadow-sm flex flex-col items-center justify-center gap-3">
+              <CalendarDays className="size-10 text-indigo-400" strokeWidth={1.5} />
+              <span className="text-sm font-black">시간표</span>
+            </div>
+            <div className="tilt-3d aspect-square rounded-[28px] bg-card ring-1 ring-foreground/5 shadow-sm flex flex-col items-center justify-center gap-3">
+              <UtensilsCrossed className="size-10 text-amber-400" strokeWidth={1.5} />
+              <span className="text-sm font-black">급식</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Story section 2 (reversed) ────────────────────────────────── */}
+      <section className="py-24 px-6">
+        <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-10 items-center">
+          <div className="grid grid-cols-2 gap-4 md:order-1 order-2">
+            <div className="tilt-3d aspect-square rounded-[28px] bg-card ring-1 ring-foreground/5 shadow-sm flex flex-col items-center justify-center gap-3">
+              <Cpu className="size-10 text-slate-400" strokeWidth={1.5} />
+              <span className="text-sm font-black">GPU 예약</span>
+            </div>
+            <div className="tilt-3d aspect-square rounded-[28px] bg-card ring-1 ring-foreground/5 shadow-sm flex flex-col items-center justify-center gap-3">
+              <Printer className="size-10 text-orange-400" strokeWidth={1.5} />
+              <span className="text-sm font-black">제작</span>
+            </div>
+          </div>
+          <div className="space-y-4 md:order-2 order-1 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-[var(--ease-spring)]">
+            <p className="text-[11px] font-black uppercase tracking-widest text-primary">동아리 자원도 여기서</p>
+            <h2 className="text-4xl font-black tracking-tight leading-tight">GPU 서버부터<br />3D프린터까지</h2>
+            <p className="text-muted-foreground font-medium leading-relaxed">
+              GPU 사용 시간을 예약하고, 3D프린터·레이저 커팅 신청부터 완료까지
+              진행 상황을 실시간으로 확인할 수 있어요.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Overview grid ─────────────────────────────────────────────── */}
+      <section className="bg-muted/30 py-24 px-6">
+        <div className="max-w-3xl mx-auto space-y-10">
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-black tracking-tight">이 모든 게 CBGPU 안에</h2>
+            <p className="text-muted-foreground font-medium">학교생활에 필요한 거의 모든 것</p>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+            {OVERVIEW.map(({ href, label, icon: Icon }) => (
+              <div key={href} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-card ring-1 ring-foreground/5">
+                <Icon className="size-5 text-primary" strokeWidth={2} />
+                <span className="text-[11px] font-bold text-center">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Closing CTA ────────────────────────────────────────────────── */}
+      <section className="py-24 px-6 text-center space-y-6">
+        <h2 className="text-4xl md:text-5xl font-black tracking-tighter italic">지금 바로 시작해보세요</h2>
+        <p className="text-muted-foreground font-medium">가입은 1분이면 충분해요.</p>
+        <Link
+          href="/auth/signup"
+          className="inline-block bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest px-10 py-4 rounded-2xl shadow-xl shadow-primary/20 transition-transform active:scale-95 hover:scale-[1.02]"
+        >
+          회원가입
+        </Link>
+        <p className="text-xs text-muted-foreground pt-2">
+          안드로이드 앱도 있어요 — <Link href="/download" className="underline underline-offset-2 hover:text-foreground transition-colors">다운로드 페이지 보기</Link>
+        </p>
+      </section>
+    </div>
+  );
+}

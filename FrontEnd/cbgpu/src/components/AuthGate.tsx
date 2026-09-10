@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
 import { LoadingSpinner } from './ui/spinner';
 
-const PUBLIC_PATHS = ['/', '/contact'];
+const PUBLIC_PATHS = ['/', '/contact', '/download', '/privacy'];
 
 function isPublicPath(pathname: string) {
   // Every auth flow must be reachable before a normal signed-in session
