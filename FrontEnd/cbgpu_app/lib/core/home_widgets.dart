@@ -7,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'api_config.dart';
-import 'eduset.dart' as eduset;
 import 'locate_student.dart' show parseStudentId;
 import 'supabase_config.dart';
 
@@ -17,8 +16,8 @@ import 'supabase_config.dart';
 /// widget tap and its consumer are decoupled through this notifier instead.
 final pendingWidgetPath = ValueNotifier<String?>(null);
 
-/// Six Android home screen widgets (GPU status, 3D printer queue, laser
-/// queue, today's meal, today's timetable, self-study status) — data is
+/// Five Android home screen widgets (GPU status, 3D printer queue, laser
+/// queue, today's meal, today's timetable) — data is
 /// pushed here from two triggers: whenever the Flutter app runs in the
 /// foreground (see [refreshAllHomeWidgets] calls in each relevant screen's
 /// initState), and periodically in the background via a WorkManager task
@@ -28,10 +27,7 @@ final pendingWidgetPath = ValueNotifier<String?>(null);
 const _refreshTaskName = 'cbgpu-widget-refresh';
 const _weekdaysMon = ['월', '화', '수', '목', '금'];
 
-const _printerStatusIcon = {'idle': '⚪', 'printing': '🟢', 'done': '🟡', 'maintenance': '🔴'};
 const _mealTypeIcon = {'조식': '🌅', '중식': '☀️', '석식': '🌙'};
-
-String _periodLabel(int period) => '$period교시';
 
 String _timeLabel([DateTime? at]) {
   final d = at ?? DateTime.now();
@@ -87,7 +83,7 @@ void _handleWidgetLaunch(Uri? uri) {
 
 /// Fetches fresh data for all six widgets and pushes it to their native
 /// providers. Safe to call with no logged-in user — the widgets that need a
-/// session (printer/laser/timetable/self-study) just show a "로그인 필요" state.
+/// session (printer/laser/timetable) just show a "로그인 필요" state.
 Future<void> refreshAllHomeWidgets() async {
   if (defaultTargetPlatform != TargetPlatform.android) return;
   await _ensureSupabase();
@@ -98,7 +94,6 @@ Future<void> refreshAllHomeWidgets() async {
     _refreshLaser(),
     _refreshMeal(),
     _refreshTimetable(),
-    _refreshSelfStudy(),
   ]);
 }
 
@@ -107,14 +102,15 @@ Future<void> _save(String prefix, String body) async {
   await HomeWidget.saveWidgetData('$prefix.updatedAt', _timeLabel());
 }
 
-/// TimetableWidgetProvider reads this separately from `.body` to render an
-/// actual table instead of one run-on line — each entry is "period::subject",
-/// entries joined by "\n". Cleared (empty string, not just left stale)
-/// whenever `.body` is a status message instead of real period data, so the
-/// widget doesn't keep showing yesterday's schedule under a "로그인 필요"
-/// message.
-Future<void> _saveTimetableRows(String rows) async {
-  await HomeWidget.saveWidgetData('timetable.rows', rows);
+/// Printer3dWidgetProvider/GpuStatusWidgetProvider/TimetableWidgetProvider
+/// each read "$prefix.rows" separately from ".body" to render an actual
+/// grid/table instead of one run-on line of text — format is
+/// "label::status" (or "period::subject" for timetable) lines joined by
+/// "\n". Cleared (empty string, not just left stale) whenever ".body" is a
+/// status message instead of real data, so a widget doesn't keep showing
+/// yesterday's grid under a "로그인 필요" message.
+Future<void> _saveRows(String prefix, String rows) async {
+  await HomeWidget.saveWidgetData('$prefix.rows', rows);
 }
 
 Future<void> _refreshGpuStatus() async {
@@ -122,13 +118,18 @@ Future<void> _refreshGpuStatus() async {
     final res = await http.get(Uri.parse('${ApiConfig.functionsUrl}/gpu-status')).timeout(const Duration(seconds: 12));
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final gpus = (body['gpus'] as List).cast<Map<String, dynamic>>();
-    final text = gpus
-        .map((g) => '${g['status'] == 'online' ? '🟢' : '⚫'} GPU${g['id']} ${g['status'] == 'online' ? '켜짐' : '꺼짐'}')
-        .join('\n');
-    await _save('gpu_status', text.isEmpty ? '정보 없음' : text);
+    if (gpus.isEmpty) {
+      await _save('gpu_status', '정보 없음');
+      await _saveRows('gpu_status', '');
+    } else {
+      await _save('gpu_status', '');
+      final rows = gpus.map((g) => 'GPU${g['id']}::${g['status']}').join('\n');
+      await _saveRows('gpu_status', rows);
+    }
     await HomeWidget.updateWidget(androidName: 'widgets.GpuStatusWidgetProvider');
   } catch (_) {
     await _save('gpu_status', '불러오기 실패');
+    await _saveRows('gpu_status', '');
     await HomeWidget.updateWidget(androidName: 'widgets.GpuStatusWidgetProvider');
   }
 }
@@ -137,18 +138,24 @@ Future<void> _refreshPrinter3d() async {
   final user = Supabase.instance.client.auth.currentUser;
   if (user == null) {
     await _save('printer3d', '로그인 필요');
+    await _saveRows('printer3d', '');
     await HomeWidget.updateWidget(androidName: 'widgets.Printer3dWidgetProvider');
     return;
   }
   try {
     final rows = await Supabase.instance.client.from('printers').select('name, status').order('id', ascending: true);
-    const labels = {'idle': '대기', 'printing': '사용중', 'done': '회수대기', 'maintenance': '고장'};
-    final text = (rows as List)
-        .map((p) => '${_printerStatusIcon[p['status']] ?? '⚪'} ${p['name']} ${labels[p['status']] ?? p['status']}')
-        .join('\n');
-    await _save('printer3d', text.isEmpty ? '등록된 프린터 없음' : text);
+    final list = rows as List;
+    if (list.isEmpty) {
+      await _save('printer3d', '등록된 프린터 없음');
+      await _saveRows('printer3d', '');
+    } else {
+      await _save('printer3d', '');
+      final rowsText = list.map((p) => '${p['name']}::${p['status']}').join('\n');
+      await _saveRows('printer3d', rowsText);
+    }
   } catch (_) {
     await _save('printer3d', '불러오기 실패');
+    await _saveRows('printer3d', '');
   }
   await HomeWidget.updateWidget(androidName: 'widgets.Printer3dWidgetProvider');
 }
@@ -208,7 +215,7 @@ Future<void> _refreshTimetable() async {
     final gridDay = now.weekday - 1; // 0=Mon..4=Fri
     if (gridDay < 0 || gridDay > 4) {
       await _save('timetable', '오늘은 수업이 없습니다');
-      await _saveTimetableRows('');
+      await _saveRows('timetable', '');
       await HomeWidget.updateWidget(androidName: 'widgets.TimetableWidgetProvider');
       return;
     }
@@ -218,7 +225,7 @@ Future<void> _refreshTimetable() async {
     final dayGrid = grid?['$gridDay'] as Map<String, dynamic>?;
     if (dayGrid == null || dayGrid.isEmpty) {
       await _save('timetable', '${_weekdaysMon[gridDay]}요일 시간표 없음');
-      await _saveTimetableRows('');
+      await _saveRows('timetable', '');
     } else {
       final periods = dayGrid.keys.map(int.parse).toList()..sort();
       final rows = periods
@@ -226,40 +233,11 @@ Future<void> _refreshTimetable() async {
           .map((p) => '$p::${(dayGrid['$p'] as Map<String, dynamic>)['subject']}')
           .join('\n');
       await _save('timetable', rows.replaceAll('::', '. ').replaceAll('\n', ' · ')); // fallback text for older clients
-      await _saveTimetableRows(rows);
+      await _saveRows('timetable', rows);
     }
   } catch (_) {
     await _save('timetable', '불러오기 실패');
-    await _saveTimetableRows('');
+    await _saveRows('timetable', '');
   }
   await HomeWidget.updateWidget(androidName: 'widgets.TimetableWidgetProvider');
-}
-
-Future<void> _refreshSelfStudy() async {
-  final user = Supabase.instance.client.auth.currentUser;
-  if (user == null) {
-    await _save('selfstudy', '로그인 필요');
-    await HomeWidget.updateWidget(androidName: 'widgets.SelfStudyWidgetProvider');
-    return;
-  }
-  try {
-    final profile = await Supabase.instance.client.from('profiles').select('student_id').eq('id', user.id).maybeSingle();
-    final identity = parseStudentId(profile?['student_id'] as String?);
-    if (identity == null) {
-      await _save('selfstudy', '학번 정보 없음');
-      await HomeWidget.updateWidget(androidName: 'widgets.SelfStudyWidgetProvider');
-      return;
-    }
-    final entries = await eduset.searchSelfStudy(eduset.localDateStr());
-    final mine = entries.where((e) => e.student.grade == identity.grade && e.student.classNo == identity.classNo && e.student.number == identity.number).toList();
-    if (mine.isEmpty) {
-      await _save('selfstudy', '❌ 오늘 자습신청 안 함');
-    } else {
-      final periods = mine.map((e) => _periodLabel(e.period)).join(' ');
-      await _save('selfstudy', '✅ 신청 완료\n$periods');
-    }
-  } catch (_) {
-    await _save('selfstudy', '불러오기 실패');
-  }
-  await HomeWidget.updateWidget(androidName: 'widgets.SelfStudyWidgetProvider');
 }

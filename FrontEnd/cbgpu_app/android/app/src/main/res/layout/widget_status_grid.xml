@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Shared by Printer3dWidgetProvider and GpuStatusWidgetProvider — a
+     header, then a dynamically-built grid of cells (widget_status_cell.xml)
+     appended two-per-row, one cell per printer/GPU. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -19,13 +21,14 @@
             android:gravity="center_vertical">
 
             <TextView
+                android:id="@+id/grid_icon"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="14sp"
-                android:layout_marginEnd="6dp"
-                android:text="🖨️" />
+                android:layout_marginEnd="6dp" />
 
             <TextView
+                android:id="@+id/grid_title"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -33,43 +36,26 @@
                 android:textStyle="bold"
                 android:textColor="@color/widget_title_color"
                 android:letterSpacing="0.05"
-                android:singleLine="true"
-                android:text="3D 프린터" />
+                android:singleLine="true" />
         </LinearLayout>
 
-        <FrameLayout
+        <LinearLayout
+            android:id="@+id/grid_rows"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:layout_marginTop="6dp"
-            android:layout_marginBottom="6dp">
-
-            <ImageView
-                android:id="@+id/printer_photo"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="fitCenter"
-                tools:src="@drawable/bambu_x1c_color" />
-
-            <ImageView
-                android:id="@+id/printer_broken_mark"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_widget_x_mark"
-                android:visibility="gone" />
-        </FrameLayout>
+            android:orientation="vertical" />
 
         <TextView
             android:id="@+id/widget_body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="11sp"
+            android:layout_marginTop="6dp"
+            android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="@color/widget_body_color"
-            android:lineSpacingExtra="1dp"
-            android:maxLines="3"
-            tools:text="🟢 정민1호 사용중\n⚪ 정민2호 대기" />
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/widget_meta"
@@ -78,7 +64,6 @@
             android:layout_marginTop="4dp"
             android:textSize="9sp"
             android:textColor="@color/widget_meta_color"
-            android:singleLine="true"
-            tools:text="12:30 업데이트" />
+            android:singleLine="true" />
     </LinearLayout>
 </FrameLayout>

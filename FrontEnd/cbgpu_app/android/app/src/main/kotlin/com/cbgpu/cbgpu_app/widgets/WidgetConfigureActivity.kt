@@ -5,6 +5,8 @@ import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
 import android.widget.RadioGroup
+import android.widget.SeekBar
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.cbgpu.cbgpu_app.R
 
@@ -12,7 +14,7 @@ import com.cbgpu.cbgpu_app.R
  * Shown once when any of the six widgets in this package is placed (wired up
  * via android:configure in each widget-info XML under res/xml) — lets the user
  * pick a theme/opacity for that one widget instance before it's committed,
- * saved via WidgetConfigPrefs and read back by BaseTextWidgetProvider on
+ * saved via WidgetConfigPrefs and read back by applyWidgetAppearance() on
  * every render. Not tied to any specific widget type: the result broadcast
  * below re-triggers whichever provider actually owns this widget ID.
  */
@@ -33,21 +35,24 @@ class WidgetConfigureActivity : Activity() {
     }
 
     val themeGroup = findViewById<RadioGroup>(R.id.theme_group)
-    val opacityGroup = findViewById<RadioGroup>(R.id.opacity_group)
+    val opacitySeekBar = findViewById<SeekBar>(R.id.opacity_seekbar)
 
     when (WidgetConfigPrefs.theme(this, appWidgetId)) {
       WidgetTheme.LIGHT -> themeGroup.check(R.id.theme_light)
       WidgetTheme.DARK -> themeGroup.check(R.id.theme_dark)
       WidgetTheme.AUTO -> themeGroup.check(R.id.theme_auto)
     }
-    when (WidgetConfigPrefs.opacity(this, appWidgetId)) {
-      WidgetOpacity.TRANSLUCENT -> opacityGroup.check(R.id.opacity_translucent)
-      WidgetOpacity.OPAQUE -> opacityGroup.check(R.id.opacity_opaque)
-    }
+    opacitySeekBar.progress = OPACITY_LEVELS.indexOf(WidgetConfigPrefs.opacity(this, appWidgetId)).coerceAtLeast(0)
 
     updatePreview()
     themeGroup.setOnCheckedChangeListener { _, _ -> updatePreview() }
-    opacityGroup.setOnCheckedChangeListener { _, _ -> updatePreview() }
+    opacitySeekBar.setOnSeekBarChangeListener(
+        object : SeekBar.OnSeekBarChangeListener {
+          override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) = updatePreview()
+          override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+          override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        },
+    )
 
     findViewById<android.widget.Button>(R.id.confirm_button).setOnClickListener {
       WidgetConfigPrefs.save(this, appWidgetId, selectedTheme(), selectedOpacity())
@@ -66,26 +71,15 @@ class WidgetConfigureActivity : Activity() {
         else -> WidgetTheme.AUTO
       }
 
-  private fun selectedOpacity(): WidgetOpacity =
-      if (findViewById<RadioGroup>(R.id.opacity_group).checkedRadioButtonId == R.id.opacity_translucent) {
-        WidgetOpacity.TRANSLUCENT
-      } else {
-        WidgetOpacity.OPAQUE
-      }
+  private fun selectedOpacity(): Int =
+      OPACITY_LEVELS[findViewById<SeekBar>(R.id.opacity_seekbar).progress.coerceIn(0, OPACITY_LEVELS.lastIndex)]
 
   /** Mirrors applyWidgetAppearance's own resource picking, against the local preview card. */
   private fun updatePreview() {
     val theme = selectedTheme()
     val opacity = selectedOpacity()
-    val translucent = opacity == WidgetOpacity.TRANSLUCENT
-
-    val backgroundRes =
-        when (theme) {
-          WidgetTheme.AUTO -> if (translucent) R.drawable.widget_background_translucent else R.drawable.widget_background
-          WidgetTheme.LIGHT -> if (translucent) R.drawable.widget_background_light_translucent else R.drawable.widget_background_light_opaque
-          WidgetTheme.DARK -> if (translucent) R.drawable.widget_background_dark_translucent else R.drawable.widget_background_dark_opaque
-        }
-    findViewById<android.view.View>(R.id.preview_card).setBackgroundResource(backgroundRes)
+    findViewById<android.view.View>(R.id.preview_card).setBackgroundResource(backgroundResFor(theme, opacity))
+    findViewById<TextView>(R.id.opacity_value_label).text = "$opacity%"
 
     val bodyColorRes =
         when (theme) {
@@ -93,7 +87,7 @@ class WidgetConfigureActivity : Activity() {
           WidgetTheme.DARK -> R.color.widget_body_color_dark
           WidgetTheme.AUTO -> R.color.widget_body_color
         }
-    findViewById<android.widget.TextView>(R.id.preview_body).setTextColor(ContextCompat.getColor(this, bodyColorRes))
+    findViewById<TextView>(R.id.preview_body).setTextColor(ContextCompat.getColor(this, bodyColorRes))
   }
 
   /**

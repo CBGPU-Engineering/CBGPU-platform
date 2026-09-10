@@ -5,17 +5,16 @@ import android.content.Context
 /** "자동"/"라이트"/"다크" — matches the three choices in WidgetConfigureActivity. */
 enum class WidgetTheme { AUTO, LIGHT, DARK }
 
-/** "불투명"/"반투명". */
-enum class WidgetOpacity { OPAQUE, TRANSLUCENT }
+/** One of the 5 baked opacity levels — see the widget_background*_a{N}.xml drawables. */
+val OPACITY_LEVELS = listOf(100, 80, 60, 40, 20)
 
 /**
  * Per-widget-instance appearance settings, set from WidgetConfigureActivity
  * when a widget is placed (or re-opened via its long-press menu) and read by
- * BaseTextWidgetProvider on every render. Untouched widgets (the common
- * case) resolve to AUTO/OPAQUE, which is deliberately the exact rendering
- * this app always had — see BaseTextWidgetProvider for why that combination
- * skips these overrides entirely rather than resolving to equivalent-looking
- * resources.
+ * applyWidgetAppearance() on every render. Untouched widgets (the common
+ * case) resolve to AUTO/100, which is deliberately the exact rendering this
+ * app always had — see WidgetAppearance.kt for why that combination skips
+ * the RemoteViews overrides entirely.
  */
 object WidgetConfigPrefs {
   private const val PREFS_NAME = "widget_config"
@@ -29,13 +28,13 @@ object WidgetConfigPrefs {
         else -> WidgetTheme.AUTO
       }
 
-  fun opacity(context: Context, appWidgetId: Int): WidgetOpacity =
-      when (prefs(context).getString("opacity_$appWidgetId", null)) {
-        "translucent" -> WidgetOpacity.TRANSLUCENT
-        else -> WidgetOpacity.OPAQUE
-      }
+  /** Nearest supported level to whatever was last saved (defaults to fully opaque). */
+  fun opacity(context: Context, appWidgetId: Int): Int {
+    val saved = prefs(context).getInt("opacity_$appWidgetId", 100)
+    return OPACITY_LEVELS.minByOrNull { kotlin.math.abs(it - saved) } ?: 100
+  }
 
-  fun save(context: Context, appWidgetId: Int, theme: WidgetTheme, opacity: WidgetOpacity) {
+  fun save(context: Context, appWidgetId: Int, theme: WidgetTheme, opacityPercent: Int) {
     prefs(context).edit()
         .putString(
             "theme_$appWidgetId",
@@ -45,13 +44,7 @@ object WidgetConfigPrefs {
               WidgetTheme.AUTO -> "auto"
             },
         )
-        .putString(
-            "opacity_$appWidgetId",
-            when (opacity) {
-              WidgetOpacity.TRANSLUCENT -> "translucent"
-              WidgetOpacity.OPAQUE -> "opaque"
-            },
-        )
+        .putInt("opacity_$appWidgetId", opacityPercent)
         .apply()
   }
 

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -127,52 +128,40 @@
                 android:text="다크" />
         </RadioGroup>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="투명도"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:alpha="0.7" />
-
-        <RadioGroup
-            android:id="@+id/opacity_group"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="24dp"
             android:orientation="horizontal">
 
-            <RadioButton
-                android:id="@+id/opacity_opaque"
+            <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:button="@null"
-                android:gravity="center"
-                android:paddingVertical="12dp"
-                android:background="@drawable/widget_config_chip_bg"
-                android:textColor="@color/widget_config_chip_text"
+                android:text="투명도"
                 android:textSize="13sp"
                 android:textStyle="bold"
-                android:text="불투명"
-                android:checked="true" />
+                android:alpha="0.7" />
 
-            <RadioButton
-                android:id="@+id/opacity_translucent"
-                android:layout_width="0dp"
+            <TextView
+                android:id="@+id/opacity_value_label"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:button="@null"
-                android:gravity="center"
-                android:paddingVertical="12dp"
-                android:background="@drawable/widget_config_chip_bg"
-                android:textColor="@color/widget_config_chip_text"
                 android:textSize="13sp"
                 android:textStyle="bold"
-                android:text="반투명" />
-        </RadioGroup>
+                android:textColor="@color/cbgpu_brand_color"
+                tools:text="100%" />
+        </LinearLayout>
+
+        <SeekBar
+            android:id="@+id/opacity_seekbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:max="4"
+            android:progress="0"
+            android:progressTint="@color/cbgpu_brand_color"
+            android:thumbTint="@color/cbgpu_brand_color" />
 
         <Button
             android:id="@+id/confirm_button"

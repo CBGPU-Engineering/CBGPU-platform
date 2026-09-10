@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Overrides just the accent — Material You dynamic color, same tonal
+     palette the system (and every other One UI widget) draws its own
+     accents from, instead of this app's fixed indigo. -->
+<resources>
+    <color name="widget_accent_color">@android:color/system_accent1_600</color>
+</resources>

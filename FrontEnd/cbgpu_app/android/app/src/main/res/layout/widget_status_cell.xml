@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:layout_margin="3dp"
+    android:orientation="vertical"
+    android:gravity="center_horizontal">
+
+    <FrameLayout
+        android:layout_width="44dp"
+        android:layout_height="44dp">
+
+        <ImageView
+            android:id="@+id/cell_image"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:padding="2dp"
+            tools:src="@drawable/bambu_x1c_color" />
+
+        <ImageView
+            android:id="@+id/cell_x_mark"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_widget_x_mark"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/cell_badge"
+            android:layout_width="15dp"
+            android:layout_height="15dp"
+            android:layout_gravity="top|start"
+            android:background="@drawable/widget_period_badge"
+            android:gravity="center"
+            android:textSize="8sp"
+            android:textStyle="bold"
+            android:textColor="@color/widget_period_badge_text"
+            tools:text="1" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/cell_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:textSize="8sp"
+        android:textStyle="bold"
+        android:textColor="@color/widget_meta_color"
+        android:gravity="center"
+        android:singleLine="true"
+        android:ellipsize="end"
+        tools:text="정민1호" />
+</LinearLayout>
