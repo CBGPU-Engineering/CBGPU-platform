@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import Image from 'next/image';
-import { UserCircle2, Mail, Hash, Save, Loader2, Camera, KeyRound, Lock, ShieldAlert, Trash2 } from 'lucide-react';
+import { UserCircle2, Mail, Hash, Save, Loader2, Camera, KeyRound, Lock, ShieldAlert, Trash2, BellRing } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { isValidStudentId, STUDENT_ID_HINT } from '@/lib/studentId';
@@ -32,8 +32,17 @@ async function resizeImageToJpeg(file: File, maxSize = 256, quality = 0.85): Pro
   });
 }
 
+const NOTIF_PREFS = [
+  { key: 'notify_job_new', label: '새 제작 신청', hint: '3D프린팅/레이저 담당자에게: 신청이 들어오면', role: 'manager' as const },
+  { key: 'notify_job_done', label: '제작 완료', hint: '내가 신청한 3D프린팅/레이저 커팅이 완료되면', role: 'anyone' as const },
+  { key: 'notify_selfstudy_reminder', label: '자습신청 리마인더', hint: '오늘 13:15까지 자습신청을 안 했으면', role: 'student' as const },
+  { key: 'notify_admin_signup', label: '새 회원가입', hint: '관리자에게: 새 계정이 가입하면', role: 'admin' as const },
+  { key: 'notify_admin_gpu_request', label: 'GPU 예약 신청', hint: '관리자에게: GPU 예약 신청이 들어오면', role: 'admin' as const },
+] as const;
+type NotifPrefKey = typeof NOTIF_PREFS[number]['key'];
+
 export default function Profile() {
-  const { user, profile, refreshProfile, isLoading: authLoading } = useAuth();
+  const { user, profile, refreshProfile, isLoading: authLoading, isAdmin, is3DPrintManager, isLaserCutManager } = useAuth();
   const { showError, showSuccess } = useAlert();
   const router = useRouter();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -46,14 +55,47 @@ export default function Profile() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [notifPrefs, setNotifPrefs] = useState<Record<NotifPrefKey, boolean>>({
+    notify_job_new: true,
+    notify_job_done: true,
+    notify_selfstudy_reminder: true,
+    notify_admin_signup: true,
+    notify_admin_gpu_request: true,
+  });
+  const [savingNotifKey, setSavingNotifKey] = useState<NotifPrefKey | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (profile) {
       setStudentId(profile.student_id || '');
       setFullName(profile.full_name || '');
+      // 컬럼이 없던 시절 가입한 계정도 DB default(true)를 따르므로, 값이 아예
+      // 안 왔을 때만(undefined) 기본 true를 유지하고 그 외엔 저장된 값을 따른다.
+      setNotifPrefs((prev) => {
+        const next = { ...prev };
+        for (const { key } of NOTIF_PREFS) {
+          if (profile[key] !== undefined) next[key] = profile[key] !== false;
+        }
+        return next;
+      });
     }
   }, [profile]);
+
+  async function toggleNotifPref(key: NotifPrefKey) {
+    if (!user) return;
+    const next = !notifPrefs[key];
+    setNotifPrefs((prev) => ({ ...prev, [key]: next }));
+    setSavingNotifKey(key);
+    try {
+      const { error } = await supabase.from('profiles').update({ [key]: next }).eq('id', user.id);
+      if (error) throw error;
+    } catch (error: any) {
+      setNotifPrefs((prev) => ({ ...prev, [key]: !next })); // revert on failure
+      showError(error.message || '알림 설정 저장 실패');
+    } finally {
+      setSavingNotifKey(null);
+    }
+  }
 
   async function updateProfile() {
     if (!user) return;
@@ -329,6 +371,46 @@ export default function Profile() {
           {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
         </Button>
       </form>
+
+      <div className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-6">
+        <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+          <BellRing className="size-5 text-primary" /> 알림 설정
+        </h2>
+        <p className="text-xs text-muted-foreground font-medium -mt-2">
+          CBGPU 앱을 설치해야 실제로 알림이 옵니다. 전부 기본으로 켜져 있어요.
+        </p>
+        <div className="divide-y divide-foreground/5">
+          {NOTIF_PREFS.filter(({ role }) =>
+            role === 'anyone' ||
+            (role === 'manager' && (is3DPrintManager || isLaserCutManager)) ||
+            (role === 'student' && !!profile?.student_id) ||
+            (role === 'admin' && isAdmin)
+          ).map(({ key, label, hint }) => (
+            <div key={key} className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
+              <div className="min-w-0">
+                <p className="text-sm font-bold">{label}</p>
+                <p className="text-[11px] text-muted-foreground font-medium">{hint}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={notifPrefs[key]}
+                disabled={savingNotifKey === key}
+                onClick={() => toggleNotifPref(key)}
+                className={`relative shrink-0 w-12 h-7 rounded-full transition-colors disabled:opacity-50 ${
+                  notifPrefs[key] ? 'bg-primary' : 'bg-foreground/15'
+                }`}
+              >
+                <span
+                  className={`absolute top-1 left-1 size-5 rounded-full bg-white shadow transition-transform ${
+                    notifPrefs[key] ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="tilt-3d bg-card ring-1 ring-destructive/20 p-10 rounded-[2.5rem] shadow-lg space-y-6">
         <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2 text-destructive">
