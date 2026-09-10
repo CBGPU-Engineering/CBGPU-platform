@@ -122,8 +122,31 @@ Future<void> _refreshGpuStatus() async {
       await _save('gpu_status', '정보 없음');
       await _saveRows('gpu_status', '');
     } else {
+      // "status" from the ping above is only reachability — merge in actual
+      // reservation occupancy (same query GPUCard.tsx uses on the web) so
+      // the widget can tell "reachable but nobody's using it" apart from
+      // "reachable and someone has it reserved right now".
+      var occupiedIds = <int>{};
+      if (Supabase.instance.client.auth.currentUser != null) {
+        try {
+          final nowIso = DateTime.now().toIso8601String();
+          final reservations = await Supabase.instance.client
+              .from('reservations')
+              .select('gpu_id')
+              .eq('status', 'approved')
+              .lte('start_time', nowIso)
+              .gte('end_time', nowIso);
+          occupiedIds = (reservations as List).map((r) => r['gpu_id'] as int).toSet();
+        } catch (_) {
+          // Best-effort — occupancy just won't show if this query fails.
+        }
+      }
       await _save('gpu_status', '');
-      final rows = gpus.map((g) => 'GPU${g['id']}::${g['status']}').join('\n');
+      final rows = gpus.map((g) {
+        final id = g['id'] as int;
+        final status = occupiedIds.contains(id) ? 'occupied' : g['status'];
+        return 'GPU$id::$status';
+      }).join('\n');
       await _saveRows('gpu_status', rows);
     }
     await HomeWidget.updateWidget(androidName: 'widgets.GpuStatusWidgetProvider');
