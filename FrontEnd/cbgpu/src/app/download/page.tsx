@@ -11,11 +11,11 @@ import { isNativeApp, onNativeBridgeReady } from '@/lib/nativeBridge';
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.cbgpu.cbgpu_app';
 
 const FEATURES = [
+  { Icon: CalendarDays, label: '시간표', desc: '대강까지 반영되는 실시간 시간표' },
+  { Icon: UtensilsCrossed, label: '급식', desc: '오늘 급식 메뉴 바로 확인' },
   { Icon: Cpu, label: 'GPU 예약', desc: '실시간 상태 확인하고 바로 예약' },
   { Icon: Printer, label: '3D프린터 · 레이저', desc: '신청부터 완료까지 진행 상황 확인' },
   { Icon: Server, label: '서버 배포', desc: 'Docker/Git으로 프로젝트 올리기' },
-  { Icon: CalendarDays, label: '시간표', desc: '대강까지 반영되는 실시간 시간표' },
-  { Icon: UtensilsCrossed, label: '급식', desc: '오늘 급식 메뉴 바로 확인' },
   { Icon: LayoutGrid, label: '홈 화면 위젯', desc: 'GPU·프린터·시간표·급식을 앱 안 열고도' },
 ];
 
@@ -40,10 +40,10 @@ export default function DownloadPage() {
       <div className="text-center space-y-6">
         <Image src="/img/cbgpu-logo.png" alt="CBGPU" width={96} height={96} className="mx-auto" />
         <div className="space-y-2">
-          <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">충북과학고 동아리</p>
+          <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">충북과학고 학생 종합 플랫폼</p>
           <h1 className="text-4xl md:text-5xl font-black tracking-tighter italic">CBGPU 앱</h1>
           <p className="text-muted-foreground font-medium max-w-md mx-auto">
-            GPU 예약부터 시간표, 급식, 제작 신청까지 — 동아리 자원을 앱 하나로.
+            시간표, 급식부터 GPU 예약, 제작 신청까지 — 학교생활을 앱 하나로.
           </p>
         </div>
         <a

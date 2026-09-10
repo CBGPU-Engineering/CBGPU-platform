@@ -10,7 +10,7 @@ export default function PrivacyPage() {
       </div>
 
       <p className="text-sm leading-relaxed text-foreground/90">
-        CBGPU(이하 &ldquo;서비스&rdquo;)는 충북과학고등학교 동아리 자원 관리를 위한 웹/앱 서비스입니다.
+        CBGPU(이하 &ldquo;서비스&rdquo;)는 충북과학고등학교 학생을 위한 종합 플랫폼입니다.
         서비스 이용을 위해 아래와 같이 개인정보를 수집·이용하며, 관련 법령을 준수합니다.
       </p>
 
