@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/badge.dart';
 import '../../core/glass.dart';
 import '../../core/locate_student.dart' as locate;
+import '../../core/segmented_tabs.dart';
 
 const _durationPresets = [
   ('1시간', 1.0),
@@ -50,15 +52,21 @@ class ManufacturingScreen extends StatefulWidget {
 
 class _ManufacturingScreenState extends State<ManufacturingScreen> {
   String _tab = 'print';
-  bool _isAdmin = false;
   bool _isLaserManager = false;
   List<int> _managedPrinterIds = [];
-  bool get _isPrintManager => _managedPrinterIds.isNotEmpty || _isAdmin;
+  // Matches the web app's useAuth: is3DPrintManager/isLaserCutManager are
+  // derived purely from managedPrinterIds/is_laser_cut_manager — admins
+  // moderate through the separate /admin page, not these manager tabs, so
+  // is_admin must NOT also unlock them here (it briefly did, which is why a
+  // non-manager admin account was seeing the manager tabs).
+  bool get _isPrintManager => _managedPrinterIds.isNotEmpty;
 
   List<Map<String, dynamic>> _printers = [];
   List<Map<String, dynamic>> _myPrintJobs = [];
   bool _printLoading = true;
   Map<int, int> _plateBacklog = {};
+  int? _printQueueLength;
+  int? _laserQueueLength;
 
   List<Map<String, dynamic>> _myLaserJobs = [];
   bool _laserLoading = true;
@@ -106,7 +114,7 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
     if (user == null) return;
     final profile = await Supabase.instance.client
         .from('profiles')
-        .select('is_admin, is_laser_cut_manager')
+        .select('is_laser_cut_manager')
         .eq('id', user.id)
         .maybeSingle();
     final pm = await Supabase.instance.client
@@ -115,7 +123,6 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
         .eq('user_id', user.id);
     if (mounted) {
       setState(() {
-        _isAdmin = profile?['is_admin'] == true;
         _isLaserManager = profile?['is_laser_cut_manager'] == true;
         _managedPrinterIds = (pm as List)
             .map((r) => r['printer_id'] as int)
@@ -129,7 +136,7 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
     final rows = await Supabase.instance.client
         .from('printers')
         .select('*')
-        .order('id');
+        .order('id', ascending: true);
     if (mounted) {
       setState(() => _printers = (rows as List).cast<Map<String, dynamic>>());
     }
@@ -160,12 +167,27 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
     } catch (_) {}
   }
 
+  Future<void> _fetchPrintQueueLength() async {
+    try {
+      final n = await Supabase.instance.client.rpc('print_queue_length');
+      if (mounted) setState(() => _printQueueLength = n as int?);
+    } catch (_) {}
+  }
+
+  Future<void> _fetchLaserQueueLength() async {
+    try {
+      final n = await Supabase.instance.client.rpc('laser_queue_length');
+      if (mounted) setState(() => _laserQueueLength = n as int?);
+    } catch (_) {}
+  }
+
   Future<void> _loadPrintTab() async {
     setState(() => _printLoading = true);
     await Future.wait([
       _fetchPrinters(),
       _fetchMyPrintJobs(),
       _fetchPlateBacklog(),
+      _fetchPrintQueueLength(),
     ]);
     if (mounted) setState(() => _printLoading = false);
   }
@@ -178,6 +200,7 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
         .select('*, manager:manager_id(full_name, student_id)')
         .eq('user_id', _userId as Object)
         .order('created_at', ascending: false);
+    await _fetchLaserQueueLength();
     if (mounted) {
       setState(() {
         _myLaserJobs = (rows as List).cast<Map<String, dynamic>>();
@@ -227,8 +250,8 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
     final rows = await Supabase.instance.client
         .from('print_materials')
         .select('*')
-        .order('material')
-        .order('color');
+        .order('material', ascending: true)
+        .order('color', ascending: true);
     if (mounted) {
       setState(
         () => _filamentCatalog = (rows as List).cast<Map<String, dynamic>>(),
@@ -266,8 +289,8 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
     final rows = await Supabase.instance.client
         .from('laser_materials')
         .select('*')
-        .order('material')
-        .order('thickness_mm');
+        .order('material', ascending: true)
+        .order('thickness_mm', ascending: true);
     if (mounted) {
       setState(
         () => _laserCatalog = (rows as List).cast<Map<String, dynamic>>(),
@@ -280,7 +303,7 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
     if (tab == 'print') _loadPrintTab();
     if (tab == 'laser') _fetchMyLaserJobs();
     if (tab == 'print_manager' && _isPrintManager) _loadPrintManagerTab();
-    if (tab == 'laser_manager' && (_isLaserManager || _isAdmin)) {
+    if (tab == 'laser_manager' && _isLaserManager) {
       _fetchAllLaserJobs();
       _fetchLaserCatalog();
     }
@@ -919,7 +942,7 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            '3D Printing · Laser Cutting',
+            '3D PRINTING · LASER CUTTING',
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey,
@@ -928,34 +951,55 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          Wrap(
-            spacing: 6,
-            children: [
-              ChoiceChip(
-                label: const Text('3D 프린팅'),
-                selected: _tab == 'print',
-                onSelected: (_) => _onTabChanged('print'),
+          AppSegmentedTabs<String>(
+            value: _tab,
+            onChanged: _onTabChanged,
+            items: [
+              AppTabItem(
+                value: 'print',
+                builder: (active) => const Text(
+                  '3D 프린팅',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                    letterSpacing: 1,
+                  ),
+                ),
               ),
-              ChoiceChip(
-                label: const Text('레이저 커팅'),
-                selected: _tab == 'laser',
-                onSelected: (_) => _onTabChanged('laser'),
+              AppTabItem(
+                value: 'laser',
+                builder: (active) => const Text(
+                  '레이저 커팅',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                    letterSpacing: 1,
+                  ),
+                ),
               ),
               if (_isPrintManager)
-                ChoiceChip(
-                  label: Text(
+                AppTabItem(
+                  value: 'print_manager',
+                  builder: (active) => Text(
                     '3D 담당자${pendingPrint > 0 ? ' ($pendingPrint)' : ''}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      letterSpacing: 1,
+                    ),
                   ),
-                  selected: _tab == 'print_manager',
-                  onSelected: (_) => _onTabChanged('print_manager'),
                 ),
-              if (_isLaserManager || _isAdmin)
-                ChoiceChip(
-                  label: Text(
+              if (_isLaserManager)
+                AppTabItem(
+                  value: 'laser_manager',
+                  builder: (active) => Text(
                     '레이저 담당자${pendingLaser > 0 ? ' ($pendingLaser)' : ''}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      letterSpacing: 1,
+                    ),
                   ),
-                  selected: _tab == 'laser_manager',
-                  onSelected: (_) => _onTabChanged('laser_manager'),
                 ),
             ],
           ),
@@ -979,13 +1023,22 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
         Row(
           children: [
             Text(
-              '프린터 현황 (Bambu Lab X1C)',
+              '프린터 현황 (BAMBU LAB X1C)',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
                 color: Colors.grey.shade700,
               ),
             ),
+            if (_printQueueLength != null && _printQueueLength! > 0) ...[
+              const SizedBox(width: 8),
+              AppBadge(
+                '대기열 $_printQueueLength건',
+                variant: AppBadgeVariant.warning,
+                icon: Icons.access_time,
+              ),
+            ],
             const Spacer(),
             ElevatedButton.icon(
               onPressed: () => context
@@ -1004,7 +1057,7 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
             crossAxisCount: screenWidth >= 1024 ? 4 : 2,
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
-            mainAxisExtent: 158,
+            childAspectRatio: 0.82,
           ),
           itemCount: _printers.length,
           itemBuilder: (context, i) =>
@@ -1055,6 +1108,14 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
                 color: Colors.grey.shade700,
               ),
             ),
+            if (_laserQueueLength != null && _laserQueueLength! > 0) ...[
+              const SizedBox(width: 8),
+              AppBadge(
+                '대기열 $_laserQueueLength건',
+                variant: AppBadgeVariant.warning,
+                icon: Icons.access_time,
+              ),
+            ],
             const Spacer(),
             ElevatedButton.icon(
               onPressed: () => context
@@ -1179,7 +1240,7 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
           'idle': Colors.grey,
         }[status] ??
         Colors.grey;
-    final isMine = _managedPrinterIds.contains(p['id']) || _isAdmin;
+    final isMine = _managedPrinterIds.contains(p['id']);
 
     final idleJobsForQueue = _allPrintJobs
         .where((j) => j['status'] == 'accepted' && j['printer_id'] == null)
@@ -1190,19 +1251,7 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: double.infinity,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.grey.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.print,
-              size: 32,
-              color: status == 'printing' ? Colors.green : Colors.grey,
-            ),
-          ),
+          _PrinterVisual(status: status),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -1856,4 +1905,80 @@ class _ManufacturingScreenState extends State<ManufacturingScreen> {
 
 extension _FirstOrNullExt<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
+}
+
+/// Printer card image, ported from the web app's PrinterVisual.tsx — the
+/// real Bambu Lab X1C product photo, full color only while printing
+/// (grayscale otherwise), plus a big X when marked broken.
+class _PrinterVisual extends StatelessWidget {
+  const _PrinterVisual({required this.status});
+  final String status;
+
+  // Luminance-preserving grayscale matrix with an identity alpha row (the
+  // last row/column), so — unlike `color` + `colorBlendMode` (which blends a
+  // solid color across the whole rect including the PNG's transparent
+  // padding and washes it out to opaque grey) — fully transparent pixels in
+  // the source photo stay fully transparent.
+  static const _grayscale = <double>[
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final inUse = status == 'printing';
+    final photo = Image.asset('assets/bambu-x1c.png', fit: BoxFit.contain);
+    return AspectRatio(
+      aspectRatio: 1,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          color: Colors.grey.withValues(alpha: 0.1),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (inUse)
+                Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.green.withValues(alpha: 0.35),
+                        blurRadius: 24,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: inUse
+                    ? photo
+                    : Opacity(
+                        opacity: 0.7,
+                        child: ColorFiltered(
+                          colorFilter: const ColorFilter.matrix(_grayscale),
+                          child: photo,
+                        ),
+                      ),
+              ),
+              if (status == 'maintenance')
+                Container(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  child: const Center(
+                    child: Icon(
+                      Icons.close,
+                      size: 44,
+                      color: Colors.red,
+                      shadows: [Shadow(blurRadius: 6, color: Colors.black26)],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

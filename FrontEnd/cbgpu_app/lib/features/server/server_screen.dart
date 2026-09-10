@@ -119,7 +119,7 @@ class _ServerListScreenState extends State<ServerListScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Server Deploy',
+                    'SERVER DEPLOY',
                     style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.w900,
@@ -163,22 +163,37 @@ class _ServerListScreenState extends State<ServerListScreen> {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (_projects.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 48),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(Icons.dns_outlined, size: 44, color: Colors.grey),
-                    SizedBox(height: 12),
-                    Text(
-                      '배포된 프로젝트가 없습니다',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: Colors.grey,
-                      ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 48),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Theme.of(context).dividerColor, width: 2),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.04),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.dns_outlined, size: 44, color: Colors.grey),
+                  const SizedBox(height: 12),
+                  Text(
+                    '배포된 프로젝트가 없습니다',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                      letterSpacing: 1,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '상단 버튼으로 새 프로젝트를 신청하세요',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ],
               ),
             )
           else

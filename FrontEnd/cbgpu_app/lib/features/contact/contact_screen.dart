@@ -111,7 +111,7 @@ class _ContactScreenState extends State<ContactScreen> {
                   Icon(Icons.chat_bubble_outline, size: 32),
                   SizedBox(width: 12),
                   Text(
-                    'Contact',
+                    'CONTACT',
                     style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.w900,

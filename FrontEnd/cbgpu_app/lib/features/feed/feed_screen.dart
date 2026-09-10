@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_config.dart';
 import '../../core/glass.dart';
+import '../../core/segmented_tabs.dart';
 import 'graveyard_data.dart';
 
 class FeedScreen extends StatefulWidget {
@@ -51,26 +52,32 @@ class _FeedScreenState extends State<FeedScreen> {
               ),
               const SizedBox(height: 32),
               Center(
-                child: SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(
+                child: AppSegmentedTabs<String>(
+                  value: _tab,
+                  onChanged: (v) => setState(() => _tab = v),
+                  items: [
+                    AppTabItem(
                       value: 'school',
-                      label: _TabLabel('🏫 학교 소식', '충북과학고 공지'),
+                      builder: const _TabLabelBuilder(
+                        '🏫 학교 소식',
+                        '충북과학고 공지',
+                      ).call,
                     ),
-                    ButtonSegment(
+                    AppTabItem(
                       value: 'news',
-                      label: _TabLabel(
+                      builder: const _TabLabelBuilder(
                         '📡 Tech News',
                         'AI · Hacking · Embedded',
-                      ),
+                      ).call,
                     ),
-                    ButtonSegment(
+                    AppTabItem(
                       value: 'graveyard',
-                      label: _TabLabel('🪦 Graveyard', '서비스 장례식'),
+                      builder: const _TabLabelBuilder(
+                        '🪦 Graveyard',
+                        '서비스 장례식',
+                      ).call,
                     ),
                   ],
-                  selected: {_tab},
-                  onSelectionChanged: (s) => setState(() => _tab = s.first),
                 ),
               ),
               const SizedBox(height: 32),
@@ -87,10 +94,22 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 }
 
-class _TabLabel extends StatelessWidget {
-  const _TabLabel(this.title, this.description);
+/// Wraps `_TabLabel` as a `Widget Function(bool active)` so it can be used
+/// as an `AppTabItem.builder` — the two-line 학교소식/Tech News/Graveyard
+/// labels don't need the active flag to look different, they're just laid
+/// out with a title + small description line.
+class _TabLabelBuilder {
+  const _TabLabelBuilder(this.title, this.description);
   final String title;
   final String description;
+  Widget call(bool active) => _TabLabel(title, description, active: active);
+}
+
+class _TabLabel extends StatelessWidget {
+  const _TabLabel(this.title, this.description, {this.active = false});
+  final String title;
+  final String description;
+  final bool active;
   @override
   Widget build(BuildContext context) => Column(
     mainAxisSize: MainAxisSize.min,
@@ -98,10 +117,10 @@ class _TabLabel extends StatelessWidget {
       Text(title),
       Text(
         description,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 9,
           fontWeight: FontWeight.w500,
-          color: Colors.grey,
+          color: active ? Colors.white70 : Colors.grey,
         ),
       ),
     ],
@@ -113,15 +132,45 @@ Future<void> _open(String url) async {
   if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 
+const _rfc822Months = {
+  'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+  'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
+};
+
+/// RSS `<pubDate>` fields are RFC 822/1123 ("Fri, 28 Aug 2026 00:00:00
+/// GMT"), which `DateTime.tryParse` (ISO 8601 only) can't read — it silently
+/// returns null, and the old fallback then just substring'd the raw string,
+/// showing the literal RFC text ("Fri, 28 Au...") instead of a date. The web
+/// version doesn't have this bug because JS's `new Date(str)` parses RFC 822
+/// natively.
+DateTime? _parseAnyDate(String d) {
+  final iso = DateTime.tryParse(d);
+  if (iso != null) return iso;
+  final m = RegExp(
+    r'(\d{1,2})\s+(\w{3})\s+(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})',
+  ).firstMatch(d);
+  if (m == null) return null;
+  final month = _rfc822Months[m.group(2)];
+  if (month == null) return null;
+  return DateTime(
+    int.parse(m.group(3)!),
+    month,
+    int.parse(m.group(1)!),
+    int.parse(m.group(4)!),
+    int.parse(m.group(5)!),
+    int.parse(m.group(6)!),
+  );
+}
+
 String _fmtDate(String d) {
   if (d.isEmpty) return '';
-  final dt = DateTime.tryParse(d);
+  final dt = _parseAnyDate(d);
   if (dt == null) return d.length >= 10 ? d.substring(0, 10) : d;
   return '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}';
 }
 
 String _ago(String d) {
-  final dt = DateTime.tryParse(d);
+  final dt = _parseAnyDate(d);
   if (dt == null) return '';
   final ms = DateTime.now().difference(dt).inMilliseconds;
   final h = (ms / 3600000).floor();
@@ -209,17 +258,24 @@ class _SchoolNewsViewState extends State<_SchoolNewsView> {
         Row(
           children: [
             Expanded(
-              child: Wrap(
-                spacing: 6,
-                children: [
+              child: AppSegmentedTabs<String>(
+                value: _tab,
+                onChanged: (v) {
+                  setState(() => _tab = v);
+                  _load();
+                },
+                items: [
                   for (final t in _tabs)
-                    ChoiceChip(
-                      label: Text(t.$2, style: const TextStyle(fontSize: 11)),
-                      selected: _tab == t.$1,
-                      onSelected: (_) {
-                        setState(() => _tab = t.$1);
-                        _load();
-                      },
+                    AppTabItem(
+                      value: t.$1,
+                      builder: (active) => Text(
+                        t.$2,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                          letterSpacing: 1,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -292,9 +348,15 @@ class _SchoolNewsViewState extends State<_SchoolNewsView> {
   }
 }
 
+// Web: "flex gap-3 items-start p-3 rounded-xl border border-border/40
+// hover:bg-muted/40 ... " — a flat, dense, borderless-fill row (no `bg-card`,
+// so no glass). Wrapping every row in a GlassCard turned this into a stack
+// of separated frosted panels instead of a dense list.
 Widget _newsRow(int index, String title, String link, List<String> meta) {
-  return GlassCard(
+  return SolidTintCard(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    radius: 12,
+    tint: 0,
     child: InkWell(
       onTap: () => _open(link),
       child: Row(
@@ -1031,8 +1093,12 @@ class _TombstoneCardState extends State<_TombstoneCard> {
   @override
   Widget build(BuildContext context) {
     final s = widget.s;
-    return GlassCard(
+    // Web: "rounded-2xl border border-border/40 bg-muted/10" — flat muted
+    // tint, not glass.
+    return SolidTintCard(
       padding: EdgeInsets.zero,
+      radius: 18,
+      tint: 0.05,
       child: InkWell(
         onTap: () => setState(() => _open = !_open),
         child: Padding(

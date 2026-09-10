@@ -54,13 +54,13 @@ class _LaserNewScreenState extends State<LaserNewScreen> {
     final catalog = await Supabase.instance.client
         .from('laser_materials')
         .select('*')
-        .order('material')
-        .order('thickness_mm');
+        .order('material', ascending: true)
+        .order('thickness_mm', ascending: true);
     final managers = await Supabase.instance.client
         .from('profiles')
         .select('id, full_name, student_id')
         .eq('is_laser_cut_manager', true)
-        .order('student_id');
+        .order('student_id', ascending: true);
     if (mounted) {
       setState(() {
         _catalog = (catalog as List).cast<Map<String, dynamic>>();

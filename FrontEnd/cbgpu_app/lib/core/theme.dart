@@ -32,6 +32,19 @@ class AppColors {
   static const featureEmerald = Color(0xFF34D399);
   static const featureOrange = Color(0xFFFB923C);
   static const featureCyan = Color(0xFF22D3EE);
+
+  // The web's --success token (oklch(0.6 0.16 145) light / oklch(0.65 0.16
+  // 145) dark), converted via the OKLab math by hand rather than measured
+  // off a rendered canvas like the rest of this file — close enough for a
+  // 10%-alpha badge tint, but flag it if it ever needs pixel-exact matching.
+  static const lightSuccess = Color(0xFF31983D);
+  static const darkSuccess = Color(0xFF43A84C);
+
+  // The web's Badge "warning" variant hardcodes Tailwind amber (not a CSS
+  // token): bg-amber-500/10 text-amber-600 dark:text-amber-400.
+  static const warningBg = Color(0xFFF59E0B); // amber-500
+  static const lightWarningText = Color(0xFFD97706); // amber-600
+  static const darkWarningText = featureAmber; // amber-400
 }
 
 class AppTheme {
@@ -159,6 +172,14 @@ class AppTheme {
           textStyle: const TextStyle(fontWeight: FontWeight.w900),
         ),
       ),
+      // The site's filter/tab pills never have a checkmark — Material's
+      // ChoiceChip default (showCheckmark: true) was clipping several
+      // screens' short, tightly-sized labels (e.g. "전체" -> "전") because
+      // the checkmark area doesn't reserve its own space cleanly at these
+      // custom font sizes. A single theme-level default fixes every
+      // ChoiceChip in the app at once instead of each screen repeating
+      // `showCheckmark: false`.
+      chipTheme: const ChipThemeData(showCheckmark: false),
     );
   }
 }
@@ -167,21 +188,39 @@ class AppTheme {
 /// `text-[10px] font-black uppercase text-muted-foreground` pattern —
 /// used above inputs instead of Material's floating labelText.
 class FieldLabel extends StatelessWidget {
-  const FieldLabel(this.text, {super.key});
+  const FieldLabel(this.text, {super.key, this.icon, this.color});
   final String text;
+  // Most screens use the muted-grey default (`text-muted-foreground`), but a
+  // handful — profile's name/student-id/password fields — use
+  // `text-primary` plus a small leading icon (UserCircle2/Hash/Lock) on the
+  // web. Optional rather than a new default so those other screens don't
+  // change.
+  final IconData? icon;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedColor =
+        color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5);
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 6),
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 1.2,
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 11, color: resolvedColor),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            text.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              color: resolvedColor,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/glass.dart';
+import '../../core/segmented_tabs.dart';
 
 String _uid() =>
     Random().nextInt(1 << 32).toRadixString(36) +
@@ -273,7 +274,7 @@ class _PollsScreenState extends State<PollsScreen> {
         .from('poll_questions')
         .select('*')
         .eq('poll_id', pollId)
-        .order('order_num');
+        .order('order_num', ascending: true);
     return (rows as List)
         .map((r) => _Question.fromRow(r as Map<String, dynamic>))
         .toList();
@@ -439,20 +440,29 @@ class _PollsScreenState extends State<PollsScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              Row(
-                children: [
-                  ChoiceChip(
-                    label: Text('진행 중 (${_polls.where(isActiveTab).length})'),
-                    selected: _tab == 'active',
-                    onSelected: (_) => setState(() => _tab = 'active'),
-                  ),
-                  const SizedBox(width: 6),
-                  ChoiceChip(
-                    label: Text(
-                      '마감 (${_polls.where((p) => p.isClosed).length})',
+              AppSegmentedTabs<String>(
+                value: _tab,
+                onChanged: (v) => setState(() => _tab = v),
+                items: [
+                  AppTabItem(
+                    value: 'active',
+                    builder: (active) => Text(
+                      '진행 중 (${_polls.where(isActiveTab).length})',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                      ),
                     ),
-                    selected: _tab == 'closed',
-                    onSelected: (_) => setState(() => _tab = 'closed'),
+                  ),
+                  AppTabItem(
+                    value: 'closed',
+                    builder: (active) => Text(
+                      '마감 (${_polls.where((p) => p.isClosed).length})',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -463,14 +473,8 @@ class _PollsScreenState extends State<PollsScreen> {
                   child: Center(child: CircularProgressIndicator()),
                 )
               else if (shown.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 48),
-                  child: Center(
-                    child: Text(
-                      _tab == 'active' ? '진행 중인 투표가 없습니다.' : '마감된 투표가 없습니다.',
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                  ),
+                EmptyStateCard(
+                  message: _tab == 'active' ? '진행 중인 투표가 없습니다.' : '마감된 투표가 없습니다.',
                 )
               else
                 for (final poll in shown) ...[
@@ -1383,7 +1387,7 @@ class _PollBuilderScreenState extends State<_PollBuilderScreen> {
         .from('poll_questions')
         .select('*')
         .eq('poll_id', widget.poll!.id)
-        .order('order_num');
+        .order('order_num', ascending: true);
     if (mounted) {
       setState(
         () => _questions = (rows as List)

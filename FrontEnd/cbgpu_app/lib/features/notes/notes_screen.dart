@@ -579,12 +579,95 @@ class _NoteEditorScreenState extends State<_NoteEditorScreen> {
   @override
   Widget build(BuildContext context) {
     if (!_isOwner) {
-      return Scaffold(
+      // Scaffold's own background is transparent (theme.dart sets
+      // scaffoldBackgroundColor: Colors.transparent so AmbientBackground can
+      // paint behind it) — without that wrapper here, this pushed full-
+      // screen route showed raw white/light through in dark mode instead of
+      // the app's dark canvas.
+      return AmbientBackground(
+        child: Scaffold(
+          body: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: widget.onBack,
+                      ),
+                      Expanded(
+                        child: Text(
+                          _titleController.text.isEmpty
+                              ? '제목 없음'
+                              : _titleController.text,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          '공개 노트',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _MarkdownView(source: _contentController.text),
+                  ),
+                ),
+                if (_tags.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Wrap(
+                      spacing: 4,
+                      children: [
+                        for (final t in _tags)
+                          Chip(
+                            label: Text(
+                              t,
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return AmbientBackground(
+      child: Scaffold(
         body: SafeArea(
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 child: Row(
                   children: [
                     IconButton(
@@ -592,233 +675,178 @@ class _NoteEditorScreenState extends State<_NoteEditorScreen> {
                       onPressed: widget.onBack,
                     ),
                     Expanded(
-                      child: Text(
-                        _titleController.text.isEmpty
-                            ? '제목 없음'
-                            : _titleController.text,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        '공개 노트',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: _MarkdownView(source: _contentController.text),
-                ),
-              ),
-              if (_tags.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Wrap(
-                    spacing: 4,
-                    children: [
-                      for (final t in _tags)
-                        Chip(
-                          label: Text(t, style: const TextStyle(fontSize: 10)),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: widget.onBack,
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _titleController,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 15,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: '제목 없음',
-                        border: InputBorder.none,
-                      ),
-                      onChanged: (_) => _scheduleAutoSave(),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      _shared ? Icons.share : Icons.lock_outline,
-                      size: 16,
-                      color: _shared
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.grey,
-                    ),
-                    onPressed: _toggleShared,
-                    tooltip: _shared ? '공개' : '비공개',
-                  ),
-                  SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(value: 'edit', label: Text('편집')),
-                      ButtonSegment(value: 'preview', label: Text('미리보기')),
-                    ],
-                    selected: {_view},
-                    onSelectionChanged: (s) => setState(() => _view = s.first),
-                    showSelectedIcon: false,
-                  ),
-                  const SizedBox(width: 4),
-                  FilledButton.icon(
-                    onPressed: _saveState == _SaveState.saving
-                        ? null
-                        : _saveNow,
-                    icon: _saveState == _SaveState.saving
-                        ? const SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Icon(
-                            _saveState == _SaveState.saved
-                                ? Icons.check
-                                : Icons.save,
-                            size: 14,
-                          ),
-                    label: Text(
-                      _saveState == _SaveState.saving
-                          ? '저장 중...'
-                          : (_saveState == _SaveState.saved ? '저장됨' : '저장'),
-                    ),
-                    style: _saveState == _SaveState.saved
-                        ? FilledButton.styleFrom(backgroundColor: Colors.green)
-                        : null,
-                  ),
-                ],
-              ),
-            ),
-            if (_view == 'edit')
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Row(
-                  children: [
-                    for (final t in const [
-                      ('H1', null),
-                      ('H2', null),
-                      ('B', null),
-                      ('I', null),
-                      ('`', null),
-                      ('```', null),
-                      ('>', null),
-                      ('—', null),
-                    ])
-                      TextButton(
-                        onPressed: () => _onToolbar(t.$1),
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(32, 32),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                        child: Text(
-                          t.$1,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            const Divider(height: 1),
-            Expanded(
-              child: _view == 'edit'
-                  ? Padding(
-                      padding: const EdgeInsets.all(16),
                       child: TextField(
-                        controller: _contentController,
-                        maxLines: null,
-                        expands: true,
-                        textAlignVertical: TextAlignVertical.top,
+                        controller: _titleController,
                         style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 13,
-                          height: 1.5,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
                         ),
                         decoration: const InputDecoration(
-                          hintText: '# 연구 노트 제목\n\n내용을 입력하세요...',
+                          hintText: '제목 없음',
                           border: InputBorder.none,
                         ),
                         onChanged: (_) => _scheduleAutoSave(),
                       ),
-                    )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: _MarkdownView(source: _contentController.text),
                     ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  const Icon(Icons.sell_outlined, size: 14, color: Colors.grey),
-                  const SizedBox(width: 6),
-                  Wrap(
-                    spacing: 4,
+                    IconButton(
+                      icon: Icon(
+                        _shared ? Icons.share : Icons.lock_outline,
+                        size: 16,
+                        color: _shared
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.grey,
+                      ),
+                      onPressed: _toggleShared,
+                      tooltip: _shared ? '공개' : '비공개',
+                    ),
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'edit', label: Text('편집')),
+                        ButtonSegment(value: 'preview', label: Text('미리보기')),
+                      ],
+                      selected: {_view},
+                      onSelectionChanged: (s) =>
+                          setState(() => _view = s.first),
+                      showSelectedIcon: false,
+                    ),
+                    const SizedBox(width: 4),
+                    FilledButton.icon(
+                      onPressed: _saveState == _SaveState.saving
+                          ? null
+                          : _saveNow,
+                      icon: _saveState == _SaveState.saving
+                          ? const SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
+                              _saveState == _SaveState.saved
+                                  ? Icons.check
+                                  : Icons.save,
+                              size: 14,
+                            ),
+                      label: Text(
+                        _saveState == _SaveState.saving
+                            ? '저장 중...'
+                            : (_saveState == _SaveState.saved ? '저장됨' : '저장'),
+                      ),
+                      style: _saveState == _SaveState.saved
+                          ? FilledButton.styleFrom(
+                              backgroundColor: Colors.green,
+                            )
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+              if (_view == 'edit')
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: Row(
                     children: [
-                      for (final t in _tags)
-                        Chip(
-                          label: Text(t, style: const TextStyle(fontSize: 10)),
-                          onDeleted: () => _removeTag(t),
-                          visualDensity: VisualDensity.compact,
+                      for (final t in const [
+                        ('H1', null),
+                        ('H2', null),
+                        ('B', null),
+                        ('I', null),
+                        ('`', null),
+                        ('```', null),
+                        ('>', null),
+                        ('—', null),
+                      ])
+                        TextButton(
+                          onPressed: () => _onToolbar(t.$1),
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(32, 32),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                          child: Text(
+                            t.$1,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                            ),
+                          ),
                         ),
                     ],
                   ),
-                  Expanded(
-                    child: TextField(
-                      controller: _tagController,
-                      style: const TextStyle(fontSize: 11),
-                      decoration: const InputDecoration(
-                        hintText: '태그 추가 (Enter)',
-                        border: InputBorder.none,
-                        isDense: true,
+                ),
+              const Divider(height: 1),
+              Expanded(
+                child: _view == 'edit'
+                    ? Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: TextField(
+                          controller: _contentController,
+                          maxLines: null,
+                          expands: true,
+                          textAlignVertical: TextAlignVertical.top,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                            height: 1.5,
+                          ),
+                          decoration: const InputDecoration(
+                            hintText: '# 연구 노트 제목\n\n내용을 입력하세요...',
+                            border: InputBorder.none,
+                          ),
+                          onChanged: (_) => _scheduleAutoSave(),
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: _MarkdownView(source: _contentController.text),
                       ),
-                      onSubmitted: (_) => _addTag(),
-                    ),
-                  ),
-                ],
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.sell_outlined,
+                      size: 14,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 6),
+                    Wrap(
+                      spacing: 4,
+                      children: [
+                        for (final t in _tags)
+                          Chip(
+                            label: Text(
+                              t,
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                            onDeleted: () => _removeTag(t),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                      ],
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _tagController,
+                        style: const TextStyle(fontSize: 11),
+                        decoration: const InputDecoration(
+                          hintText: '태그 추가 (Enter)',
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                        onSubmitted: (_) => _addTag(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

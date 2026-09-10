@@ -295,40 +295,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: _uploadingAvatar ? null : _pickAvatar,
                       child: Stack(
                         children: [
-                          ClipOval(
-                            child: _avatarUrl != null
-                                ? Image.network(
-                                    _avatarUrl!,
-                                    width: 112,
-                                    height: 112,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, _, _) =>
-                                        _avatarPlaceholder(context),
-                                  )
-                                : _avatarPlaceholder(context),
+                          // Web: "ring-8 ring-primary/5" — a wide, very
+                          // faint primary-tinted ring around the avatar.
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.05),
+                                width: 8,
+                              ),
+                            ),
+                            child: ClipOval(
+                              child: _avatarUrl != null
+                                  ? Image.network(
+                                      _avatarUrl!,
+                                      width: 112,
+                                      height: 112,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) =>
+                                          _avatarPlaceholder(context),
+                                    )
+                                  : _avatarPlaceholder(context),
+                            ),
                           ),
                           Positioned(
                             bottom: 0,
                             right: 0,
-                            child: CircleAvatar(
-                              radius: 18,
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.primary,
-                              child: _uploadingAvatar
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
+                            // Web: "ring-4 ring-card" — the badge is outlined
+                            // in the card's own background so it reads as
+                            // sitting on top of the avatar, not overlapping it.
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Theme.of(context).colorScheme.surface,
+                                  width: 4,
+                                ),
+                              ),
+                              child: CircleAvatar(
+                                radius: 18,
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.primary,
+                                child: _uploadingAvatar
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.camera_alt,
+                                        size: 16,
                                         color: Colors.white,
                                       ),
-                                    )
-                                  : const Icon(
-                                      Icons.camera_alt,
-                                      size: 16,
-                                      color: Colors.white,
-                                    ),
+                              ),
                             ),
                           ),
                         ],
@@ -340,9 +365,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           : CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _nameController.text.isEmpty
-                              ? 'Anonymous User'
-                              : _nameController.text,
+                          (_nameController.text.isEmpty
+                                  ? 'Anonymous User'
+                                  : _nameController.text)
+                              .toUpperCase(),
                           textAlign: compact
                               ? TextAlign.center
                               : TextAlign.left,
@@ -406,7 +432,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const FieldLabel('이름 (Name)'),
+                    FieldLabel(
+                      '이름 (Name)',
+                      icon: Icons.account_circle_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     TextField(
                       controller: _nameController,
                       style: const TextStyle(
@@ -416,7 +446,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       decoration: const InputDecoration(hintText: 'Your Name'),
                     ),
                     const SizedBox(height: 16),
-                    const FieldLabel('학번 (Student ID)'),
+                    FieldLabel(
+                      '학번 (Student ID)',
+                      icon: Icons.tag,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     TextField(
                       controller: _studentIdController,
                       keyboardType: TextInputType.number,
@@ -435,17 +469,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: const TextStyle(fontSize: 10, color: Colors.grey),
                     ),
                     const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _savingProfile ? null : _updateProfile,
-                      icon: _savingProfile
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.save, size: 16),
-                      label: Text(
-                        _savingProfile ? 'Saving Changes...' : 'Save Profile',
+                    // Web: "w-full h-16 rounded-2xl font-black text-xl
+                    // uppercase tracking-widest shadow-xl shadow-primary/20"
+                    // — a big, loud primary CTA. The shared button theme's
+                    // 48px/13px default is sized for ordinary toolbar
+                    // buttons, not this kind of "main action" button.
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: _savingProfile ? null : _updateProfile,
+                        style: ElevatedButton.styleFrom(
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        icon: _savingProfile
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.save, size: 16),
+                        label: Text(
+                          (_savingProfile
+                                  ? 'Saving Changes...'
+                                  : 'Save Profile')
+                              .toUpperCase(),
+                        ),
                       ),
                     ),
                   ],
@@ -476,43 +531,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const FieldLabel('현재 비밀번호'),
+                    FieldLabel(
+                      '현재 비밀번호',
+                      icon: Icons.lock_outline,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     TextField(
                       controller: _currentPasswordController,
                       obscureText: true,
                       decoration: const InputDecoration(hintText: '••••••••'),
                     ),
                     const SizedBox(height: 16),
-                    const FieldLabel('새 비밀번호'),
+                    FieldLabel(
+                      '새 비밀번호',
+                      icon: Icons.lock_outline,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     TextField(
                       controller: _newPasswordController,
                       obscureText: true,
                       decoration: const InputDecoration(hintText: '••••••••'),
                     ),
                     const SizedBox(height: 16),
-                    const FieldLabel('새 비밀번호 확인'),
+                    FieldLabel(
+                      '새 비밀번호 확인',
+                      icon: Icons.lock_outline,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     TextField(
                       controller: _confirmPasswordController,
                       obscureText: true,
                       decoration: const InputDecoration(hintText: '••••••••'),
                     ),
                     const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed:
-                          (_changingPassword ||
-                              _currentPasswordController.text.isEmpty ||
-                              _newPasswordController.text.isEmpty ||
-                              _confirmPasswordController.text.isEmpty)
-                          ? null
-                          : _changePassword,
-                      icon: _changingPassword
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.key, size: 16),
-                      label: Text(_changingPassword ? '변경 중...' : '비밀번호 변경'),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed:
+                            (_changingPassword ||
+                                _currentPasswordController.text.isEmpty ||
+                                _newPasswordController.text.isEmpty ||
+                                _confirmPasswordController.text.isEmpty)
+                            ? null
+                            : _changePassword,
+                        style: ElevatedButton.styleFrom(
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        icon: _changingPassword
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.key, size: 16),
+                        label: Text(
+                          (_changingPassword ? '변경 중...' : '비밀번호 변경')
+                              .toUpperCase(),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -521,19 +604,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
               GlassCard(
                 radius: 40,
                 padding: const EdgeInsets.all(40),
+                // Web: "ring-1 ring-destructive/20" — a faint red-tinted
+                // ring flagging this card as the danger zone, on top of the
+                // same glass every other profile card uses.
+                borderColor: Theme.of(
+                  context,
+                ).colorScheme.error.withValues(alpha: 0.2),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.warning_amber, size: 18, color: Colors.red),
-                        SizedBox(width: 8),
+                        Icon(
+                          Icons.shield_outlined,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        const SizedBox(width: 8),
                         Text(
                           '위험 구역',
                           style: TextStyle(
                             fontWeight: FontWeight.w900,
                             fontSize: 16,
-                            color: Colors.red,
+                            color: Theme.of(context).colorScheme.error,
                           ),
                         ),
                       ],
@@ -548,16 +641,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.error,
+                          foregroundColor: Colors.white,
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        onPressed: _deletingAccount
+                            ? null
+                            : _confirmDeleteAccount,
+                        icon: const Icon(Icons.delete_forever, size: 16),
+                        label: Text(
+                          (_deletingAccount ? '삭제 중...' : '계정 삭제').toUpperCase(),
+                        ),
                       ),
-                      onPressed: _deletingAccount
-                          ? null
-                          : _confirmDeleteAccount,
-                      icon: const Icon(Icons.delete_forever, size: 16),
-                      label: Text(_deletingAccount ? '삭제 중...' : '계정 삭제'),
                     ),
                   ],
                 ),

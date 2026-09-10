@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'admin_state.dart';
 import 'glass.dart';
+import 'theme.dart';
 import 'theme_controller.dart';
 
 // Bundled locally instead of hotlinking the same namu.wiki URL the web app
@@ -84,6 +85,7 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final loggedIn = Supabase.instance.client.auth.currentSession != null;
     final isDesktop = MediaQuery.of(context).size.width >= _desktopBreakpoint;
+    final currentPath = GoRouterState.of(context).uri.path;
 
     return Scaffold(
       appBar: AppBar(
@@ -158,6 +160,7 @@ class AppShell extends StatelessWidget {
                 _DesktopLinkButton(
                   label: l.label,
                   onTap: () => context.go(l.route),
+                  active: currentPath == l.route,
                 ),
               _DesktopMenuButton(groups: _groups),
             ],
@@ -168,6 +171,7 @@ class AppShell extends StatelessWidget {
             _DesktopLinkButton(
               label: 'CONTACT',
               onTap: () => context.go('/contact'),
+              active: currentPath == '/contact',
             ),
           ValueListenableBuilder<ThemeMode>(
             valueListenable: themeModeNotifier,
@@ -334,16 +338,32 @@ class AppShell extends StatelessWidget {
 }
 
 class _DesktopLinkButton extends StatelessWidget {
-  const _DesktopLinkButton({required this.label, required this.onTap});
+  const _DesktopLinkButton({
+    required this.label,
+    required this.onTap,
+    this.active = false,
+  });
   final String label;
   final VoidCallback onTap;
+  // Web: `pathname === l.href ? 'bg-primary text-primary-foreground' :
+  // 'text-muted-foreground hover:bg-muted'` (Navbar.tsx) — the current route
+  // gets a filled primary pill. The Flutter nav had no such indicator at
+  // all, so every link looked equally (in)active regardless of the page
+  // actually being viewed.
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
     return TextButton(
       onPressed: onTap,
       style: TextButton.styleFrom(
-        foregroundColor: Theme.of(context).colorScheme.onSurface,
+        backgroundColor: active ? AppColors.primary : null,
+        foregroundColor: active
+            ? Colors.white
+            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+        ),
       ),
       child: Text(
         label,
