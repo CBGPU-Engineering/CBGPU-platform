@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { PersonSearchSelect } from '@/components/manufacturing/PersonSearchSelect';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { Trash2 } from 'lucide-react';
 
 type AdminTab = 'gpu' | 'server' | 'accounts' | 'manufacture';
 
@@ -102,6 +104,8 @@ export default function AdminPage() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(true);
   const [profilesJustFinished, setProfilesJustFinished] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   const fetchProfiles = async () => {
     const { data, error } = await supabase
@@ -123,6 +127,32 @@ export default function AdminPage() {
     else {
       showSuccess(approved ? '승인 처리됐습니다.' : '학번/이름 확인이 필요한 상태로 표시했습니다.');
       fetchProfiles();
+    }
+  }
+
+  async function handleDeleteUser() {
+    if (!deleteTarget) return;
+    setIsDeletingUser(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) { showError('세션이 만료되었습니다. 다시 로그인해주세요.'); return; }
+
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId: deleteTarget.id }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { showError(body?.message || '계정 삭제 실패'); return; }
+
+      showSuccess('계정이 삭제됐습니다.');
+      fetchProfiles();
+    } catch (err: any) {
+      showError(err.message || '계정 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeletingUser(false);
+      setDeleteTarget(null);
     }
   }
 
@@ -345,7 +375,58 @@ export default function AdminPage() {
         {/* ── GPU 예약 탭 ── */}
         {tab === 'gpu' && (
           <div className="border-2 rounded-3xl bg-card overflow-hidden shadow-2xl transition-all">
-            <div className="overflow-x-auto">
+            {/* 모바일: 가로 스크롤 없이 바로 승인/거절 — 카드 목록 */}
+            <div className="md:hidden divide-y">
+              {gpuLoading || gpuJustFinished ? (
+                <div className="py-16 flex items-center justify-center"><LoadingSpinner done={gpuJustFinished} size={48} label="예약 내역 불러오는 중" /></div>
+              ) : reservations.length === 0 ? (
+                <div className="text-center py-20 font-bold text-muted-foreground opacity-50">No pending requests found.</div>
+              ) : (
+                reservations.map((res) => {
+                  const start = new Date(res.start_time);
+                  const end = new Date(res.end_time);
+                  const isEnded = new Date() > end;
+                  const dateOptions: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                  return (
+                    <div key={res.id} className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-black text-sm uppercase tracking-tight truncate">{res.profiles?.full_name || 'Unknown'}</span>
+                          <span className="text-[10px] text-muted-foreground font-bold opacity-70">{res.profiles?.student_id || res.user_email}</span>
+                        </div>
+                        <span className="font-black italic text-primary text-sm shrink-0">GPU #{res.gpu_id}</span>
+                      </div>
+                      <div className="bg-muted/50 px-3 py-2 rounded-xl border border-border/50 text-[11px] font-bold leading-tight">
+                        {start.toLocaleString('ko-KR', dateOptions)}
+                        <span className="opacity-30 mx-1">→</span>
+                        {end.toLocaleString('ko-KR', dateOptions)}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          {res.status === 'pending'  && <Badge variant="warning" icon={<Clock className="size-3" />}>Pending</Badge>}
+                          {res.status === 'approved' && <Badge variant="success" icon={<CheckCircle2 className="size-3" />}>Approved</Badge>}
+                          {res.status === 'rejected' && <Badge variant="danger"  icon={<XCircle className="size-3" />}>Rejected</Badge>}
+                        </div>
+                        {isEnded ? (
+                          <span className="text-[10px] font-black uppercase opacity-30">Session Finished</span>
+                        ) : res.status === 'pending' ? (
+                          <div className="flex gap-2">
+                            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'approved', res.gpu_id)}>Approve</Button>
+                            <Button size="sm" variant="destructive" className="font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-destructive/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'rejected')}>Reject</Button>
+                          </div>
+                        ) : (
+                          <Button size="sm" variant="outline" className="font-black text-[10px] uppercase h-8 px-4 rounded-xl border-2 hover:bg-muted transition-all active:scale-95 gap-1.5" onClick={() => updateStatus(res.id, 'pending')}>
+                            <Undo2 className="size-3" /> Reset
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow className="hover:bg-transparent border-b-2">
@@ -416,7 +497,68 @@ export default function AdminPage() {
         {/* ── 서버 배포 탭 ── */}
         {tab === 'server' && (
           <div className="border-2 rounded-3xl bg-card overflow-hidden shadow-2xl transition-all">
-            <div className="overflow-x-auto">
+            {/* 모바일: 가로 스크롤 없이 바로 승인/거절 — 카드 목록 */}
+            <div className="md:hidden divide-y">
+              {cpuLoading || cpuJustFinished ? (
+                <div className="py-16 flex items-center justify-center"><LoadingSpinner done={cpuJustFinished} size={48} label="프로젝트 불러오는 중" /></div>
+              ) : cpuProjects.length === 0 ? (
+                <div className="text-center py-20 font-bold text-muted-foreground opacity-50">No server projects found.</div>
+              ) : (
+                cpuProjects.map((proj) => (
+                  <div key={proj.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-black text-sm uppercase tracking-tight truncate">{(proj.profiles as any)?.full_name || 'Unknown'}</span>
+                        <span className="text-[10px] text-muted-foreground font-bold opacity-70">{(proj.profiles as any)?.student_id || proj.user_email}</span>
+                      </div>
+                      {proj.status === 'pending'  && <Badge variant="warning" icon={<Clock className="size-3" />}>Pending</Badge>}
+                      {proj.status === 'approved' && <Badge variant="success" icon={<CheckCircle2 className="size-3" />}>Approved</Badge>}
+                      {proj.status === 'rejected' && <Badge variant="danger"  icon={<XCircle className="size-3" />}>Rejected</Badge>}
+                    </div>
+                    <div className="bg-muted/50 px-3 py-2 rounded-xl border border-border/50 space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        {proj.deploy_type === 'docker'
+                          ? <Container className="size-3 text-muted-foreground" />
+                          : <GitBranch className="size-3 text-muted-foreground" />}
+                        <span className="font-black text-sm">{proj.name}</span>
+                      </div>
+                      <code className="text-[10px] text-muted-foreground opacity-70 block truncate">
+                        {proj.deploy_type === 'docker' ? proj.docker_image : proj.git_url?.replace('https://', '')}
+                      </code>
+                      <div className="flex flex-col gap-1 text-[10px] font-bold text-muted-foreground pt-1">
+                        <span>Port: {proj.host_port}:{proj.container_port}</span>
+                        <span className="flex items-center gap-1">
+                          {proj.access_scope === 'private' && <><Lock className="size-2.5" /> Private</>}
+                          {proj.access_scope === 'school'  && <><School className="size-2.5 text-blue-500" /> School</>}
+                          {proj.access_scope === 'public'  && <><Globe className="size-2.5 text-green-500" /> Public</>}
+                        </span>
+                        <span>CPU: {proj.cpu_limit} / Mem: {proj.memory_limit}</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 flex-wrap">
+                      <Link href={`/server/${proj.id}`}>
+                        <Button size="sm" variant="outline" className="font-black text-[10px] uppercase h-8 px-3 rounded-xl border-2 transition-all active:scale-95 gap-1.5">
+                          <Server className="size-3" /> 상세
+                        </Button>
+                      </Link>
+                      {proj.status === 'pending' && (
+                        <>
+                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => updateCpuStatus(proj.id, 'approved')}>Approve</Button>
+                          <Button size="sm" variant="destructive" className="font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-destructive/20 transition-all active:scale-95" onClick={() => updateCpuStatus(proj.id, 'rejected')}>Reject</Button>
+                        </>
+                      )}
+                      {(proj.status === 'approved' || proj.status === 'rejected') && (
+                        <Button size="sm" variant="outline" className="font-black text-[10px] uppercase h-8 px-4 rounded-xl border-2 hover:bg-muted transition-all active:scale-95 gap-1.5" onClick={() => updateCpuStatus(proj.id, 'pending')}>
+                          <Undo2 className="size-3" /> Reset
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow className="hover:bg-transparent border-b-2">
@@ -507,7 +649,51 @@ export default function AdminPage() {
         {/* ── 계정 탭 ── */}
         {tab === 'accounts' && (
           <div className="border-2 rounded-3xl bg-card overflow-hidden shadow-2xl transition-all">
-            <div className="overflow-x-auto">
+            {/* 모바일: 가로 스크롤 없이 바로 승인 — 카드 목록 */}
+            <div className="md:hidden divide-y">
+              {profilesLoading || profilesJustFinished ? (
+                <div className="py-16 flex items-center justify-center"><LoadingSpinner done={profilesJustFinished} size={48} label="계정 목록 불러오는 중" /></div>
+              ) : profiles.length === 0 ? (
+                <div className="text-center py-20 font-bold text-muted-foreground opacity-50">No accounts found.</div>
+              ) : (
+                profiles.map((p) => (
+                  <div key={p.id} className="p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <span className="font-black text-sm uppercase tracking-tight truncate">{p.full_name || 'Unknown'}</span>
+                        {p.is_admin && <Badge variant="warning">Admin</Badge>}
+                        {p.is_laser_cut_manager && <Badge variant="default">레이저 담당</Badge>}
+                      </div>
+                      <span className="text-sm font-bold shrink-0">{p.student_id || '-'}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        {p.is_approved === false && <Badge variant="danger" icon={<XCircle className="size-3" />}>제한됨</Badge>}
+                        {p.is_approved === null && <Badge variant="warning" icon={<HelpCircle className="size-3" />}>미검토</Badge>}
+                        {p.is_approved === true && <Badge variant="success" icon={<CheckCircle2 className="size-3" />}>승인됨</Badge>}
+                      </div>
+                      <div className="flex gap-2 flex-wrap justify-end">
+                        {p.is_approved !== true && (
+                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => setProfileApproval(p.id, true)}>
+                            승인
+                          </Button>
+                        )}
+                        {p.is_approved !== false && (
+                          <Button size="sm" variant="destructive" className="font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-destructive/20 transition-all active:scale-95" onClick={() => setProfileApproval(p.id, false)}>
+                            확인 필요로 표시
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" className="font-black text-[10px] uppercase h-8 px-3 rounded-xl border-2 border-destructive/30 text-destructive hover:bg-destructive/10 transition-all active:scale-95 gap-1.5" onClick={() => setDeleteTarget({ id: p.id, name: p.full_name || p.student_id || 'Unknown' })}>
+                          <Trash2 className="size-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow className="hover:bg-transparent border-b-2">
@@ -550,6 +736,9 @@ export default function AdminPage() {
                                 확인 필요로 표시
                               </Button>
                             )}
+                            <Button size="sm" variant="outline" className="font-black text-[10px] uppercase h-8 px-3 rounded-xl border-2 border-destructive/30 text-destructive hover:bg-destructive/10 transition-all active:scale-95 gap-1.5" onClick={() => setDeleteTarget({ id: p.id, name: p.full_name || p.student_id || 'Unknown' })}>
+                              <Trash2 className="size-3" /> 삭제
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -645,6 +834,15 @@ export default function AdminPage() {
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="계정을 삭제할까요?"
+        description={`${deleteTarget?.name ?? ''} 계정의 이름/학번/프로필 사진이 삭제되고 로그인할 수 없게 됩니다. 되돌릴 수 없습니다.`}
+        confirmLabel={isDeletingUser ? '삭제 중...' : '계정 삭제'}
+        onConfirm={handleDeleteUser}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
