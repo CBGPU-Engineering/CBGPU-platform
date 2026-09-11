@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
-  Cpu, Printer, Server, CalendarDays, UtensilsCrossed, LayoutGrid, Smartphone,
+  Cpu, Printer, Server, CalendarDays, UtensilsCrossed, LayoutGrid, Smartphone, ShieldCheck,
 } from 'lucide-react';
 import { isNativeApp, onNativeBridgeReady } from '@/lib/nativeBridge';
 
-const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.cbgpu.cbgpu_app';
+// 아직 Play Store 심사 전이라 APK를 직접 배포한다. 스토어에 올라가면 이 링크만
+// Play Store URL로 바꿔주면 됨 — 나머지 UI/문구는 그대로 재사용 가능하게 짜둠.
+const APK_URL = '/downloads/cbgpu.apk';
 
 const FEATURES = [
   { Icon: CalendarDays, label: '시간표', desc: '대강까지 반영되는 실시간 시간표' },
@@ -50,15 +52,25 @@ export default function DownloadPage() {
 
         <div className="flex flex-col items-center gap-3">
           <a
-            href={PLAY_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={APK_URL}
+            download
             className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest px-8 py-4 rounded-2xl shadow-xl shadow-primary/20 transition-transform active:scale-95 hover:scale-[1.02]"
           >
-            Google Play에서 다운로드
+            APK 다운로드
           </a>
           <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-bold">
             <Smartphone className="size-3" /> 안드로이드 전용 · iOS는 아직 준비 중이에요
+          </p>
+        </div>
+      </div>
+
+      <div className="flex gap-3 p-4 rounded-2xl bg-muted/40 ring-1 ring-foreground/5 text-left">
+        <ShieldCheck className="size-5 text-primary shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <p className="text-xs font-black">Play 스토어 출시 전이라 APK로 직접 설치해요</p>
+          <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
+            다운로드한 APK를 열면 &quot;출처를 알 수 없는 앱&quot; 설치를 허용해달라는 안내가 떠요.
+            학교 동아리에서 직접 서명한 정식 빌드이니 안심하고 설치를 허용해 주세요.
           </p>
         </div>
       </div>
@@ -78,8 +90,8 @@ export default function DownloadPage() {
       {/* 컴퓨터로 보고 있는 경우를 위한 QR — 모바일에선 굳이 필요 없어서 숨김 */}
       <div className="hidden md:flex flex-col items-center gap-3 py-8 border-y border-border/50">
         <Image
-          src="/img/cbgpu-play-qr.png"
-          alt="Google Play 다운로드 QR코드"
+          src="/img/cbgpu-apk-qr.png"
+          alt="APK 다운로드 QR코드"
           width={140}
           height={140}
           className="rounded-xl ring-1 ring-foreground/10"
