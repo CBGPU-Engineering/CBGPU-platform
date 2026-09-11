@@ -10,6 +10,8 @@ import { useAuth } from '@/lib/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { format, isSameDay, parseISO, addDays, startOfDay, endOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { TimePicker } from '@/components/ui/time-picker';
+import { Zap } from 'lucide-react';
 
 const DURATION_PRESETS = [
   { label: '1시간', hours: 1 },
@@ -21,12 +23,18 @@ const DURATION_PRESETS = [
   { label: '3일', hours: 72 },
   { label: '7일', hours: 168 },
 ];
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const NEXT_14_DAYS = Array.from({ length: 14 }, (_, i) => addDays(startOfDay(new Date()), i));
 
-function combineDateHour(day: Date, hour: number): Date {
+/** A couple minutes of slack so "지금 바로 시작" doesn't immediately fail the
+ * start-must-be-in-the-future check by the time the request actually submits. */
+function nowPlusBuffer(): Date {
+  return new Date(Date.now() + 2 * 60000);
+}
+
+function combineDateTime(day: Date, hhmm: string): Date {
+  const [h, m] = hhmm.split(':').map(Number);
   const d = new Date(day);
-  d.setHours(hour, 0, 0, 0);
+  d.setHours(h, m, 0, 0);
   return d;
 }
 
@@ -34,14 +42,20 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
   const { showAlert, showError, showSuccess } = useAlert();
   const { isApproved } = useAuth();
   const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
-  const [selectedHour, setSelectedHour] = useState(() => Math.min(23, new Date().getHours() + 1));
+  const [selectedTime, setSelectedTime] = useState(() => format(nowPlusBuffer(), 'HH:mm'));
   const [durationHours, setDurationHours] = useState(3);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [approvedReservations, setApprovedReservations] = useState<any[]>([]);
 
-  const start = combineDateHour(selectedDate, selectedHour);
+  const start = combineDateTime(selectedDate, selectedTime);
   const end = new Date(start.getTime() + durationHours * 3600000);
+
+  const startNow = () => {
+    const target = nowPlusBuffer();
+    setSelectedDate(startOfDay(target));
+    setSelectedTime(format(target, 'HH:mm'));
+  };
 
   useEffect(() => {
     fetchApprovedReservations();
@@ -247,19 +261,15 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
 
             <div>
               <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">시작 시각</label>
-              <div className="flex gap-1.5 overflow-x-auto py-1.5 -mx-1 px-1">
-                {HOURS.map((h) => (
-                  <button
-                    key={h}
-                    type="button"
-                    onClick={() => setSelectedHour(h)}
-                    className={`shrink-0 px-3 py-1.5 rounded-xl border text-xs font-black transition-all active:scale-95 ${
-                      selectedHour === h ? 'border-primary bg-primary text-primary-foreground' : 'border-border/50 hover:bg-muted/30'
-                    }`}
-                  >
-                    {String(h).padStart(2, '0')}:00
-                  </button>
-                ))}
+              <div className="flex items-center gap-2 mt-1.5">
+                <button
+                  type="button"
+                  onClick={startNow}
+                  className="flex items-center gap-1 shrink-0 px-3 py-1.5 rounded-xl border border-primary/50 bg-primary/10 text-primary text-xs font-black transition-all active:scale-95 hover:bg-primary/20"
+                >
+                  <Zap className="size-3.5" /> 지금 바로 시작
+                </button>
+                <TimePicker value={selectedTime} onChange={setSelectedTime} />
               </div>
             </div>
 
