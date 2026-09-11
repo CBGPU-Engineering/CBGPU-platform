@@ -42,6 +42,9 @@ export interface NativeBridge {
   requestNotificationPermission(): Promise<{ granted: boolean }>;
   syncSession(opts: { accessToken: string; refreshToken: string }): Promise<{ ok: true }>;
   clearSession(): Promise<{ ok: true }>;
+  /** The app's own Supabase session, kept alive by supabase_flutter across
+   * restarts even when this WebView's own localStorage doesn't survive one. */
+  getPersistedSession(): Promise<{ session: { accessToken: string; refreshToken: string } | null }>;
 }
 
 declare global {
