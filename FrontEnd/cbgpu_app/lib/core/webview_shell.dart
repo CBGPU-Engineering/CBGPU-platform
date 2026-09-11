@@ -50,6 +50,7 @@ final _bridgeScript = '''
     },
     syncSession: function (opts) { return call('syncSession', opts); },
     clearSession: function () { return call('clearSession', {}); },
+    getPersistedSession: function () { return call('getPersistedSession', {}); },
     _resolve: function (callId, ok, result) {
       var p = pending[callId];
       if (!p) return;
@@ -236,6 +237,22 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
         await Supabase.instance.client.auth.signOut();
         unawaited(refreshAllHomeWidgets());
         return {'ok': true};
+      case 'getPersistedSession':
+        // The website's own WebView-local session (its Supabase client's
+        // localStorage) doesn't reliably survive a full app restart, but
+        // this native client's session does (supabase_flutter persists it
+        // itself) — this lets the page fall back to it instead of forcing
+        // the user to log in again every time they reopen the app.
+        final session = Supabase.instance.client.auth.currentSession;
+        if (session == null || session.refreshToken == null) {
+          return {'session': null};
+        }
+        return {
+          'session': {
+            'accessToken': session.accessToken,
+            'refreshToken': session.refreshToken,
+          },
+        };
       default:
         throw ArgumentError('Unknown bridge action: $action');
     }

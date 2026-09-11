@@ -104,6 +104,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         bridge.syncSession({ accessToken: session.access_token, refreshToken: session.refresh_token });
+        return;
+      }
+      // This WebView's own localStorage session didn't survive (app
+      // restarts don't reliably keep it) — fall back to the native app's
+      // own Supabase session, which supabase_flutter persists on its own,
+      // so the user isn't forced to log in again every time they reopen it.
+      try {
+        const { session: persisted } = await bridge.getPersistedSession();
+        if (persisted) {
+          await supabase.auth.setSession({
+            access_token: persisted.accessToken,
+            refresh_token: persisted.refreshToken,
+          });
+        }
+      } catch {
+        // Older app build without this bridge action — just stays logged out.
       }
     });
 
