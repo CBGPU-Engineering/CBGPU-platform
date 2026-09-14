@@ -4,21 +4,36 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { X, Smartphone } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
-import { isNativeApp } from '@/lib/nativeBridge';
+import { isNativeApp, onNativeBridgeReady } from '@/lib/nativeBridge';
 
 const DISMISS_KEY = 'cbgpu.installNudgeDismissed';
 
 /** Only makes sense for someone using the site in a real Android browser —
- * already inside the app (isNativeApp()), or on desktop/iOS where there's
- * nothing to install yet, there's no point nudging. Dismissal persists per
- * browser (localStorage) so it doesn't nag every page load. */
+ * already inside the app, or on desktop/iOS where there's nothing to install
+ * yet, there's no point nudging. Dismissal persists per browser (localStorage)
+ * so it doesn't nag every page load. */
 export default function InstallAppNudge() {
   const { user, isLoading } = useAuth();
+  const [isNative, setIsNative] = useState(false);
   const [show, setShow] = useState(false);
 
+  // The app injects its bridge asynchronously after the WebView finishes
+  // loading, which usually lands AFTER this component's first render — a
+  // one-time isNativeApp() check here would almost always read "not native"
+  // and show the "install the app" nudge from inside the app itself.
   useEffect(() => {
-    if (isLoading || !user) return;
-    if (isNativeApp()) return;
+    if (isNativeApp()) {
+      setIsNative(true);
+      return;
+    }
+    return onNativeBridgeReady(() => setIsNative(true));
+  }, []);
+
+  useEffect(() => {
+    if (isLoading || !user || isNative) {
+      setShow(false);
+      return;
+    }
     if (!/Android/i.test(navigator.userAgent)) return;
     try {
       if (localStorage.getItem(DISMISS_KEY) === '1') return;
@@ -26,7 +41,7 @@ export default function InstallAppNudge() {
       // localStorage unavailable — just show it, worst case it's seen twice
     }
     setShow(true);
-  }, [isLoading, user]);
+  }, [isLoading, user, isNative]);
 
   function dismiss() {
     setShow(false);
