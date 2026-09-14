@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -12,6 +13,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'alarm_service.dart';
 import 'home_widgets.dart';
 import 'push_notifications.dart';
+import 'supabase_config.dart';
 
 const _siteUrl = 'https://cbgpu.vercel.app/';
 const _siteHost = 'cbgpu.vercel.app';
@@ -243,15 +245,33 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
         // this native client's session does (supabase_flutter persists it
         // itself) — this lets the page fall back to it instead of forcing
         // the user to log in again every time they reopen the app.
-        final session = Supabase.instance.client.auth.currentSession;
-        if (session == null || session.refreshToken == null) {
+        //
+        // Read straight from supabase_flutter's own SharedPreferences entry
+        // (same key/format it uses internally — see local_storage.dart)
+        // rather than `Supabase.instance.client.auth.currentSession`: that
+        // getter is only populated once `Supabase.initialize()`'s session
+        // recovery finishes, which runs in the background and is NOT
+        // awaited before `runApp()` — so right after a cold start it's
+        // frequently still null exactly when this bridge call, racing it,
+        // arrives from a WebView page load that already finished.
+        final prefs = await SharedPreferences.getInstance();
+        final storageKey =
+            'sb-${Uri.parse(SupabaseConfig.url).host.split('.').first}-auth-token';
+        final raw = prefs.getString(storageKey);
+        if (raw == null) return {'session': null};
+        Map<String, dynamic> decoded;
+        try {
+          decoded = jsonDecode(raw) as Map<String, dynamic>;
+        } catch (_) {
+          return {'session': null};
+        }
+        final accessToken = decoded['access_token'] as String?;
+        final refreshToken = decoded['refresh_token'] as String?;
+        if (accessToken == null || refreshToken == null) {
           return {'session': null};
         }
         return {
-          'session': {
-            'accessToken': session.accessToken,
-            'refreshToken': session.refreshToken,
-          },
+          'session': {'accessToken': accessToken, 'refreshToken': refreshToken},
         };
       default:
         throw ArgumentError('Unknown bridge action: $action');
