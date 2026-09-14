@@ -40,7 +40,9 @@ export default function InstallAppNudge() {
   if (!show) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 max-w-[280px] animate-in fade-in slide-in-from-bottom-2 duration-500 ease-[var(--ease-spring)]">
+    // bottom-24: clears the fixed mobile bottom-nav pill (Navbar.tsx) below xl,
+    // where it would otherwise sit right on top of it.
+    <div className="fixed bottom-24 right-4 xl:bottom-4 z-40 max-w-[280px] animate-in fade-in slide-in-from-bottom-2 duration-500 ease-[var(--ease-spring)]">
       <div className="tilt-3d relative bg-card ring-1 ring-foreground/10 shadow-2xl rounded-2xl p-4 pr-8">
         <button
           onClick={dismiss}
