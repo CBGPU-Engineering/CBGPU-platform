@@ -25,14 +25,14 @@ import { PhoneMockup } from './PhoneMockup';
 
 const OVERVIEW = [
   { href: '/study', label: '자습신청', icon: NotebookPen },
-  { href: '/timetable', label: '시간표', icon: CalendarDays },
-  { href: '/meal', label: '급식', icon: UtensilsCrossed },
+  { href: '/timetable', label: '시간표', icon: CalendarDays, img: '/img/screens/timetable.png' },
+  { href: '/meal', label: '급식', icon: UtensilsCrossed, img: '/img/screens/meal.png' },
   { href: '/polls', label: '투표', icon: Vote },
-  { href: '/match', label: '스터디 매칭', icon: Users },
-  { href: '/dashboard', label: 'GPU 대여', icon: Cpu },
+  { href: '/match', label: '스터디 매칭', icon: Users, img: '/img/screens/match.png' },
+  { href: '/dashboard', label: 'GPU 대여', icon: Cpu, img: '/img/screens/gpu.png' },
   { href: '/server', label: '서버 배포', icon: Server },
-  { href: '/manufacturing', label: '제작', icon: Printer },
-  { href: '/feed', label: 'Feed', icon: Newspaper },
+  { href: '/manufacturing', label: '제작', icon: Printer, img: '/img/screens/manufacturing.png' },
+  { href: '/feed', label: 'Feed', icon: Newspaper, img: '/img/screens/feed.png' },
 ];
 
 const APP_PERKS = [
@@ -135,18 +135,51 @@ export default function LaunchPage() {
         </div>
       </section>
 
-      {/* ── Overview grid ─────────────────────────────────────────────── */}
+      {/* ── Story section 3 ───────────────────────────────────────────── */}
       <section className="bg-muted/30 py-24 px-6">
+        <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-10 items-center">
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-[var(--ease-spring)]">
+            <p className="text-[11px] font-black uppercase tracking-widest text-primary">공지사항 캡쳐해서 공유하는 것도 이제 그만</p>
+            <h2 className="text-4xl font-black tracking-tight leading-tight">학교 공지부터<br />스터디 팀원까지</h2>
+            <p className="text-muted-foreground font-medium leading-relaxed">
+              공지사항·가정통신문·학사일정을 한곳에서 모아 보고,
+              같이 공부할 팀원도 관심 과목으로 바로 찾아보세요.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4 items-end">
+            <div className="tilt-3d">
+              <PhoneMockup src="/img/screens/feed.png" alt="CBGPU Feed 화면" width={200} className="translate-y-4" />
+            </div>
+            <div className="tilt-3d">
+              <PhoneMockup src="/img/screens/match.png" alt="CBGPU 스터디 매칭 화면" width={200} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Overview grid ─────────────────────────────────────────────── */}
+      <section className="py-24 px-6">
         <div className="max-w-3xl mx-auto space-y-10">
           <div className="text-center space-y-2">
             <h2 className="text-3xl font-black tracking-tight">앱 {OVERVIEW.length}개 깔 필요 없이, 이거 하나</h2>
             <p className="text-muted-foreground font-medium">학교생활에 필요한 거의 모든 것이 여기 다 있어요</p>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-            {OVERVIEW.map(({ href, label, icon: Icon }) => (
-              <div key={href} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-card ring-1 ring-foreground/5">
-                <Icon className="size-5 text-primary" strokeWidth={2} />
-                <span className="text-[11px] font-bold text-center">{label}</span>
+            {OVERVIEW.map(({ href, label, icon: Icon, img }) => (
+              <div key={href} className="tilt-3d relative aspect-square rounded-2xl overflow-hidden bg-card ring-1 ring-foreground/5">
+                {img ? (
+                  <>
+                    <Image src={img} alt={label} fill sizes="200px" className="object-cover object-top" />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pt-6 pb-2 px-2">
+                      <span className="text-[11px] font-black text-white text-center block drop-shadow">{label}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-2 size-full">
+                    <Icon className="size-5 text-primary" strokeWidth={2} />
+                    <span className="text-[11px] font-bold text-center">{label}</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -154,7 +187,7 @@ export default function LaunchPage() {
       </section>
 
       {/* ── App perks ──────────────────────────────────────────────────── */}
-      <section className="py-24 px-6">
+      <section className="bg-muted/30 py-24 px-6">
         <div className="max-w-4xl mx-auto space-y-10">
           <div className="text-center space-y-2">
             <p className="text-[11px] font-black uppercase tracking-widest text-primary">웹도 좋지만, 앱이면 더 좋아요</p>
@@ -183,7 +216,7 @@ export default function LaunchPage() {
       </section>
 
       {/* ── Closing CTA ────────────────────────────────────────────────── */}
-      <section className="bg-muted/30 py-24 px-6 text-center space-y-6">
+      <section className="py-24 px-6 text-center space-y-6">
         <h2 className="text-4xl md:text-5xl font-black tracking-tighter italic">단톡방에 물어보는 건, 오늘까지</h2>
         <p className="text-muted-foreground font-medium">가입은 1분이면 충분해요. 웹으로 바로, 또는 앱으로.</p>
         <div className="flex flex-wrap items-center justify-center gap-3">
