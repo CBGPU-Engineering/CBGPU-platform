@@ -125,11 +125,11 @@ export default function LaunchPage() {
             </div>
           </div>
           <div className="space-y-4 md:order-2 order-1 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-[var(--ease-spring)]">
-            <p className="text-[11px] font-black uppercase tracking-widest text-primary">예약됐는지 카톡으로 안 물어봐도 됨</p>
+            <p className="text-[11px] font-black uppercase tracking-widest text-primary">동아리 자원도 여기서</p>
             <h2 className="text-4xl font-black tracking-tight leading-tight">GPU 서버부터<br />3D프린터까지</h2>
             <p className="text-muted-foreground font-medium leading-relaxed">
               GPU 사용 시간을 직접 예약하고, 3D프린터·레이저 커팅 신청부터 완료까지
-              담당자 찾아다니지 않고 실시간으로 확인할 수 있어요.
+              진행 상황을 실시간으로 확인할 수 있어요.
             </p>
           </div>
         </div>
@@ -217,7 +217,7 @@ export default function LaunchPage() {
 
       {/* ── Closing CTA ────────────────────────────────────────────────── */}
       <section className="py-24 px-6 text-center space-y-6">
-        <h2 className="text-4xl md:text-5xl font-black tracking-tighter italic">단톡방에 물어보는 건, 오늘까지</h2>
+        <h2 className="text-4xl md:text-5xl font-black tracking-tighter italic">지금 바로 시작해보세요</h2>
         <p className="text-muted-foreground font-medium">가입은 1분이면 충분해요. 웹으로 바로, 또는 앱으로.</p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
