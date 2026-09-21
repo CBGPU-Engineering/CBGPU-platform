@@ -7,10 +7,11 @@ import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
+import SiteSearch from './SiteSearch';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import {
-  Menu, X, ChevronDown, Home, GraduationCap, UserCircle2,
+  Menu, X, ChevronDown, Home, GraduationCap, UserCircle2, Search,
   BookOpen, CalendarDays, UtensilsCrossed, Users, Cpu, Vote, NotebookPen, Wrench, Gamepad2, Newspaper, Server, Printer,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
@@ -43,6 +44,7 @@ const GROUPS: NavGroup[] = [
 ];
 
 const PILL = 'relative z-10 shrink-0 text-xs font-black px-3 py-1.5 rounded-lg uppercase tracking-widest transition-colors';
+const isActivePath = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
 /** 모바일 하단 플로팅 탭바 — 바(컨테이너)는 3D로 띄우고, 안의 아이콘은 단순한 2D 라인 아이콘(회색/흰색)으로.
  * 4개 분류 버튼 + 가운데 원형 홈. 분류를 누르면 그 위로 작은 3D 플로팅 패널이 떠서 안의
@@ -82,7 +84,7 @@ function BottomCategoryButton({ cat, isOpen, onToggle, pathname }: {
   onToggle: () => void;
   pathname: string;
 }) {
-  const active = cat.links.some(l => l.href === pathname);
+  const active = cat.links.some(l => isActivePath(pathname, l.href));
   return (
     <div className="relative flex flex-col items-center w-12 shrink-0">
       {isOpen && (
@@ -92,8 +94,9 @@ function BottomCategoryButton({ cat, isOpen, onToggle, pathname }: {
               key={l.href}
               href={l.href}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-black transition-colors ${
-                pathname === l.href ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                isActivePath(pathname, l.href) ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
               }`}
+              aria-current={isActivePath(pathname, l.href) ? 'page' : undefined}
             >
               <l.Icon className="size-4" />
               {l.label}
@@ -104,6 +107,8 @@ function BottomCategoryButton({ cat, isOpen, onToggle, pathname }: {
       <button
         type="button"
         onClick={onToggle}
+        aria-label={`${cat.label} 메뉴`}
+        aria-expanded={isOpen}
         className={`relative z-10 flex flex-col items-center gap-0.5 py-1 w-12 rounded-2xl transition-all duration-150 active:scale-90 ${(active || isOpen) ? '-translate-y-1.5' : ''}`}
       >
         <cat.Icon className={`size-5 transition-colors duration-300 ${active || isOpen ? 'text-primary' : 'text-muted-foreground'}`} strokeWidth={active || isOpen ? 2.5 : 2} />
@@ -120,13 +125,24 @@ export default function Navbar() {
   const { showError, showSuccess } = useAlert();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openCat, setOpenCat] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => { setOpenCat(null); }, [pathname]);
+  useEffect(() => { setOpenCat(null); setIsMenuOpen(false); }, [pathname]);
 
-  const activeGroupLink = GROUPS.some(g => g.links.some(l => l.href === pathname));
-  const activeKey = PRIMARY_LINKS.some(l => l.href === pathname) ? pathname : (activeGroupLink ? 'menu' : null);
+  useEffect(() => {
+    if (!openCat && !isMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setOpenCat(null); setIsMenuOpen(false); }
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [openCat, isMenuOpen]);
+
+  const activeGroupLink = GROUPS.some(g => g.links.some(l => isActivePath(pathname, l.href)));
+  const activePrimaryLink = PRIMARY_LINKS.find(l => isActivePath(pathname, l.href));
+  const activeKey = activePrimaryLink?.href ?? (activeGroupLink ? 'menu' : null);
 
   // 활성 항목 뒤에서 슬라이드하는 인디케이터 위치 계산
   const railRef = useRef<HTMLDivElement>(null);
@@ -183,7 +199,8 @@ export default function Navbar() {
                 key={l.href}
                 href={l.href}
                 ref={(el) => { if (el) itemRefs.current.set(l.href, el); }}
-                className={`${PILL} ${pathname === l.href ? `text-primary-foreground ${indicator ? '' : 'bg-primary shadow-md'}` : 'text-muted-foreground hover:text-foreground'}`}
+                className={`${PILL} ${isActivePath(pathname, l.href) ? `text-primary-foreground ${indicator ? '' : 'bg-primary shadow-md'}` : 'text-muted-foreground hover:text-foreground'}`}
+                aria-current={isActivePath(pathname, l.href) ? 'page' : undefined}
               >
                 {l.label}
               </Link>
@@ -211,7 +228,8 @@ export default function Navbar() {
                         <DropdownMenuPrimitive.Item key={l.href} asChild>
                           <Link
                             href={l.href}
-                            className={`block px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest outline-none transition-colors ${pathname === l.href ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'}`}
+                            className={`block px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest outline-none transition-colors ${isActivePath(pathname, l.href) ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'}`}
+                            aria-current={isActivePath(pathname, l.href) ? 'page' : undefined}
                           >
                             {l.label}
                           </Link>
@@ -227,6 +245,16 @@ export default function Navbar() {
       </div>
 
       <div className="flex gap-2 md:gap-4 items-center">
+        <button
+          type="button"
+          onClick={() => { setIsMenuOpen(false); setOpenCat(null); setSearchOpen(true); }}
+          aria-label="기능 찾기"
+          className="flex items-center gap-2 rounded-xl border border-border bg-background/60 px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          <Search className="size-4" aria-hidden="true" />
+          <span className="hidden sm:inline">기능 찾기</span>
+          <span className="hidden lg:inline rounded border border-border px-1.5 py-0.5 text-[10px]">⌘ K</span>
+        </button>
         <div className="hidden xl:flex items-center gap-2">
           <Link href="/contact" className={`text-xs transition-colors font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${pathname === '/contact' ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}>
             Contact
@@ -294,7 +322,7 @@ export default function Navbar() {
         {/* Mobile Menu Toggle */}
         <div className="xl:hidden flex items-center gap-2">
           <ThemeToggle />
-          <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)} className="xl:hidden">
+          <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)} className="xl:hidden" aria-label={isMenuOpen ? '메뉴 닫기' : '메뉴 열기'} aria-expanded={isMenuOpen}>
             {isMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </Button>
         </div>
@@ -324,13 +352,13 @@ export default function Navbar() {
                 </Button>
               </div>
 
-              <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
+              <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} aria-current={isActivePath(pathname, '/dashboard') ? 'page' : undefined} className={`text-sm font-black uppercase tracking-widest py-2 ${isActivePath(pathname, '/dashboard') ? 'text-primary' : 'text-muted-foreground'}`}>
                 GPU
               </Link>
-              <Link href="/server" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname.startsWith('/server') ? 'text-primary' : 'text-muted-foreground'}`}>
+              <Link href="/server" onClick={() => setIsMenuOpen(false)} aria-current={isActivePath(pathname, '/server') ? 'page' : undefined} className={`text-sm font-black uppercase tracking-widest py-2 ${isActivePath(pathname, '/server') ? 'text-primary' : 'text-muted-foreground'}`}>
                 Server
               </Link>
-              <Link href="/manufacturing" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname.startsWith('/manufacturing') ? 'text-primary' : 'text-muted-foreground'}`}>
+              <Link href="/manufacturing" onClick={() => setIsMenuOpen(false)} aria-current={isActivePath(pathname, '/manufacturing') ? 'page' : undefined} className={`text-sm font-black uppercase tracking-widest py-2 ${isActivePath(pathname, '/manufacturing') ? 'text-primary' : 'text-muted-foreground'}`}>
                 Manufacture
               </Link>
 
@@ -339,7 +367,7 @@ export default function Navbar() {
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">{group.label}</p>
                   <div className="flex flex-col">
                     {group.links.map(l => (
-                      <Link key={l.href} href={l.href} onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === l.href ? 'text-primary' : 'text-muted-foreground'}`}>
+                      <Link key={l.href} href={l.href} onClick={() => setIsMenuOpen(false)} aria-current={isActivePath(pathname, l.href) ? 'page' : undefined} className={`text-sm font-black uppercase tracking-widest py-2 ${isActivePath(pathname, l.href) ? 'text-primary' : 'text-muted-foreground'}`}>
                         {l.label}
                       </Link>
                     ))}
@@ -413,6 +441,7 @@ export default function Navbar() {
         </nav>
       </>
     )}
+    <SiteSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </>
   );
 }
