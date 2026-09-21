@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
     .upsert({ user_id: user.id, enabled: true }, { onConflict: 'user_id' });
   if (joinError) return NextResponse.json({ message: joinError.message }, { status: 500 });
 
-  const { error } = await client.from('eduset_contributor_devices').insert({ user_id: user.id, key_hash: keyHash, name });
+  const { data: device, error } = await client.from('eduset_contributor_devices')
+    .insert({ user_id: user.id, key_hash: keyHash, name }).select('id').single();
   if (error) return NextResponse.json({ message: error.message }, { status: 500 });
-  return NextResponse.json({ deviceKey });
+  return NextResponse.json({ deviceKey, deviceId: device.id });
 }

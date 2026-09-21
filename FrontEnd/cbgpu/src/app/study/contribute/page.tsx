@@ -2,19 +2,37 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, ExternalLink, KeyRound, Puzzle, Settings, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Puzzle, Settings, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import { supabase } from '@/lib/supabase';
 
+const VIOLENTMONKEY_ID = 'jinjaccalgkegednnccohejagnlnfdag';
+type Browser = 'Brave' | 'Edge' | 'Chrome';
+
+function detectBrowser(): Browser {
+  const agent = navigator.userAgent;
+  if (agent.includes('Edg/')) return 'Edge';
+  if ('brave' in navigator) return 'Brave';
+  return 'Chrome';
+}
+
+function extensionDetailsUrl(browser: Browser): string {
+  const scheme = browser === 'Brave' ? 'brave' : browser === 'Edge' ? 'edge' : 'chrome';
+  return `${scheme}://extensions/?id=${VIOLENTMONKEY_ID}`;
+}
+
 export default function StudyContributorPage() {
   const { user, isApproved, isLoading } = useAuth();
   const { showError, showSuccess } = useAlert();
-  const [deviceKey, setDeviceKey] = useState('');
   const [devices, setDevices] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [pendingDeviceId, setPendingDeviceId] = useState<string | null>(null);
+  const [browser, setBrowser] = useState<Browser>('Chrome');
+
+  useEffect(() => { setBrowser(detectBrowser()); }, []);
 
   const loadDevices = async () => {
     if (!user) return;
@@ -25,21 +43,42 @@ export default function StudyContributorPage() {
 
   useEffect(() => { void loadDevices(); }, [user]);
 
-  const join = async () => {
+  useEffect(() => {
+    if (!pendingDeviceId || completed) return;
+    const check = async () => {
+      const { data } = await supabase.from('eduset_contributor_devices')
+        .select('id, name, created_at, last_used_at').eq('id', pendingDeviceId).maybeSingle();
+      if (data?.last_used_at) {
+        setCompleted(true);
+        await loadDevices();
+      }
+    };
+    void check();
+    const timer = window.setInterval(() => { void check(); }, 4000);
+    return () => window.clearInterval(timer);
+  }, [pendingDeviceId, completed]);
+
+  const connectAndOpen = async () => {
+    // Open synchronously on the click so popup blockers do not discard the tab
+    // while the connection key is being created.
+    const studyTab = window.open('about:blank', '_blank');
+    if (!studyTab) { showError('새 탭이 차단됐습니다. 팝업 차단을 해제하고 다시 눌러주세요.'); return; }
+    studyTab.opener = null;
     setCreating(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/study/contributor/device', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ name: navigator.userAgent.includes('Edg/') ? 'Edge 확장 프로그램' : 'Chrome 확장 프로그램' }),
+        body: JSON.stringify({ name: `${browser} 사용자 스크립트` }),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) throw new Error(body?.message ?? '연결 키 발급에 실패했습니다.');
-      setDeviceKey(body.deviceKey);
+      setPendingDeviceId(body.deviceId);
+      studyTab.location.replace(`https://cbsh.edu-set.com/signin#cbgpu-key=${encodeURIComponent(body.deviceKey)}`);
       await loadDevices();
-      showSuccess('기여자 등록과 연결 키 발급이 완료됐습니다.');
     } catch (error: any) {
+      studyTab.close();
       showError(error.message ?? String(error));
     } finally {
       setCreating(false);
@@ -47,8 +86,12 @@ export default function StudyContributorPage() {
   };
 
   const copyExtensionSettingsUrl = async () => {
-    await navigator.clipboard.writeText('brave://extensions/?id=jinjaccalgkegednnccohejagnlnfdag');
-    showSuccess('Brave 확장 프로그램 설정 주소를 복사했습니다. 주소창에 붙여넣어 주세요.');
+    try {
+      await navigator.clipboard.writeText(extensionDetailsUrl(browser));
+      showSuccess(`${browser}의 Violentmonkey 상세정보 주소를 복사했습니다. 새 탭 주소창에 붙여넣어 주세요.`);
+    } catch {
+      showError('주소를 복사하지 못했습니다. 아래 주소를 길게 눌러 복사해 주세요.');
+    }
   };
 
   const revoke = async (id: string) => {
@@ -64,61 +107,53 @@ export default function StudyContributorPage() {
     <main className="mx-auto max-w-xl space-y-6 px-4 py-10">
       <div className="space-y-2">
         <div className="flex items-center gap-2"><Puzzle className="size-6 text-primary" /><h1 className="text-3xl font-black tracking-tight">자습 조회 기여자</h1></div>
-        <p className="text-sm text-muted-foreground">평소처럼 edu-set에 로그인하면 확장 프로그램이 유효한 조회 토큰을 CBGPU에 자동으로 전달합니다. 비밀번호는 수집하지 않습니다.</p>
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm font-bold text-amber-800 dark:text-amber-300">
+          이 설정은 데스크톱 환경에서만 가능합니다. 휴대폰에서는 진행하지 마세요.
+        </div>
+        <p className="text-sm text-muted-foreground">처음 한 번만 아래 버튼을 순서대로 누르세요. 그다음부터는 데스크톱 브라우저에서 자습신청 사이트에 로그인할 때 자동으로 CBGPU가 갱신됩니다. 비밀번호는 가져오지 않습니다.</p>
       </div>
 
       <div className="rounded-2xl border bg-card p-5 space-y-3">
-        <div className="flex items-center gap-2"><ShieldCheck className="size-5 text-emerald-500" /><h2 className="font-black">버튼을 순서대로 눌러주세요</h2></div>
+        <div className="flex items-center gap-2"><ShieldCheck className="size-5 text-emerald-500" /><h2 className="font-black">처음 한 번, 세 단계만 하면 됩니다</h2></div>
         <div className="rounded-xl bg-muted/30 p-3 space-y-2">
-          <p className="text-sm font-black">1. Violentmonkey 설치</p>
-          <p className="text-xs text-muted-foreground">Chrome, Brave, Edge에서 같은 설치 페이지를 사용합니다.</p>
+          <p className="text-sm font-black">1. Violentmonkey 설치하고 허용하기</p>
+          <p className="text-xs text-muted-foreground">아래 버튼을 누른 뒤 새 화면에서 <b>Chrome에 추가</b> 또는 <b>Brave에 추가</b>를 누르세요. 확인창이 뜨면 <b>확장 프로그램 추가</b>를 누르세요.</p>
           <Button asChild variant="outline" className="w-full gap-2">
             <a href="https://chromewebstore.google.com/detail/violentmonkey/jinjaccalgkegednnccohejagnlnfdag" target="_blank" rel="noopener noreferrer"><ExternalLink className="size-4" /> Violentmonkey 설치 페이지</a>
           </Button>
+          <p className="pt-2 text-xs text-muted-foreground">설치 후에는 사용자 스크립트를 한 번 허용해야 합니다. 이 스위치만은 브라우저에서 직접 켜야 합니다.</p>
+          <div className="flex gap-2" role="group" aria-label="사용 중인 브라우저">
+            {(['Chrome', 'Brave', 'Edge'] as const).map((option) => (
+              <Button key={option} type="button" size="sm" variant={browser === option ? 'default' : 'outline'} onClick={() => setBrowser(option)} className="flex-1">
+                {option}
+              </Button>
+            ))}
+          </div>
+          <Button type="button" variant="outline" onClick={copyExtensionSettingsUrl} className="w-full gap-2"><Settings className="size-4" /> 설정 화면 주소 복사</Button>
+          <ol className="list-decimal space-y-2 pl-5 text-xs text-muted-foreground">
+            <li>위 버튼으로 설정 주소를 복사하세요.</li>
+            <li>새 탭의 맨 위 주소창에 붙여넣고 Enter를 누르세요.</li>
+            <li><b>사용자 스크립트 허용</b> 또는 <b>Allow User Scripts</b> 스위치를 켜세요.</li>
+          </ol>
+          <details className="text-xs text-muted-foreground">
+            <summary className="cursor-pointer underline">스위치가 안 보이나요?</summary>
+            <p className="mt-2">브라우저를 최신 버전으로 업데이트해 주세요. 오래된 버전에서는 확장 프로그램 화면 오른쪽 위의 <b>개발자 모드</b>를 켜야 할 수 있습니다.</p>
+          </details>
         </div>
         <div className="rounded-xl bg-muted/30 p-3 space-y-2">
-          <p className="text-sm font-black">2. CBGPU 연결 키 발급</p>
-          <p className="text-xs text-muted-foreground">관리자 승인 없이 즉시 발급됩니다.</p>
-          <Button onClick={join} disabled={creating || !isApproved} className="w-full gap-2">
-            <KeyRound className="size-4" /> {creating ? '발급 중...' : '기여 신청 및 연결 키 발급'}
-          </Button>
-          {deviceKey && (
-            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
-              <div className="flex items-center gap-2 text-sm font-black"><CheckCircle2 className="size-4 text-emerald-500" /> 연결 키가 발급됐습니다</div>
-              <p className="text-xs text-muted-foreground">키는 5단계 버튼을 누를 때 스크립트에 자동으로 전달됩니다.</p>
-            </div>
-          )}
-        </div>
-        <div className="rounded-xl bg-muted/30 p-3 space-y-2">
-          <p className="text-sm font-black">3. 자동 동기화 스크립트 설치</p>
-          <p className="text-xs text-muted-foreground">새 탭에서 Violentmonkey 설치 확인 화면이 열리므로 CBGPU 페이지는 유지됩니다.</p>
+          <p className="text-sm font-black">2. CBGPU 스크립트 설치</p>
+          <p className="text-xs text-muted-foreground">새 탭이 열리면 그 화면에서 <b>설치</b>를 누르세요.</p>
           <Button asChild variant="outline" className="w-full gap-2">
             <a href="/downloads/cbgpu-eduset-contributor.user.js" target="_blank" rel="noopener noreferrer"><Puzzle className="size-4" /> CBGPU 스크립트 설치</a>
           </Button>
         </div>
         <div className="rounded-xl bg-muted/30 p-3 space-y-2">
-          <p className="text-sm font-black">4. Brave에서 사용자 스크립트 허용</p>
-          <p className="text-xs text-muted-foreground">Brave는 이 권한이 꺼져 있으면 스크립트 이름에 취소선을 표시합니다. 아래 버튼으로 주소를 복사해 주소창에서 연 다음, Violentmonkey 상세정보의 <b>Allow User Scripts</b>를 켜고 edu-set 탭을 새로고침하세요.</p>
-          <Button type="button" variant="outline" onClick={copyExtensionSettingsUrl} className="w-full gap-2"><Settings className="size-4" /> Brave 설정 주소 복사</Button>
-        </div>
-        <div className="rounded-xl bg-muted/30 p-3 space-y-2">
-          <p className="text-sm font-black">5. edu-set 로그인</p>
-          <p className="text-xs text-muted-foreground">아래 버튼이 발급된 연결 키를 스크립트에 자동으로 등록합니다. 직접 붙여넣을 필요가 없습니다.</p>
-          <Button asChild variant="outline" className="w-full gap-2" aria-disabled={!deviceKey}>
-            <a
-              href={deviceKey ? `https://cbsh.edu-set.com/signin#cbgpu-key=${encodeURIComponent(deviceKey)}` : '#'}
-              target={deviceKey ? '_blank' : undefined}
-              rel="noopener noreferrer"
-              onClick={(event) => { if (!deviceKey) { event.preventDefault(); showError('먼저 2단계에서 연결 키를 발급해주세요.'); } }}
-            ><ExternalLink className="size-4" /> 키 연결하고 edu-set 열기</a>
+          <p className="text-sm font-black">3. 연결하고 자습신청 로그인</p>
+          <p className="text-xs text-muted-foreground">버튼을 누르면 CBGPU가 자동으로 연결되고 자습신청 사이트가 새 탭에 열립니다. 평소처럼 로그인하세요. 키를 복사하거나 입력할 필요가 없습니다.</p>
+          <Button type="button" onClick={connectAndOpen} disabled={creating || !isApproved} className="w-full gap-2">
+            <ExternalLink className="size-4" /> {creating ? '연결 중...' : '연결하고 자습신청 열기'}
           </Button>
-        </div>
-        <div className="rounded-xl bg-muted/30 p-3 space-y-2">
-          <p className="text-sm font-black">6. 설치 완료</p>
-          <Button type="button" onClick={() => setCompleted(true)} disabled={!deviceKey} className="w-full gap-2">
-            <CheckCircle2 className="size-4" /> 설정 완료
-          </Button>
-          {!deviceKey && <p className="text-xs text-muted-foreground">먼저 2단계에서 연결 키를 발급해주세요.</p>}
+          {pendingDeviceId && !completed && <p className="text-xs text-muted-foreground">자습신청 로그인을 기다리는 중입니다. 동기화되면 이 화면에 완료가 표시됩니다.</p>}
         </div>
       </div>
 
