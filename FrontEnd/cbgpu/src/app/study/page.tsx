@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, ExternalLink, RefreshCw, AlertTriangle, LayoutGrid, User } from 'lucide-react';
+import { Search, ExternalLink, RefreshCw, AlertTriangle, LayoutGrid, User, Puzzle } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -411,6 +412,11 @@ export default function StudyPage() {
           <h1 className="text-3xl font-black tracking-tight">자습신청</h1>
         </div>
         <div className="flex gap-2 items-center shrink-0">
+          <Link href="/study/contribute">
+            <Button variant="outline" size="sm" className="font-bold gap-1.5 rounded-full">
+              <Puzzle className="size-4" /><span className="hidden sm:inline">기여하기</span>
+            </Button>
+          </Link>
           <button
             onClick={() => loadData()}
             disabled={loading}
