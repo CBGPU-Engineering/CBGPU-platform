@@ -29,3 +29,12 @@ export function decryptToken(payload: string): string {
   const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
   return decrypted.toString('utf8');
 }
+
+export function getTokenExpiresAt(token: string): string | null {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+    return typeof payload?.exp === 'number' ? new Date(payload.exp * 1000).toISOString() : null;
+  } catch {
+    return null;
+  }
+}

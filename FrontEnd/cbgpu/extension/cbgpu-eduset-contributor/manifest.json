@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "CBGPU 자습 조회 기여자",
+  "version": "1.0.0",
+  "description": "edu-set 로그인 토큰을 CBGPU 자습 조회에 안전하게 자동 기여합니다.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://cbsh.edu-set.com/*",
+    "https://cbgpu.vercel.app/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{
+    "matches": ["https://cbsh.edu-set.com/*"],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }],
+  "options_page": "options.html",
+  "action": { "default_title": "CBGPU 토큰 기여 설정", "default_popup": "options.html" }
+}

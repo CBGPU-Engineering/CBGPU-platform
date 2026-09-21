@@ -66,8 +66,8 @@ function getResponseContentType(headers: Headers): string {
 }
 
 /** 관리자가 등록해둔 자습신청 토큰을 가져온다. 모든 방문자가 이 토큰으로 조회한다. */
-async function getSharedToken(): Promise<string | null> {
-  if (cachedToken && Date.now() - cachedToken.fetchedAt < TOKEN_CACHE_TTL_MS) {
+async function getSharedToken(forceRefresh = false): Promise<string | null> {
+  if (!forceRefresh && cachedToken && Date.now() - cachedToken.fetchedAt < TOKEN_CACHE_TTL_MS) {
     return cachedToken.value;
   }
 
@@ -123,15 +123,25 @@ async function proxyRequest(request: NextRequest) {
 
   const body = request.method === 'GET' ? undefined : await request.text();
 
-  const upstream = await fetch(targetUrl, {
+  const callUpstream = (accessToken: string) => fetch(targetUrl, {
     method: request.method,
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      'x-jwt': token,
+      Authorization: `Bearer ${accessToken}`,
+      'x-jwt': accessToken,
     },
     body,
   });
+
+  let upstream = await callUpstream(token);
+  // An admin may have replaced an expired token while this server instance still has
+  // the old value cached. Refresh from Supabase and retry once so the fix is immediate.
+  if (upstream.status === 401) {
+    const refreshedToken = await getSharedToken(true);
+    if (refreshedToken && refreshedToken !== token) {
+      upstream = await callUpstream(refreshedToken);
+    }
+  }
 
   const responseBody = await upstream.text();
   return new NextResponse(responseBody, {

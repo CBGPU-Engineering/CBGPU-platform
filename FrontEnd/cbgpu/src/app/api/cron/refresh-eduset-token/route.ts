@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import chromium from '@sparticuz/chromium';
 import puppeteer from 'puppeteer-core';
-import { encryptToken } from '@/lib/edusetTokenCrypto';
+import { encryptToken, getTokenExpiresAt } from '@/lib/edusetTokenCrypto';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -105,7 +105,7 @@ async function handleRefresh(request: NextRequest) {
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const { error } = await admin
     .from('eduset_settings')
-    .upsert({ id: 1, access_token_enc: encrypted, updated_at: new Date().toISOString(), updated_by: null });
+    .upsert({ id: 1, access_token_enc: encrypted, updated_at: new Date().toISOString(), updated_by: null, expires_at: getTokenExpiresAt(accessToken) });
 
   if (error) {
     return NextResponse.json({ message: '저장 실패: ' + error.message }, { status: 500 });

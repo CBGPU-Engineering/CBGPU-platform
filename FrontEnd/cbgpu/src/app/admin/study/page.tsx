@@ -18,6 +18,7 @@ export default function AdminStudyPage() {
 
   const [tokenInput, setTokenInput] = useState('');
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -32,7 +33,10 @@ export default function AdminStudyPage() {
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
     const data = await res.json().catch(() => null);
-    if (res.ok) setUpdatedAt(data?.updatedAt ?? null);
+    if (res.ok) {
+      setUpdatedAt(data?.updatedAt ?? null);
+      setExpiresAt(data?.expiresAt ?? null);
+    }
     setStatusLoading(false);
   };
 
@@ -118,9 +122,16 @@ export default function AdminStudyPage() {
           : updatedAt
             ? `마지막 갱신: ${new Date(updatedAt).toLocaleString('ko-KR')}`
             : '등록된 토큰이 없습니다. 아래에서 토큰을 등록해주세요.'}
+        {expiresAt && (
+          <div className={new Date(expiresAt).getTime() <= Date.now() ? 'mt-1 font-bold text-destructive' : 'mt-1'}>
+            만료 예정: {new Date(expiresAt).toLocaleString('ko-KR')}
+          </div>
+        )}
       </div>
 
-      <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside rounded-xl border border-dashed border-border/60 bg-muted/20 p-3">
+      <details className="text-xs text-muted-foreground rounded-xl border border-dashed border-border/60 bg-muted/20 p-3">
+        <summary className="cursor-pointer font-bold">토큰 등록 방법</summary>
+        <ol className="mt-3 space-y-1.5 list-decimal list-inside">
         <li>
           <a href={OFFICIAL_STUDY_URL} target="_blank" rel="noopener noreferrer" className="underline font-medium">
             공식 사이트
@@ -132,9 +143,9 @@ export default function AdminStudyPage() {
           localStorage.getItem(&quot;accessToken&quot;)
         </li>
         <li>따옴표를 제외한 출력된 토큰 값을 복사해 아래에 붙여넣습니다.</li>
-      </ol>
+        </ol>
 
-      <form onSubmit={submit} className="flex flex-col gap-3">
+        <form onSubmit={submit} className="mt-3 flex flex-col gap-3">
         <Input
           value={tokenInput}
           onChange={(e) => setTokenInput(e.target.value)}
@@ -144,7 +155,8 @@ export default function AdminStudyPage() {
         <Button type="submit" disabled={saving} className="font-black uppercase tracking-widest gap-2">
           <KeyRound className="size-4" /> {saving ? '저장 중...' : '토큰 저장'}
         </Button>
-      </form>
+        </form>
+      </details>
     </div>
   );
 }

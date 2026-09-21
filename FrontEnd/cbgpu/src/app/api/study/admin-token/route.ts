@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { encryptToken } from '@/lib/edusetTokenCrypto';
+import { decryptToken, encryptToken, getTokenExpiresAt } from '@/lib/edusetTokenCrypto';
 
 const EDUSET_BASE_URL = 'https://api.cbsh.edu-set.com';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -35,11 +35,21 @@ export async function GET(request: NextRequest) {
 
   const { data } = await admin.client
     .from('eduset_settings')
-    .select('updated_at')
+    .select('access_token_enc, updated_at')
     .eq('id', 1)
     .maybeSingle();
 
-  return NextResponse.json({ updatedAt: data?.updated_at ?? null });
+  let expiresAt: string | null = null;
+  if (data?.access_token_enc) {
+    try {
+      const token = decryptToken(data.access_token_enc);
+      expiresAt = getTokenExpiresAt(token);
+    } catch {
+      // A legacy/non-JWT token can still be valid. Status reporting must not break token use.
+    }
+  }
+
+  return NextResponse.json({ updatedAt: data?.updated_at ?? null, expiresAt });
 }
 
 export async function POST(request: NextRequest) {
@@ -49,7 +59,8 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const accessToken = String(body?.accessToken ?? '').trim();
+  let accessToken = String(body?.accessToken ?? '').trim().replace(/^Bearer\s+/i, '');
+
   if (!accessToken) {
     return NextResponse.json({ message: 'accessToken을 입력해주세요.' }, { status: 400 });
   }
@@ -73,7 +84,7 @@ export async function POST(request: NextRequest) {
 
   const { error } = await admin.client
     .from('eduset_settings')
-    .upsert({ id: 1, access_token_enc: encrypted, updated_at: new Date().toISOString(), updated_by: admin.user.id });
+    .upsert({ id: 1, access_token_enc: encrypted, updated_at: new Date().toISOString(), updated_by: admin.user.id, expires_at: getTokenExpiresAt(accessToken) });
 
   if (error) {
     return NextResponse.json({ message: `저장 중 오류가 발생했습니다: ${error.message}` }, { status: 500 });
