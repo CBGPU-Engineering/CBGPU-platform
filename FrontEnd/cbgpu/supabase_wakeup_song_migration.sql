@@ -52,14 +52,14 @@ create index if not exists wakeup_songs_status_idx on wakeup_songs (dorm, play_d
 
 alter table wakeup_songs enable row level security;
 
--- Anyone signed in can see the public queue (approved/played); a submitter
--- can also see their own pending/rejected rows to track their request; an
--- admin or wakeup manager can see everything (including others' pending rows,
--- to review them).
+-- Anyone signed in can see the public queue (approved/playing/played); a
+-- submitter can also see their own pending/rejected rows to track their
+-- request; an admin or wakeup manager can see everything (including others'
+-- pending rows, to review them).
 drop policy if exists "wakeup_songs_select" on wakeup_songs;
 create policy "wakeup_songs_select" on wakeup_songs for select
   using (
-    status in ('approved', 'played')
+    status in ('approved', 'playing', 'played')
     or user_id = auth.uid()
     or public.is_admin(auth.uid())
     or public.is_wakeup_manager(auth.uid())
@@ -90,3 +90,18 @@ create policy "wakeup_songs_delete" on wakeup_songs for delete
     or public.is_admin(auth.uid())
     or public.is_wakeup_manager(auth.uid())
   );
+
+-- /wakeup listens for postgres_changes on this table so a submitter's own
+-- request updates live (e.g. 재생 전 -> 재생 중 -> 재생 완료) without a manual
+-- refresh — that only works if the table is actually in the realtime
+-- publication, which a freshly created table isn't by default. Guarded with
+-- an existence check since re-adding an already-included table errors.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'wakeup_songs'
+  ) then
+    alter publication supabase_realtime add table wakeup_songs;
+  end if;
+end $$;
