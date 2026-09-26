@@ -307,40 +307,12 @@ export default function AdminWakeupPage() {
         <div className="flex gap-2">
           <Button variant="secondary" onClick={generateAiFillers} disabled={fillingSongs || queue.length >= SONGS_PER_DAY} className="flex-1"><ListPlus className="size-4 mr-1.5" />{fillingSongs ? `추천곡 확인 중 (${fillProgress?.done ?? 0}/${fillProgress?.total ?? 0})` : '나머지 곡들 채우기'}</Button>
           <Button variant="secondary" onClick={createSpotifyPlaylist} disabled={creatingPlaylist} className="flex-1"><ListPlus className="size-4 mr-1.5" />{creatingPlaylist ? 'Spotify 생성 중...' : 'Spotify 플레이리스트 만들기'}</Button>
-          {playlistUrl && <Button asChild variant="secondary"><a href={playlistUrl} target="_blank" rel="noreferrer"><ExternalLink className="size-4 mr-1.5" />링크 열기</a></Button>}
+          {playlistUrl && <Button asChild variant="secondary"><a href={playlistUrl} target="_blank" rel="noreferrer"><ExternalLink className="size-4 mr-1.5" />생성된 플레이리스트 열기</a></Button>}
         </div>
         {aiFillers.length > 0 && <p className="text-xs text-[#1DB954] font-medium">지정한 추천곡 목록에서 {aiFillers.length}곡을 자동으로 채웠어요.</p>}
-        {fillingSongs && <p className="text-xs text-muted-foreground">지정한 추천곡 목록에서 Spotify와 YouTube를 한 곡씩 확인하고 있어요. 잠시만 기다려 주세요.</p>}
+        {fillingSongs && <p className="text-xs text-muted-foreground">지정한 Spotify 추천곡 목록에서 빈자리를 채우고 있어요. 잠시만 기다려 주세요.</p>}
 
-        <div id="wakeup-yt-player" className={nowPlaying ? 'rounded-2xl overflow-hidden' : 'hidden'} />
-
-        {nowPlaying ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3">
-              {nowPlaying.thumbnail_url && (
-                <Image src={nowPlaying.thumbnail_url} alt={nowPlaying.title} width={64} height={48} className="rounded-lg object-cover shrink-0" />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary">재생 중 · {sessionIndex + 1}/{session?.length}</p>
-                <p className="text-sm font-bold truncate">{nowPlaying.title}</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={togglePause} className="flex-1">
-                {paused ? <><Play className="size-4 mr-1.5" /> 재생</> : <><Pause className="size-4 mr-1.5" /> 일시정지</>}
-              </Button>
-              <Button variant="secondary" onClick={() => advance(false)} className="flex-1"><SkipForward className="size-4 mr-1.5" /> 건너뛰기</Button>
-              <Button variant="secondary" onClick={stopPlayback} className="flex-1"><Square className="size-4 mr-1.5" /> 정지</Button>
-            </div>
-          </div>
-        ) : (
-          <Button onClick={startSession} className="w-full py-5 font-black">
-            <Play className="size-4 mr-1.5" /> 유튜브로 오늘 재생 시작하기 (광고 없으려면 Brave Browser)
-          </Button>
-        )}
-
-        {!nowPlaying && (
-          <ul className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+        <ul className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
             {[...todayLineup.slice(0, SONGS_PER_DAY), ...aiFillers].slice(0, SONGS_PER_DAY).map((song, i) => (
               <li key={song.id ?? song._key} className="flex items-center gap-2 text-xs p-2 rounded-lg">
                 <span className="text-muted-foreground font-black w-4 shrink-0">{i + 1}</span>
@@ -348,10 +320,8 @@ export default function AdminWakeupPage() {
                 {!song.isFiller && <Badge variant={STATUS_LABEL[song.status]?.variant ?? 'default'}>{STATUS_LABEL[song.status]?.label ?? song.status}</Badge>}
               </li>
             ))}
-          </ul>
-        )}
+        </ul>
 
-        <p className="text-[11px] text-muted-foreground">광고 없이 재생하려면 재생하는 기기에서 브레이브(Brave) 브라우저를 사용하세요.</p>
       </section>
 
       <section className="space-y-3">

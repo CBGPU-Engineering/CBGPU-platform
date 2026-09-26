@@ -36,7 +36,7 @@ create table if not exists wakeup_songs (
   user_id uuid not null references profiles(id) on delete cascade,
   dorm text not null check (dorm in ('청운학사', '사름학사')),
   play_date date not null,
-  youtube_video_id text not null,
+  youtube_video_id text,
   title text not null,
   channel_title text,
   thumbnail_url text,
@@ -59,8 +59,8 @@ alter table wakeup_songs add constraint wakeup_songs_status_check
 
 create index if not exists wakeup_songs_status_idx on wakeup_songs (dorm, play_date, status);
 
--- Spotify is the source of truth for song selection. YouTube IDs remain only
--- for the existing on-site player, so both services can coexist.
+-- Spotify is the sole source of truth for song selection and playlist playback.
+alter table wakeup_songs alter column youtube_video_id drop not null;
 alter table wakeup_songs add column if not exists spotify_track_id text;
 alter table wakeup_songs add column if not exists spotify_uri text;
 alter table wakeup_songs add column if not exists spotify_url text;
