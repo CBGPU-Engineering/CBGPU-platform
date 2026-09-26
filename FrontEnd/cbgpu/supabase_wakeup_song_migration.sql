@@ -59,6 +59,30 @@ alter table wakeup_songs add constraint wakeup_songs_status_check
 
 create index if not exists wakeup_songs_status_idx on wakeup_songs (dorm, play_date, status);
 
+-- Spotify is the source of truth for song selection. YouTube IDs remain only
+-- for the existing on-site player, so both services can coexist.
+alter table wakeup_songs add column if not exists spotify_track_id text;
+alter table wakeup_songs add column if not exists spotify_uri text;
+alter table wakeup_songs add column if not exists spotify_url text;
+
+-- One shareable Spotify playlist link per dorm and morning.
+create table if not exists wakeup_playlists (
+  dorm text not null check (dorm in ('청운학사', '사름학사')),
+  play_date date not null,
+  spotify_playlist_id text not null,
+  spotify_playlist_url text not null,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  primary key (dorm, play_date)
+);
+alter table wakeup_playlists enable row level security;
+drop policy if exists "wakeup_playlists_select" on wakeup_playlists;
+create policy "wakeup_playlists_select" on wakeup_playlists for select using (true);
+drop policy if exists "wakeup_playlists_manager_write" on wakeup_playlists;
+create policy "wakeup_playlists_manager_write" on wakeup_playlists for all
+  using (public.is_admin(auth.uid()) or public.is_wakeup_manager(auth.uid()))
+  with check (public.is_admin(auth.uid()) or public.is_wakeup_manager(auth.uid()));
+
 alter table wakeup_songs enable row level security;
 
 -- Anyone signed in can see the public queue (approved/playing/played); a

@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
-import { Music, Send, History, Search, Trash2 } from 'lucide-react';
+import { Music, Send, History, Search, Trash2, ExternalLink } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { withFiller } from '@/lib/wakeupFiller';
 
@@ -20,12 +20,15 @@ type Dorm = typeof DORMS[number];
 const DORM_KEY = 'cbgpu.wakeup.dorm';
 const NEXT_14_DAYS = Array.from({ length: 14 }, (_, i) => addDays(startOfDay(new Date()), i));
 
-interface SearchResult { videoId: string; title: string; channelTitle: string; thumbnailUrl: string }
+interface SearchResult { id: string; uri: string; title: string; artists: string; thumbnailUrl: string | null; spotifyUrl: string }
 
 interface WakeupSong {
   isFiller?: false;
   id: string;
   youtube_video_id: string;
+  spotify_track_id: string | null;
+  spotify_uri: string | null;
+  spotify_url: string | null;
   title: string;
   thumbnail_url: string | null;
   message: string;
@@ -72,6 +75,7 @@ export default function WakeupSongPage() {
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState<SearchResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
 
   const [myRequests, setMyRequests] = useState<WakeupSong[]>([]);
   const [queue, setQueue] = useState<WakeupSong[]>([]);
@@ -79,12 +83,14 @@ export default function WakeupSongPage() {
 
   const fetchAll = async () => {
     if (!user) return;
-    const [mineRes, queueRes] = await Promise.all([
+    const [mineRes, queueRes, playlistRes] = await Promise.all([
       supabase.from('wakeup_songs').select('*').eq('user_id', user.id).eq('dorm', dorm).order('created_at', { ascending: false }).limit(20),
       supabase.from('wakeup_songs').select('*').eq('dorm', dorm).in('status', ['approved', 'playing', 'played']).eq('play_date', selectedDateStr).order('created_at', { ascending: true }),
+      supabase.from('wakeup_playlists').select('spotify_playlist_url').eq('dorm', dorm).eq('play_date', selectedDateStr).maybeSingle(),
     ]);
     if (!mineRes.error) setMyRequests(mineRes.data || []);
     if (!queueRes.error) setQueue(queueRes.data || []);
+    setPlaylistUrl(playlistRes.data?.spotify_playlist_url ?? null);
     setLoading(false);
   };
 
@@ -100,14 +106,14 @@ export default function WakeupSongPage() {
   }, [user?.id, dorm, selectedDateStr]);
 
 
-  // 검색어를 입력하면 잠깐 뒤에 유튜브에서 찾아 목록으로 보여준다 — 링크를 직접
-  // 찾아 붙여넣을 필요 없이 바로 골라서 신청할 수 있게.
+  // 신청곡의 기준은 Spotify 카탈로그다. 실제 아침 재생은 기존 YouTube 플레이어를
+  // 그대로 쓰므로, 신청을 저장할 때만 선택한 Spotify 곡의 YouTube 영상을 매칭한다.
   useEffect(() => {
     const q = searchQuery.trim();
     if (!q) { setSearchResults([]); setSearchError(''); return; }
     setSearching(true);
     const timer = setTimeout(() => {
-      fetch(`/api/wakeup/search?q=${encodeURIComponent(q)}`)
+      fetch(`/api/wakeup/spotify/search?q=${encodeURIComponent(q)}`)
         .then(res => res.json())
         .then(data => {
           if (data?.items) { setSearchResults(data.items); setSearchError(''); }
@@ -142,14 +148,24 @@ export default function WakeupSongPage() {
     if (!user) return;
 
     setSubmitting(true);
+    const youtubeResponse = await fetch(`/api/wakeup/youtube-resolve?q=${encodeURIComponent(`${preview.title} ${preview.artists}`)}`);
+    const youtubeData = await youtubeResponse.json().catch(() => null);
+    if (!youtubeResponse.ok || !youtubeData?.videoId) {
+      setSubmitting(false);
+      showError(youtubeData?.message || 'YouTube 재생 영상을 찾지 못했어요. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
     const { error } = await supabase.from('wakeup_songs').insert({
       user_id: user.id,
       dorm,
       play_date: selectedDateStr,
-      youtube_video_id: preview.videoId,
+      youtube_video_id: youtubeData.videoId,
       title: preview.title,
-      channel_title: preview.channelTitle,
+      channel_title: preview.artists,
       thumbnail_url: preview.thumbnailUrl,
+      spotify_track_id: preview.id,
+      spotify_uri: preview.uri,
+      spotify_url: preview.spotifyUrl,
       message: message.trim(),
     });
     setSubmitting(false);
@@ -183,6 +199,7 @@ export default function WakeupSongPage() {
           <Music className="size-5 text-primary" />
           <h2 className="text-lg font-black">{dorm} · {format(selectedDate, 'M/d(eee)', { locale: ko })} 대기열</h2>
           <Badge variant="default">{queue.length}곡 신청</Badge>
+          {playlistUrl && <a href={playlistUrl} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-[#1DB954] hover:underline"><ExternalLink className="size-3.5" /> Spotify 플레이리스트</a>}
         </div>
         <ul className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
           {withFiller(queue).map((song, i) => {
@@ -231,17 +248,17 @@ export default function WakeupSongPage() {
             {preview.thumbnailUrl && <Image src={preview.thumbnailUrl} alt={preview.title} width={80} height={60} className="rounded-lg object-cover shrink-0" />}
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold line-clamp-2">{preview.title}</p>
-              <p className="text-xs text-muted-foreground">{preview.channelTitle}</p>
+              <p className="text-xs text-muted-foreground">{preview.artists}</p>
             </div>
             <Button type="button" size="sm" variant="ghost" onClick={() => setPreview(null)}>다시 고르기</Button>
           </div>
         ) : (
           <div className="space-y-1.5 relative">
-            <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">노래 검색</label>
+            <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Spotify에서 노래 검색</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
-                placeholder="노래 제목이나 가수 이름으로 검색"
+                placeholder="Spotify의 노래 제목이나 가수 이름으로 검색"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -252,7 +269,7 @@ export default function WakeupSongPage() {
             {searchResults.length > 0 && (
               <ul className="space-y-1.5 max-h-72 overflow-y-auto custom-scrollbar">
                 {searchResults.map((result) => (
-                  <li key={result.videoId}>
+                  <li key={result.id}>
                     <button
                       type="button"
                       onClick={() => selectResult(result)}
@@ -261,7 +278,7 @@ export default function WakeupSongPage() {
                       {result.thumbnailUrl && <Image src={result.thumbnailUrl} alt={result.title} width={64} height={48} className="rounded-lg object-cover shrink-0" />}
                       <div className="min-w-0">
                         <p className="text-sm font-bold line-clamp-2">{result.title}</p>
-                        <p className="text-xs text-muted-foreground truncate">{result.channelTitle}</p>
+                        <p className="text-xs text-muted-foreground truncate">{result.artists} · Spotify</p>
                       </div>
                     </button>
                   </li>
@@ -290,6 +307,7 @@ export default function WakeupSongPage() {
                 {song.thumbnail_url && <Image src={song.thumbnail_url} alt={song.title} width={64} height={48} className="rounded-lg object-cover shrink-0" />}
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold truncate">{song.title}</p>
+                  {song.spotify_url && <a href={song.spotify_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-[#1DB954] hover:underline">Spotify에서 열기</a>}
                   {song.message && <p className="text-xs text-muted-foreground truncate">&quot;{song.message}&quot;</p>}
                   {song.status === 'rejected' && song.reject_reason && (
                     <p className="text-xs text-destructive">{song.reject_reason}</p>
