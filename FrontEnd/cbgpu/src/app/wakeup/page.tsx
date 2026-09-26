@@ -137,6 +137,7 @@ export default function WakeupSongPage() {
     if (!isApproved) { showError('학번 또는 이름 확인이 필요해 신청할 수 없습니다. 프로필에서 정보를 확인해 주세요.'); return; }
     if (!preview) { showError('신청할 곡을 먼저 검색해서 골라주세요.'); return; }
     if (!user) return;
+    if (queue.length >= 8) { showError('이 날짜의 기상송은 이미 8곡이 신청됐어요. 다른 날짜를 선택해 주세요.'); return; }
 
     setSubmitting(true);
     const { error } = await supabase.from('wakeup_songs').insert({
