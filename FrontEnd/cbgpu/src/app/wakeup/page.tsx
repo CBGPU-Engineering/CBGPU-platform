@@ -19,6 +19,7 @@ const DORMS = ['청운학사', '사름학사'] as const;
 type Dorm = typeof DORMS[number];
 const DORM_KEY = 'cbgpu.wakeup.dorm';
 const NEXT_14_DAYS = Array.from({ length: 14 }, (_, i) => addDays(startOfDay(new Date()), i));
+const todayStr = () => format(new Date(), 'yyyy-MM-dd');
 
 interface SearchResult { videoId: string; title: string; channelTitle: string; thumbnailUrl: string }
 
@@ -98,6 +99,19 @@ export default function WakeupSongPage() {
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, dorm, selectedDateStr]);
+
+  // 지금 몇 번째 자리가 재생 중인지는 자동 채움 곡엔 DB 행이 없어 status로
+  // 알 수 없다 — /admin/wakeup이 같은 기숙사 채널에 브로드캐스트로 알려주는
+  // 위치를 받아서, 오늘 줄에서 그 자리만 '재생 중'으로 덮어써서 보여준다.
+  const [livePosition, setLivePosition] = useState<number | null>(null);
+  useEffect(() => {
+    setLivePosition(null);
+    const channel = supabase
+      .channel(`wakeup-live-${dorm}`)
+      .on('broadcast', { event: 'now-playing' }, ({ payload }) => setLivePosition(payload?.position ?? null))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [dorm]);
 
   // 검색어를 입력하면 잠깐 뒤에 유튜브에서 찾아 목록으로 보여준다 — 링크를 직접
   // 찾아 붙여넣을 필요 없이 바로 골라서 신청할 수 있게.
@@ -184,13 +198,20 @@ export default function WakeupSongPage() {
           <Badge variant="default">{queue.length}곡 신청</Badge>
         </div>
         <ul className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
-          {withFiller(queue).map((song, i) => (
-            <li key={song.id ?? song._key} className="flex items-center gap-2 text-xs p-2 rounded-lg">
-              <span className="text-muted-foreground font-black w-4 shrink-0">{i + 1}</span>
-              <span className={`truncate flex-1 font-semibold ${song.isFiller ? 'text-muted-foreground italic' : ''}`}>{song.title}</span>
-              <Badge variant={STATUS_BADGE[song.status].variant}>{STATUS_BADGE[song.status].label}</Badge>
-            </li>
-          ))}
+          {withFiller(queue).map((song, i) => {
+            // 자동 채움 곡은 DB 행이 없어 status로 '재생 중'을 알 수 없다 —
+            // 오늘 날짜에서만, 담당자가 브로드캐스트로 알려준 지금 재생 위치와
+            // 일치하면 상태 대신 그걸로 보여준다.
+            const isLiveNow = selectedDateStr === todayStr() && i === livePosition;
+            const badge = isLiveNow ? { label: '재생 중', variant: 'warning' as const } : STATUS_BADGE[song.status];
+            return (
+              <li key={song.id ?? song._key} className="flex items-center gap-2 text-xs p-2 rounded-lg">
+                <span className="text-muted-foreground font-black w-4 shrink-0">{i + 1}</span>
+                <span className={`truncate flex-1 font-semibold ${song.isFiller ? 'text-muted-foreground italic' : ''}`}>{song.title}</span>
+                <Badge variant={badge.variant}>{badge.label}</Badge>
+              </li>
+            );
+          })}
         </ul>
       </div>
 
