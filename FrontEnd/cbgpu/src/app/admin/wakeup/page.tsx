@@ -14,26 +14,11 @@ import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import { supabase } from '@/lib/supabase';
 import { loadYoutubeIframeApi, type YTPlayer } from '@/lib/youtubePlayer';
+import { SONGS_PER_DAY, withFiller } from '@/lib/wakeupFiller';
 
 const DORMS = ['청운학사', '사름학사'] as const;
 type Dorm = typeof DORMS[number];
 const DORM_KEY = 'cbgpu.admin.wakeup.dorm';
-const SONGS_PER_DAY = 8;
-
-// 그날 신청곡이 8개가 안 채워지면 나머지 자리는 이 곡으로 채운다 — 하루 재생
-// 목록은 항상 정확히 8곡. 실제 DB 행이 없는 가짜 항목이라 재생 완료 처리 대상이
-// 아니고(markPlayed에서 걸러짐), 대기열/전체 목록에는 나타나지 않는다.
-const FILLER_VIDEO_ID = 'gFx-NjTw3sM';
-function makeFillerSong(index: number) {
-  return {
-    id: null,
-    isFiller: true,
-    title: '기본 기상송 (자동 채움)',
-    thumbnail_url: `https://i.ytimg.com/vi/${FILLER_VIDEO_ID}/hqdefault.jpg`,
-    youtube_video_id: FILLER_VIDEO_ID,
-    _key: `filler-${index}`,
-  };
-}
 
 function todayStr() {
   return format(new Date(), 'yyyy-MM-dd');
@@ -114,8 +99,7 @@ export default function AdminWakeupPage() {
   };
 
   const startSession = async () => {
-    const today = [...queue.slice(0, SONGS_PER_DAY)];
-    while (today.length < SONGS_PER_DAY) today.push(makeFillerSong(today.length));
+    const today = withFiller(queue.slice(0, SONGS_PER_DAY));
     setSession(today);
     setSessionIndex(0);
     setPaused(false);
