@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
@@ -8,17 +8,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
-import { loadYoutubeIframeApi, type YTPlayer } from '@/lib/youtubePlayer';
-import { Music, Play, Square, SkipForward, Send, ListMusic, History, Search } from 'lucide-react';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { Music, Send, History, Search } from 'lucide-react';
+
+const DORMS = ['청운학사', '사름학사'] as const;
+type Dorm = typeof DORMS[number];
+const DORM_KEY = 'cbgpu.wakeup.dorm';
 
 interface SearchResult { videoId: string; title: string; channelTitle: string; thumbnailUrl: string }
 
 interface WakeupSong {
   id: string;
-  user_id: string;
   youtube_video_id: string;
   title: string;
-  channel_title: string | null;
   thumbnail_url: string | null;
   message: string;
   status: 'pending' | 'approved' | 'rejected' | 'played';
@@ -37,6 +39,18 @@ export default function WakeupSongPage() {
   const { user, isApproved } = useAuth();
   const { showError, showSuccess } = useAlert();
 
+  const [dorm, setDorm] = useState<Dorm>(DORMS[0]);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DORM_KEY);
+      if (saved && (DORMS as readonly string[]).includes(saved)) setDorm(saved as Dorm);
+    } catch { /* localStorage unavailable */ }
+  }, []);
+  const changeDorm = (value: string) => {
+    setDorm(value as Dorm);
+    try { localStorage.setItem(DORM_KEY, value); } catch { /* best-effort only */ }
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -49,16 +63,11 @@ export default function WakeupSongPage() {
   const [queue, setQueue] = useState<WakeupSong[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const playerRef = useRef<YTPlayer | null>(null);
-  const [nowPlaying, setNowPlaying] = useState<WakeupSong | null>(null);
-  const queueRef = useRef<WakeupSong[]>([]);
-  useEffect(() => { queueRef.current = queue; }, [queue]);
-
   const fetchAll = async () => {
     if (!user) return;
     const [mineRes, queueRes] = await Promise.all([
-      supabase.from('wakeup_songs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20),
-      supabase.from('wakeup_songs').select('*').eq('status', 'approved').order('created_at', { ascending: true }),
+      supabase.from('wakeup_songs').select('*').eq('user_id', user.id).eq('dorm', dorm).order('created_at', { ascending: false }).limit(20),
+      supabase.from('wakeup_songs').select('*').eq('dorm', dorm).eq('status', 'approved').order('created_at', { ascending: true }),
     ]);
     if (!mineRes.error) setMyRequests(mineRes.data || []);
     if (!queueRes.error) setQueue(queueRes.data || []);
@@ -66,14 +75,15 @@ export default function WakeupSongPage() {
   };
 
   useEffect(() => {
+    setLoading(true);
     fetchAll();
     const channel = supabase
-      .channel('wakeup-songs-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'wakeup_songs' }, () => fetchAll())
+      .channel(`wakeup-songs-${dorm}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wakeup_songs', filter: `dorm=eq.${dorm}` }, () => fetchAll())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, dorm]);
 
   // 검색어를 입력하면 잠깐 뒤에 유튜브에서 찾아 목록으로 보여준다 — 링크를 직접
   // 찾아 붙여넣을 필요 없이 바로 골라서 신청할 수 있게.
@@ -109,6 +119,7 @@ export default function WakeupSongPage() {
     setSubmitting(true);
     const { error } = await supabase.from('wakeup_songs').insert({
       user_id: user.id,
+      dorm,
       youtube_video_id: preview.videoId,
       title: preview.title,
       channel_title: preview.channelTitle,
@@ -123,100 +134,33 @@ export default function WakeupSongPage() {
     fetchAll();
   };
 
-  // ── 재생 ──────────────────────────────────────────────────────────────
-  const ensurePlayer = async () => {
-    if (playerRef.current) return playerRef.current;
-    await loadYoutubeIframeApi();
-    return new Promise<YTPlayer>((resolve) => {
-      const player = new window.YT!.Player('wakeup-yt-player', {
-        height: '200', width: '100%',
-        playerVars: { autoplay: 1, rel: 0 },
-        events: {
-          onReady: () => { playerRef.current = player; resolve(player); },
-          onStateChange: (event: { data: number }) => {
-            if (event.data === window.YT!.PlayerState.ENDED) advance(true);
-          },
-        },
-      });
-    });
-  };
-
-  const markPlayed = async (song: WakeupSong) => {
-    await supabase.from('wakeup_songs').update({ status: 'played', played_at: new Date().toISOString() }).eq('id', song.id);
-  };
-
-  const advance = async (currentFinished: boolean) => {
-    const current = nowPlaying;
-    const remaining = queueRef.current.filter(s => s.id !== current?.id);
-    if (currentFinished && current) await markPlayed(current);
-    const next = remaining[0] ?? null;
-    setNowPlaying(next);
-    if (next) {
-      const player = await ensurePlayer();
-      player.loadVideoById(next.youtube_video_id);
-    } else {
-      playerRef.current?.stopVideo();
-    }
-  };
-
-  const startPlaying = async () => {
-    if (queue.length === 0) return;
-    const first = queue[0];
-    setNowPlaying(first);
-    const player = await ensurePlayer();
-    player.loadVideoById(first.youtube_video_id);
-  };
-
-  const stopPlaying = () => {
-    playerRef.current?.stopVideo();
-    setNowPlaying(null);
-  };
-
   if (loading) {
     return <div className="flex min-h-[40vh] items-center justify-center"><LoadingSpinner size={48} /></div>;
   }
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 pb-10">
-      <div className="space-y-1">
-        <h1 className="text-3xl font-black italic tracking-tighter">기상송 신청</h1>
-        <p className="text-sm text-muted-foreground font-medium">듣고 싶은 노래를 신청하면, 승인 후 아침 대기열에 올라가요.</p>
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black italic tracking-tighter">기상송 신청</h1>
+          <p className="text-sm text-muted-foreground font-medium">듣고 싶은 노래를 신청하면, 승인 후 아침 대기열에 올라가요.</p>
+        </div>
+        <SegmentedTabs items={DORMS.map(d => ({ value: d, label: d }))} value={dorm} onChange={changeDorm} />
       </div>
 
-      {/* ── 재생 ─────────────────────────────────────────────────────── */}
-      <div className="rounded-[28px] border border-primary/15 bg-card p-5 space-y-4">
+      {/* ── 대기열 (읽기 전용 — 재생은 담당자가 /admin/wakeup에서 처리) ──── */}
+      <div className="rounded-[28px] border border-primary/15 bg-card p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Music className="size-5 text-primary" />
-          <h2 className="text-lg font-black">오늘의 대기열</h2>
+          <h2 className="text-lg font-black">{dorm} 대기열</h2>
           <Badge variant="default">{queue.length}곡</Badge>
         </div>
-
-        <div id="wakeup-yt-player" className={nowPlaying ? 'rounded-2xl overflow-hidden' : 'hidden'} />
-
-        {nowPlaying ? (
-          <div className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3">
-            {nowPlaying.thumbnail_url && (
-              <Image src={nowPlaying.thumbnail_url} alt={nowPlaying.title} width={64} height={48} className="rounded-lg object-cover shrink-0" />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary">재생 중</p>
-              <p className="text-sm font-bold truncate">{nowPlaying.title}</p>
-            </div>
-            <Button size="icon" variant="secondary" onClick={() => advance(false)} aria-label="다음 곡"><SkipForward className="size-4" /></Button>
-            <Button size="icon" variant="secondary" onClick={stopPlaying} aria-label="정지"><Square className="size-4" /></Button>
-          </div>
-        ) : queue.length > 0 ? (
-          <Button onClick={startPlaying} className="w-full py-5 font-black">
-            <Play className="size-4 mr-1.5" /> 지금 재생하기
-          </Button>
-        ) : (
+        {queue.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">대기열이 비어 있어요. 신청곡이 승인되면 여기 쌓여요.</p>
-        )}
-
-        {queue.length > 0 && (
+        ) : (
           <ul className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
             {queue.map((song, i) => (
-              <li key={song.id} className={`flex items-center gap-2 text-xs p-2 rounded-lg ${nowPlaying?.id === song.id ? 'bg-primary/10' : ''}`}>
+              <li key={song.id} className="flex items-center gap-2 text-xs p-2 rounded-lg">
                 <span className="text-muted-foreground font-black w-4 shrink-0">{i + 1}</span>
                 <span className="truncate flex-1 font-semibold">{song.title}</span>
               </li>
@@ -227,7 +171,7 @@ export default function WakeupSongPage() {
 
       {/* ── 신청 폼 ──────────────────────────────────────────────────── */}
       <form onSubmit={handleSubmit} className="rounded-[28px] border border-border/60 bg-card p-5 space-y-4">
-        <div className="flex items-center gap-2"><Send className="size-5 text-primary" /><h2 className="text-lg font-black">신청하기</h2></div>
+        <div className="flex items-center gap-2"><Send className="size-5 text-primary" /><h2 className="text-lg font-black">{dorm}에 신청하기</h2></div>
 
         {preview ? (
           <div className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3">
@@ -286,7 +230,7 @@ export default function WakeupSongPage() {
       {/* ── 내 신청 내역 ─────────────────────────────────────────────── */}
       {myRequests.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2"><History className="size-5 text-muted-foreground" /><h2 className="text-lg font-black">내 신청 내역</h2></div>
+          <div className="flex items-center gap-2"><History className="size-5 text-muted-foreground" /><h2 className="text-lg font-black">내 신청 내역 ({dorm})</h2></div>
           <ul className="space-y-2">
             {myRequests.map((song) => (
               <li key={song.id} className="flex items-center gap-3 rounded-2xl bg-card ring-1 ring-border/60 p-3">
@@ -304,9 +248,6 @@ export default function WakeupSongPage() {
           </ul>
         </div>
       )}
-      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground justify-center">
-        <ListMusic className="size-3" /> 광고 없이 재생하려면 재생하는 기기에서 브레이브(Brave) 브라우저를 사용하세요.
-      </p>
     </div>
   );
 }

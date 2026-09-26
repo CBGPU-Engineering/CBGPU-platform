@@ -13,6 +13,8 @@ declare global {
 
 export interface YTPlayer {
   loadVideoById(videoId: string): void;
+  playVideo(): void;
+  pauseVideo(): void;
   stopVideo(): void;
   destroy(): void;
 }
