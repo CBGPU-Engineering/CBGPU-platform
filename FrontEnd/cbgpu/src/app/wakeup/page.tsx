@@ -106,8 +106,7 @@ export default function WakeupSongPage() {
   }, [user?.id, dorm, selectedDateStr]);
 
 
-  // 신청곡의 기준은 Spotify 카탈로그다. 실제 아침 재생은 기존 YouTube 플레이어를
-  // 그대로 쓰므로, 신청을 저장할 때만 선택한 Spotify 곡의 YouTube 영상을 매칭한다.
+  // 신청곡과 재생목록 모두 Spotify 카탈로그를 기준으로 한다.
   useEffect(() => {
     const q = searchQuery.trim();
     if (!q) { setSearchResults([]); setSearchError(''); return; }
@@ -148,18 +147,11 @@ export default function WakeupSongPage() {
     if (!user) return;
 
     setSubmitting(true);
-    const youtubeResponse = await fetch(`/api/wakeup/youtube-resolve?q=${encodeURIComponent(`${preview.title} ${preview.artists}`)}`);
-    const youtubeData = await youtubeResponse.json().catch(() => null);
-    if (!youtubeResponse.ok || !youtubeData?.videoId) {
-      setSubmitting(false);
-      showError(youtubeData?.message || 'YouTube 재생 영상을 찾지 못했어요. 잠시 후 다시 시도해 주세요.');
-      return;
-    }
     const { error } = await supabase.from('wakeup_songs').insert({
       user_id: user.id,
       dorm,
       play_date: selectedDateStr,
-      youtube_video_id: youtubeData.videoId,
+      youtube_video_id: '',
       title: preview.title,
       channel_title: preview.artists,
       thumbnail_url: preview.thumbnailUrl,

@@ -1,7 +1,7 @@
 # Spotify 기상송 설정
 
 기상송 신청은 Spotify 카탈로그에서 검색하고, 교내 화면의 실제 재생은 기존
-YouTube 플레이어를 그대로 사용합니다. 기상송 담당자는 관리자 화면에서 그날
+Spotify 플레이리스트 링크를 사용합니다. 기상송 담당자는 관리자 화면에서 그날
 신청곡의 Spotify 플레이리스트를 만들고 공유 링크를 발급할 수 있습니다.
 
 ## 1. Spotify Dashboard
@@ -35,8 +35,7 @@ SPOTIFY_REDIRECT_URI=https://cbgpu.vercel.app/api/wakeup/spotify/callback
 
 관리 화면에서 당일 신청곡이 8곡보다 적을 때 **나머지 곡들 채우기**를 누르면,
 운영자가 지정한 Spotify 곡 목록에서 중복되지 않는 곡을 선택합니다. 이 기능에는
-`YOUTUBE_API_KEY`도 필요합니다. 각 곡은 Spotify에서 확인한 뒤 YouTube 재생용
-영상만 별도로 매칭하므로, 신청곡의 기준은 Spotify입니다.
+Spotify 곡만 사용하므로 YouTube API 키는 기상송 기능에 필요하지 않습니다.
 
 ## 3. Supabase SQL
 
