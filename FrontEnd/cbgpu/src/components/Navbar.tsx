@@ -12,7 +12,7 @@ import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import {
   Menu, X, ChevronDown, Home, GraduationCap, UserCircle2, Search,
-  BookOpen, CalendarDays, UtensilsCrossed, Users, Cpu, Vote, NotebookPen, Wrench, Gamepad2, Newspaper, Server, Printer,
+  BookOpen, CalendarDays, UtensilsCrossed, Users, Cpu, Vote, NotebookPen, Wrench, Gamepad2, Newspaper, Server, Printer, Music,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 
@@ -31,6 +31,7 @@ const GROUPS: NavGroup[] = [
     { href: '/timetable', label: '시간표' },
     { href: '/meal', label: '급식' },
     { href: '/match', label: '스터디' },
+    { href: '/wakeup', label: '기상송' },
   ] },
   { label: '도구', links: [
     { href: '/notes', label: '노트' },
@@ -59,6 +60,7 @@ const BOTTOM_CATEGORIES_LEFT: BottomCategory[] = [
     { href: '/timetable', label: '시간표', Icon: CalendarDays },
     { href: '/meal', label: '급식', Icon: UtensilsCrossed },
     { href: '/match', label: '스터디', Icon: Users },
+    { href: '/wakeup', label: '기상송', Icon: Music },
   ] },
   { key: 'gpu', label: '학교자원', Icon: Cpu, links: [
     { href: '/dashboard', label: 'GPU 예약', Icon: Cpu },

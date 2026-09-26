@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: 'i.namu.wiki' },
       { protocol: 'https', hostname: 'fclbzjlcepoaifvcoxdw.supabase.co' },
+      { protocol: 'https', hostname: 'i.ytimg.com' },
     ],
   },
   async headers() {
