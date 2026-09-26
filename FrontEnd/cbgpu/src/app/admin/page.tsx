@@ -227,6 +227,29 @@ export default function AdminPage() {
     setAddLaserManagerSelect('');
   }
 
+  // ── 기상송 담당자 지정 — is_admin이 아니어도 /admin/wakeup(검토·재생)을 볼
+  // 수 있는 권한. 지정 자체는 여기, 진짜 관리자 화면에서만 한다 —
+  // /admin/wakeup은 담당자 전용이라 관리자가 거기서 스스로에게 권한을 줄 수 없다.
+  const [wakeupManagers, setWakeupManagers] = useState<any[]>([]);
+  const [addWakeupManagerSelect, setAddWakeupManagerSelect] = useState('');
+
+  const fetchWakeupManagers = async () => {
+    const { data, error } = await supabase.from('profiles').select('id, full_name, student_id').eq('is_wakeup_manager', true).order('student_id');
+    if (!error) setWakeupManagers(data || []);
+  };
+
+  async function toggleWakeupManager(id: string, current: boolean) {
+    const { error } = await supabase.from('profiles').update({ is_wakeup_manager: !current }).eq('id', id);
+    if (error) showError('처리 실패: ' + error.message);
+    else { showSuccess(!current ? '기상송 담당자로 지정됐습니다.' : '기상송 담당자 지정이 해제됐습니다.'); fetchWakeupManagers(); }
+  }
+
+  async function addWakeupManager() {
+    if (!addWakeupManagerSelect) { showError('담당자로 지정할 사람을 선택해주세요.'); return; }
+    await toggleWakeupManager(addWakeupManagerSelect, false);
+    setAddWakeupManagerSelect('');
+  }
+
   // ── 사이트 공지 배너 ────────────────────────────────────────────────────────
   const [bannerMessage, setBannerMessage] = useState('');
   const [bannerActive, setBannerActive] = useState(false);
@@ -263,6 +286,7 @@ export default function AdminPage() {
       fetchProfiles();
       fetchBanner();
       fetchManufactureData();
+      fetchWakeupManagers();
     }
   }, [authLoading, isAdmin]);
 
@@ -317,6 +341,34 @@ export default function AdminPage() {
               </Button>
             </Link>
           </div>
+        </div>
+
+        {/* 기상송 담당자 지정 — 탭과 무관하게 항상 보임 */}
+        <div className="mb-8 border-2 rounded-3xl bg-card p-6 md:p-8 shadow-2xl transition-all space-y-4">
+          <div className="flex items-center gap-2">
+            <Music className="size-5 text-primary" />
+            <h2 className="font-black uppercase text-sm tracking-widest">기상송 담당자 지정</h2>
+          </div>
+          <div className="flex gap-2">
+            <PersonSearchSelect
+              candidates={allProfiles.filter(p => !wakeupManagers.some(m => m.id === p.id))}
+              value={addWakeupManagerSelect}
+              onChange={setAddWakeupManagerSelect}
+            />
+            <Button onClick={addWakeupManager}>추가</Button>
+          </div>
+          {wakeupManagers.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {wakeupManagers.map(m => (
+                <span key={m.id} className="flex items-center gap-1 bg-muted rounded-full pl-3 pr-1.5 py-1 text-xs font-bold">
+                  {m.full_name || 'Unknown'} <span className="text-muted-foreground opacity-60">({m.student_id || '-'})</span>
+                  <button onClick={() => toggleWakeupManager(m.id, true)} className="ml-1 flex items-center justify-center size-5 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors">
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 전체 공지 배너 — 탭과 무관하게 항상 보임 */}
