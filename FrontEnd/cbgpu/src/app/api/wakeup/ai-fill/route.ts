@@ -24,23 +24,29 @@ export async function POST(request: NextRequest) {
   const songs = Array.isArray(body?.songs) ? body.songs.slice(0, 8).map((song: unknown) => typeof song === 'string' ? song.slice(0, 160) : '').filter(Boolean) : [];
   if (!count) return NextResponse.json({ items: [] });
   try {
-    const ai = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'google/diffusiongemma-26b-a4b-it', messages: [{ role: 'system', content: 'You recommend wake-up songs. Return ONLY a JSON array of objects with exactly title and artist strings. No markdown.' }, { role: 'user', content: `These are already requested: ${songs.join(' | ') || 'none'}. Recommend ${count} varied, upbeat songs that complement them.` }], max_tokens: 500, stream: false }), signal: AbortSignal.timeout(25_000), cache: 'no-store' });
-    const aiData = await ai.json();
-    const raw = aiData?.choices?.[0]?.message?.content;
-    const picks = typeof raw === 'string' ? JSON.parse(raw.replace(/^```json\s*|\s*```$/g, '')) : [];
-    if (!Array.isArray(picks)) throw new Error('bad AI response');
     const token = await getSpotifyAppToken();
-    const items = [];
-    for (const pick of picks.slice(0, count * 2)) {
+    const items: any[] = [];
+    const usedUris = new Set<string>();
+    // One recommendation at a time: each accepted song becomes context for
+    // the next request, keeping the final eight varied rather than a batch of
+    // near-identical suggestions.
+    for (let attempt = 0; items.length < count && attempt < count * 5; attempt++) {
+      const context = [...songs, ...items.map(item => `${item.title} — AI 추천곡`)].join(' | ') || 'none';
+      const ai = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'google/diffusiongemma-26b-a4b-it', messages: [{ role: 'system', content: 'Recommend exactly one upbeat wake-up song. Return ONLY JSON: {"title":"...","artist":"..."}. No markdown.' }, { role: 'user', content: `Already in this morning lineup: ${context}. Give one different song that complements it.` }], max_tokens: 100, stream: false }), signal: AbortSignal.timeout(25_000), cache: 'no-store' });
+      if (!ai.ok) continue;
+      const aiData = await ai.json().catch(() => null);
+      const raw = aiData?.choices?.[0]?.message?.content;
+      let pick: { title?: unknown; artist?: unknown } | null = null;
+      try { pick = typeof raw === 'string' ? JSON.parse(raw.replace(/^```json\s*|\s*```$/g, '')) : null; } catch { continue; }
       if (typeof pick?.title !== 'string' || typeof pick?.artist !== 'string') continue;
       const search = await spotifyApi(`/search?${new URLSearchParams({ q: `track:${pick.title} artist:${pick.artist}`, type: 'track', limit: '1', market: 'KR' })}`, token);
       const track = (await search.json().catch(() => null))?.tracks?.items?.[0];
-      if (!track?.uri) continue;
+      if (!track?.uri || usedUris.has(track.uri)) continue;
       const yt = await fetch(`https://www.googleapis.com/youtube/v3/search?${new URLSearchParams({ part: 'snippet', type: 'video', maxResults: '1', q: `${track.name} ${track.artists?.[0]?.name ?? ''} official audio`, key: youtubeKey })}`, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
       const videoId = (await yt.json().catch(() => null))?.items?.[0]?.id?.videoId;
       if (!videoId) continue;
       items.push({ id: null, isFiller: true, _key: `ai-${track.id}`, title: track.name, thumbnail_url: track.album?.images?.[1]?.url ?? null, youtube_video_id: videoId, spotify_uri: track.uri, spotify_url: track.external_urls?.spotify, status: 'approved' });
-      if (items.length === count) break;
+      usedUris.add(track.uri);
     }
     return NextResponse.json({ items });
   } catch {
