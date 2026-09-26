@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAlert } from '@/lib/alert';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
-import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2, KeyRound, Server, Container, GitBranch, Globe, School, Lock, Users, HelpCircle, Megaphone, Printer, Scissors, Plus, X } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, XCircle, Clock, Undo2, KeyRound, Server, Container, GitBranch, Globe, School, Lock, Users, HelpCircle, Megaphone, Printer, Scissors, Plus, X, Music } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
@@ -309,6 +309,11 @@ export default function AdminPage() {
             <Link href="/admin/study">
               <Button variant="outline" className="font-black text-xs uppercase tracking-widest gap-1.5">
                 <KeyRound className="size-3.5" /> 자습신청 토큰 관리
+              </Button>
+            </Link>
+            <Link href="/admin/wakeup">
+              <Button variant="outline" className="font-black text-xs uppercase tracking-widest gap-1.5">
+                <Music className="size-3.5" /> 기상송 관리
               </Button>
             </Link>
           </div>
