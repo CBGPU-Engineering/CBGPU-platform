@@ -13,6 +13,7 @@ import { LoadingSpinner } from '@/components/ui/spinner';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { Music, Send, History, Search, Trash2 } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { withFiller } from '@/lib/wakeupFiller';
 
 const DORMS = ['청운학사', '사름학사'] as const;
 type Dorm = typeof DORMS[number];
@@ -22,6 +23,7 @@ const NEXT_14_DAYS = Array.from({ length: 14 }, (_, i) => addDays(startOfDay(new
 interface SearchResult { videoId: string; title: string; channelTitle: string; thumbnailUrl: string }
 
 interface WakeupSong {
+  isFiller?: false;
   id: string;
   youtube_video_id: string;
   title: string;
@@ -79,7 +81,7 @@ export default function WakeupSongPage() {
     if (!user) return;
     const [mineRes, queueRes] = await Promise.all([
       supabase.from('wakeup_songs').select('*').eq('user_id', user.id).eq('dorm', dorm).order('created_at', { ascending: false }).limit(20),
-      supabase.from('wakeup_songs').select('*').eq('dorm', dorm).eq('status', 'approved').eq('play_date', selectedDateStr).order('created_at', { ascending: true }),
+      supabase.from('wakeup_songs').select('*').eq('dorm', dorm).in('status', ['approved', 'playing', 'played']).eq('play_date', selectedDateStr).order('created_at', { ascending: true }),
     ]);
     if (!mineRes.error) setMyRequests(mineRes.data || []);
     if (!queueRes.error) setQueue(queueRes.data || []);
@@ -171,25 +173,25 @@ export default function WakeupSongPage() {
         <SegmentedTabs items={DORMS.map(d => ({ value: d, label: d }))} value={dorm} onChange={changeDorm} />
       </div>
 
-      {/* ── 대기열 (읽기 전용 — 재생은 담당자가 /admin/wakeup에서 처리) ──── */}
+      {/* ── 대기열 (읽기 전용 — 재생은 담당자가 /admin/wakeup에서 처리) ────
+          오늘 나올 8곡 전체를 재생 여부와 상관없이 보여준다 — 신청곡이
+          모자란 자리는 자동 채움 곡으로 채워서, 실제로 그날 나갈 순서
+          그대로 미리 볼 수 있게. */}
       <div className="rounded-[28px] border border-primary/15 bg-card p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Music className="size-5 text-primary" />
           <h2 className="text-lg font-black">{dorm} · {format(selectedDate, 'M/d(eee)', { locale: ko })} 대기열</h2>
-          <Badge variant="default">{queue.length}곡</Badge>
+          <Badge variant="default">{queue.length}곡 신청</Badge>
         </div>
-        {queue.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">이 날짜엔 아직 신청곡이 없어요.</p>
-        ) : (
-          <ul className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
-            {queue.map((song, i) => (
-              <li key={song.id} className="flex items-center gap-2 text-xs p-2 rounded-lg">
-                <span className="text-muted-foreground font-black w-4 shrink-0">{i + 1}</span>
-                <span className="truncate flex-1 font-semibold">{song.title}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ul className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+          {withFiller(queue).map((song, i) => (
+            <li key={song.id ?? song._key} className="flex items-center gap-2 text-xs p-2 rounded-lg">
+              <span className="text-muted-foreground font-black w-4 shrink-0">{i + 1}</span>
+              <span className={`truncate flex-1 font-semibold ${song.isFiller ? 'text-muted-foreground italic' : ''}`}>{song.title}</span>
+              <Badge variant={STATUS_BADGE[song.status].variant}>{STATUS_BADGE[song.status].label}</Badge>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {/* ── 신청 폼 ──────────────────────────────────────────────────── */}
