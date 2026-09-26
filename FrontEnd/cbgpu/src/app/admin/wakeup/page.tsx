@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { ShieldAlert, X, Play, Pause, Square, SkipForward, ListMusic } from 'lucide-react';
+import { ShieldAlert, X, Play, Pause, Square, SkipForward, ListMusic, ExternalLink, ListPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,8 @@ import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import { supabase } from '@/lib/supabase';
 import { loadYoutubeIframeApi, type YTPlayer } from '@/lib/youtubePlayer';
-import { SONGS_PER_DAY, withFiller } from '@/lib/wakeupFiller';
+import { SONGS_PER_DAY } from '@/lib/wakeupFiller';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 const DORMS = ['청운학사', '사름학사'] as const;
 type Dorm = typeof DORMS[number];
@@ -31,7 +32,7 @@ function todayStr() {
 }
 
 export default function AdminWakeupPage() {
-  const { isWakeupManager, isLoading: authLoading } = useAuth();
+  const { user, isWakeupManager, isLoading: authLoading } = useAuth();
   const { showError, showSuccess } = useAlert();
   const router = useRouter();
 
@@ -57,6 +58,11 @@ export default function AdminWakeupPage() {
   const [loading, setLoading] = useState(true);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+  const [aiFillers, setAiFillers] = useState<any[]>([]);
+  const [legacyDeleteOpen, setLegacyDeleteOpen] = useState(false);
+  const [deletingLegacy, setDeletingLegacy] = useState(false);
 
   // ── 재생: 하루 정확히 8곡(모자라면 기본 기상송으로 채움), 실제로 끝까지
   // 재생된 곡만 '재생 완료'로 기록 ──────────────────────────────────────
@@ -106,7 +112,9 @@ export default function AdminWakeupPage() {
   };
 
   const startSession = async () => {
-    const today = withFiller(queue.slice(0, SONGS_PER_DAY));
+    const fillers = await generateAiFillers();
+    const today = [...queue.slice(0, SONGS_PER_DAY), ...fillers].slice(0, SONGS_PER_DAY);
+    if (today.length !== SONGS_PER_DAY) { showError(`하루 편성은 정확히 ${SONGS_PER_DAY}곡이어야 해요. AI 추천곡을 다시 생성해 주세요.`); return; }
     setSession(today);
     setSessionIndex(0);
     setPaused(false);
@@ -180,7 +188,23 @@ export default function AdminWakeupPage() {
     if (!approvedRes.error) setQueue(approvedRes.data || []);
     if (!todayRes.error) setTodayLineup(todayRes.data || []);
     if (!allRes.error) setAllApproved(allRes.data || []);
+    const { data: playlist } = await supabase.from('wakeup_playlists').select('spotify_playlist_url').eq('dorm', dorm).eq('play_date', todayStr()).maybeSingle();
+    setPlaylistUrl(playlist?.spotify_playlist_url ?? null);
     setLoading(false);
+  };
+
+  const generateAiFillers = async () => {
+    const needed = Math.max(0, SONGS_PER_DAY - queue.length);
+    if (!needed) { setAiFillers([]); return []; }
+    if (aiFillers.length === needed) return aiFillers;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+    const response = await fetch('/api/wakeup/ai-fill', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ count: needed, songs: todayLineup.map(song => `${song.title} — ${song.channel_title ?? ''}`) }) });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) { showError(data?.message || 'AI 추천곡 생성에 실패했어요.'); return []; }
+    const items = data?.items ?? [];
+    setAiFillers(items);
+    return items;
   };
 
   useEffect(() => {
@@ -189,10 +213,51 @@ export default function AdminWakeupPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, isWakeupManager, dorm]);
 
+  useEffect(() => {
+    if (!loading && isWakeupManager) generateAiFillers();
+    // Queue size and dorm are the inputs that determine the automatic fill.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, isWakeupManager, dorm, queue.length]);
+
   const reject = async (id: string) => {
     const { error } = await supabase.from('wakeup_songs').update({ status: 'rejected', reject_reason: rejectReason.trim() || null }).eq('id', id);
     if (error) showError('거절 실패: ' + error.message);
     else { showSuccess('거절했어요.'); setRejectingId(null); setRejectReason(''); fetchAll(); }
+  };
+
+  const createSpotifyPlaylist = async () => {
+    const fillers = await generateAiFillers();
+    const tracks = [...todayLineup.slice(0, SONGS_PER_DAY), ...fillers].slice(0, SONGS_PER_DAY).map(song => song.spotify_uri).filter((uri): uri is string => typeof uri === 'string');
+    if (tracks.length !== SONGS_PER_DAY) { showError(`플레이리스트는 하루 정확히 ${SONGS_PER_DAY}곡이 준비된 뒤 만들 수 있어요.`); return; }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { showError('로그인이 필요해요.'); return; }
+    setCreatingPlaylist(true);
+    const response = await fetch('/api/wakeup/spotify/playlist', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ name: `${dorm} 기상송 · ${format(new Date(), 'M월 d일', { locale: ko })}`, tracks }),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data?.url) {
+      setCreatingPlaylist(false);
+      if (response.status === 401) { window.location.assign('/api/wakeup/spotify/connect'); return; }
+      showError(data?.message || 'Spotify 플레이리스트 생성에 실패했어요.');
+      return;
+    }
+    const { error } = await supabase.from('wakeup_playlists').upsert({ dorm, play_date: todayStr(), spotify_playlist_id: data.id, spotify_playlist_url: data.url, created_by: user?.id }, { onConflict: 'dorm,play_date' });
+    setCreatingPlaylist(false);
+    if (error) { showError(`링크 저장 실패: ${error.message}`); return; }
+    setPlaylistUrl(data.url);
+    showSuccess('Spotify 플레이리스트 링크를 만들었어요.');
+  };
+
+  const deleteLegacyRequests = async () => {
+    setDeletingLegacy(true);
+    const { error } = await supabase.from('wakeup_songs').delete().is('spotify_uri', null);
+    setDeletingLegacy(false);
+    setLegacyDeleteOpen(false);
+    if (error) { showError(`기존 신청곡 삭제 실패: ${error.message}`); return; }
+    showSuccess('기존 YouTube 신청곡을 모두 삭제했어요.');
+    fetchAll();
   };
 
   if (authLoading || loading) {
@@ -221,8 +286,14 @@ export default function AdminWakeupPage() {
         <div className="flex items-center gap-2">
           <ListMusic className="size-5 text-primary" />
           <h2 className="text-lg font-black">{dorm} 오늘 재생</h2>
-          <Badge variant="default">신청곡 {todayLineup.length}곡</Badge>
+          <Badge variant="default">총 {Math.min(SONGS_PER_DAY, todayLineup.length + aiFillers.length)}/{SONGS_PER_DAY}곡</Badge>
         </div>
+
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={createSpotifyPlaylist} disabled={creatingPlaylist} className="flex-1"><ListPlus className="size-4 mr-1.5" />{creatingPlaylist ? 'Spotify 생성 중...' : 'Spotify 플레이리스트 만들기'}</Button>
+          {playlistUrl && <Button asChild variant="secondary"><a href={playlistUrl} target="_blank" rel="noreferrer"><ExternalLink className="size-4 mr-1.5" />링크 열기</a></Button>}
+        </div>
+        {aiFillers.length > 0 && <p className="text-xs text-[#1DB954] font-medium">신청곡을 바탕으로 AI가 {aiFillers.length}곡을 자동 추천해 채웠어요.</p>}
 
         <div id="wakeup-yt-player" className={nowPlaying ? 'rounded-2xl overflow-hidden' : 'hidden'} />
 
@@ -253,7 +324,7 @@ export default function AdminWakeupPage() {
 
         {!nowPlaying && (
           <ul className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
-            {withFiller(todayLineup).map((song, i) => (
+            {[...todayLineup.slice(0, SONGS_PER_DAY), ...aiFillers].slice(0, SONGS_PER_DAY).map((song, i) => (
               <li key={song.id ?? song._key} className="flex items-center gap-2 text-xs p-2 rounded-lg">
                 <span className="text-muted-foreground font-black w-4 shrink-0">{i + 1}</span>
                 <span className={`truncate flex-1 font-semibold ${song.isFiller ? 'text-muted-foreground italic' : ''}`}>{song.title}</span>
@@ -267,7 +338,7 @@ export default function AdminWakeupPage() {
       </section>
 
       <section className="space-y-3">
-        <div className="flex items-center gap-2"><h2 className="text-lg font-black">신청곡 관리</h2><Badge variant="default">{allApproved.length}곡</Badge></div>
+        <div className="flex items-center gap-2"><h2 className="text-lg font-black">신청곡 관리</h2><Badge variant="default">{allApproved.length}곡</Badge><Button size="sm" variant="destructive" className="ml-auto" onClick={() => setLegacyDeleteOpen(true)}>기존 YouTube 신청곡 삭제</Button></div>
         <p className="text-xs text-muted-foreground">오늘만이 아니라 앞으로 예정된 모든 날짜의 신청곡을 거절할 수 있어요.</p>
         {allApproved.length === 0 && <p className="text-sm text-muted-foreground">신청된 곡이 없어요.</p>}
         {Object.entries(
@@ -286,6 +357,7 @@ export default function AdminWakeupPage() {
                   {song.thumbnail_url && <Image src={song.thumbnail_url} alt={song.title} width={56} height={42} className="rounded-lg object-cover shrink-0" />}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold truncate">{song.title}</p>
+                    {song.spotify_url && <a href={song.spotify_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-[#1DB954] hover:underline">Spotify에서 열기</a>}
                     <p className="text-xs text-muted-foreground truncate">{song.profiles?.full_name} ({song.profiles?.student_id})</p>
                   </div>
                 </div>
@@ -303,6 +375,7 @@ export default function AdminWakeupPage() {
           </div>
         ))}
       </section>
+      <ConfirmDialog open={legacyDeleteOpen} title="기존 YouTube 신청곡을 모두 삭제할까요?" description="Spotify 정보가 없는 기존 신청곡 전체가 삭제됩니다. 되돌릴 수 없습니다." confirmLabel={deletingLegacy ? '삭제 중...' : '전체 삭제'} onConfirm={deleteLegacyRequests} onCancel={() => setLegacyDeleteOpen(false)} />
     </div>
   );
 }

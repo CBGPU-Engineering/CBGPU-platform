@@ -3,15 +3,13 @@
  * slots — a day is always exactly SONGS_PER_DAY entries. */
 export const SONGS_PER_DAY = 8;
 
-const FILLER_VIDEO_ID = 'gFx-NjTw3sM';
-
 export function makeFillerSong(index: number) {
   return {
     id: null,
     isFiller: true as const,
-    title: "Claude's Plan (자동 채움)",
-    thumbnail_url: `https://i.ytimg.com/vi/${FILLER_VIDEO_ID}/hqdefault.jpg`,
-    youtube_video_id: FILLER_VIDEO_ID,
+    title: 'AI 추천곡 자동 채움',
+    thumbnail_url: null,
+    youtube_video_id: '',
     status: 'approved' as const,
     _key: `filler-${index}`,
   };
@@ -21,7 +19,8 @@ export function makeFillerSong(index: number) {
  * with filler entries — the same fixed lineup size shown on /wakeup and
  * actually played from /admin/wakeup. */
 export function withFiller<T>(songs: T[]): (T | ReturnType<typeof makeFillerSong>)[] {
-  const padded: (T | ReturnType<typeof makeFillerSong>)[] = [...songs];
+  // A morning lineup has exactly eight slots even if more requests are queued.
+  const padded: (T | ReturnType<typeof makeFillerSong>)[] = [...songs].slice(0, SONGS_PER_DAY);
   while (padded.length < SONGS_PER_DAY) padded.push(makeFillerSong(padded.length));
   return padded;
 }

@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'i.namu.wiki' },
       { protocol: 'https', hostname: 'fclbzjlcepoaifvcoxdw.supabase.co' },
       { protocol: 'https', hostname: 'i.ytimg.com' },
+      { protocol: 'https', hostname: 'i.scdn.co' },
     ],
   },
   async headers() {
