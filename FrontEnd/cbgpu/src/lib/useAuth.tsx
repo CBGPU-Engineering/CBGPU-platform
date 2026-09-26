@@ -13,6 +13,8 @@ type AuthContextType = {
   /** printer ids this person can actually change the state of (printer_managers mapping) */
   managedPrinterIds: number[];
   isLaserCutManager: boolean;
+  /** is_admin이 아니어도 /admin/wakeup(기상송 검토·재생)을 볼 수 있는 별도 권한 */
+  isWakeupManager: boolean;
   /** null(기본값)/true = 정상 이용 가능, false = 관리자가 학번/이름 확인이 필요하다고 표시한 상태 */
   isApproved: boolean;
   isLoading: boolean;
@@ -26,6 +28,7 @@ const AuthContext = createContext<AuthContextType>({
   is3DPrintManager: false,
   managedPrinterIds: [],
   isLaserCutManager: false,
+  isWakeupManager: false,
   isApproved: true,
   isLoading: true,
   refreshProfile: async () => {},
@@ -136,6 +139,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     is3DPrintManager: managedPrinterIds.length > 0,
     managedPrinterIds,
     isLaserCutManager: profile?.is_laser_cut_manager || false,
+    isWakeupManager: profile?.is_wakeup_manager || false,
     isApproved: profile?.is_approved !== false,
     isLoading,
     refreshProfile,

@@ -2,25 +2,55 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ShieldAlert, Check, X, Trash2 } from 'lucide-react';
+import { ShieldAlert, Check, X, Trash2, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import { PersonSearchSelect } from '@/components/manufacturing/PersonSearchSelect';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import { supabase } from '@/lib/supabase';
 
 export default function AdminWakeupPage() {
-  const { isAdmin, isLoading: authLoading } = useAuth();
+  const { isAdmin, isWakeupManager, isLoading: authLoading } = useAuth();
   const { showError, showSuccess } = useAlert();
   const router = useRouter();
+  const canManage = isAdmin || isWakeupManager;
 
   const [pending, setPending] = useState<any[]>([]);
   const [queue, setQueue] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+
+  // ── 기상송 담당자 지정 (진짜 사이트 관리자만) ────────────────────────────
+  const [allProfiles, setAllProfiles] = useState<any[]>([]);
+  const [managers, setManagers] = useState<any[]>([]);
+  const [newManagerId, setNewManagerId] = useState('');
+
+  const fetchManagers = async () => {
+    if (!isAdmin) return;
+    const [allRes, managersRes] = await Promise.all([
+      supabase.from('profiles').select('id, student_id, full_name').order('student_id'),
+      supabase.from('profiles').select('id, student_id, full_name').eq('is_wakeup_manager', true).order('student_id'),
+    ]);
+    if (!allRes.error) setAllProfiles(allRes.data || []);
+    if (!managersRes.error) setManagers(managersRes.data || []);
+  };
+
+  const addManager = async () => {
+    if (!newManagerId) return;
+    const { error } = await supabase.from('profiles').update({ is_wakeup_manager: true }).eq('id', newManagerId);
+    if (error) showError('지정 실패: ' + error.message);
+    else { showSuccess('기상송 담당자로 지정했어요.'); setNewManagerId(''); fetchManagers(); }
+  };
+
+  const removeManager = async (id: string) => {
+    const { error } = await supabase.from('profiles').update({ is_wakeup_manager: false }).eq('id', id);
+    if (error) showError('해제 실패: ' + error.message);
+    else { showSuccess('담당자 지정을 해제했어요.'); fetchManagers(); }
+  };
 
   const fetchAll = async () => {
     const [pendingRes, queueRes] = await Promise.all([
@@ -33,9 +63,10 @@ export default function AdminWakeupPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && isAdmin) fetchAll();
+    if (!authLoading && canManage) { fetchAll(); fetchManagers(); }
     else if (!authLoading) setLoading(false);
-  }, [authLoading, isAdmin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, canManage]);
 
   const approve = async (id: string) => {
     const { error } = await supabase.from('wakeup_songs').update({ status: 'approved' }).eq('id', id);
@@ -59,11 +90,11 @@ export default function AdminWakeupPage() {
     return <div className="flex min-h-[40vh] items-center justify-center"><LoadingSpinner size={48} /></div>;
   }
 
-  if (!isAdmin) {
+  if (!canManage) {
     return (
       <div className="max-w-sm mx-auto mt-16 text-center space-y-4">
         <ShieldAlert className="size-12 mx-auto text-destructive" />
-        <p className="font-bold">관리자만 볼 수 있는 페이지예요.</p>
+        <p className="font-bold">관리자 또는 기상송 담당자만 볼 수 있는 페이지예요.</p>
         <Button onClick={() => router.push('/')}>홈으로</Button>
       </div>
     );
@@ -72,6 +103,26 @@ export default function AdminWakeupPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-8 pb-10">
       <h1 className="text-3xl font-black italic tracking-tighter">기상송 관리</h1>
+
+      {isAdmin && (
+        <section className="space-y-3 rounded-[28px] border border-border/60 bg-card p-5">
+          <div className="flex items-center gap-2"><UserCog className="size-5 text-primary" /><h2 className="text-lg font-black">담당자 지정</h2></div>
+          <div className="flex gap-2">
+            <PersonSearchSelect candidates={allProfiles.filter(p => !managers.some(m => m.id === p.id))} value={newManagerId} onChange={setNewManagerId} />
+            <Button onClick={addManager} disabled={!newManagerId}>추가</Button>
+          </div>
+          {managers.length > 0 && (
+            <ul className="space-y-1.5">
+              {managers.map((m) => (
+                <li key={m.id} className="flex items-center justify-between gap-2 text-sm bg-muted/50 rounded-xl px-3 py-2">
+                  <span className="font-bold">{m.full_name || 'Unknown'} <span className="text-muted-foreground opacity-60">({m.student_id || '-'})</span></span>
+                  <Button size="icon-sm" variant="ghost" onClick={() => removeManager(m.id)} aria-label="담당자 해제"><X className="size-4 text-destructive" /></Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-lg font-black">검토 대기 ({pending.length})</h2>
