@@ -106,7 +106,11 @@ export default function AdminWakeupPage() {
     if (!song || song.isFiller) return;
     const patch: Record<string, unknown> = { status };
     if (status === 'played') patch.played_at = new Date().toISOString();
-    await supabase.from('wakeup_songs').update(patch).eq('id', song.id);
+    const { error } = await supabase.from('wakeup_songs').update(patch).eq('id', song.id);
+    // RLS blocking this silently returns success with 0 rows changed, not an
+    // error — so a failure here is worth surfacing loudly rather than eating
+    // it, since it means the student-facing status just silently didn't move.
+    if (error) showError(`상태 갱신 실패 (${song.title}): ${error.message}`);
   };
 
   const startSession = async () => {
