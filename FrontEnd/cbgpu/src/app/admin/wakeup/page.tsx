@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import { ShieldAlert, X, Play, Pause, Square, SkipForward, ListMusic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,20 +44,24 @@ export default function AdminWakeupPage() {
   const { showError, showSuccess } = useAlert();
   const router = useRouter();
 
-  const [dorm, setDorm] = useState<Dorm>(DORMS[0]);
-  useEffect(() => {
+  // 지연 초기화로 첫 렌더에서 곧바로 저장된 기숙사를 읽는다 — 마운트 이펙트로
+  // 나중에 고치면 그 사이에 기본값(청운학사)으로 먼저 fetch가 나가버려서
+  // 새로고침할 때 잠깐 엉뚱한 기숙사 데이터가 보이는 문제가 있었다.
+  const [dorm, setDorm] = useState<Dorm>(() => {
     try {
       const saved = localStorage.getItem(DORM_KEY);
-      if (saved && (DORMS as readonly string[]).includes(saved)) setDorm(saved as Dorm);
+      if (saved && (DORMS as readonly string[]).includes(saved)) return saved as Dorm;
     } catch { /* localStorage unavailable */ }
-  }, []);
+    return DORMS[0];
+  });
   const changeDorm = (value: string) => {
-    endSession();
+    stopPlayback();
     setDorm(value as Dorm);
     try { localStorage.setItem(DORM_KEY, value); } catch { /* best-effort only */ }
   };
 
   const [queue, setQueue] = useState<any[]>([]);
+  const [allApproved, setAllApproved] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -93,9 +98,15 @@ export default function AdminWakeupPage() {
     });
   };
 
-  const markPlayed = async (song: any) => {
+  // 학생들도 자기 신청곡이 재생 전/재생 중/재생 완료 중 어디쯤인지 볼 수 있게
+  // status 자체로 남긴다 — 'playing'은 지금 스피커로 나가고 있는 딱 한 곡,
+  // 건너뛰거나 정지하면(끝까지 재생 못 함) 다시 'approved'(재생 전)로 되돌아가
+  // 다음 기회에 다시 대기열에 선다.
+  const setSongStatus = async (song: any, status: 'playing' | 'approved' | 'played') => {
     if (!song || song.isFiller) return;
-    await supabase.from('wakeup_songs').update({ status: 'played', played_at: new Date().toISOString() }).eq('id', song.id);
+    const patch: Record<string, unknown> = { status };
+    if (status === 'played') patch.played_at = new Date().toISOString();
+    await supabase.from('wakeup_songs').update(patch).eq('id', song.id);
   };
 
   const startSession = async () => {
@@ -106,6 +117,7 @@ export default function AdminWakeupPage() {
     setPaused(false);
     const player = await ensurePlayer();
     player.loadVideoById(today[0].youtube_video_id);
+    await setSongStatus(today[0], 'playing');
   };
 
   const endSession = () => {
@@ -115,18 +127,27 @@ export default function AdminWakeupPage() {
     setPaused(false);
   };
 
+  // 그 자리에서 멈추는 것(정지/기숙사 전환)은 항상 지금 재생 중이던 곡을
+  // '재생 전' 상태로 되돌린 다음에 세션을 끝낸다 — endSession 자체는 상태를
+  // 건드리지 않는다(advance 끝에서도 재사용되는데, 거긴 이미 처리하고 나서 부름).
+  const stopPlayback = async () => {
+    if (nowPlaying) await setSongStatus(nowPlaying, 'approved');
+    endSession();
+  };
+
   // markCurrentPlayed=true는 노래가 실제로 끝까지 재생됐을 때만(onStateChange
-  // ENDED) — 건너뛰기나 정지로는 절대 '재생 완료' 처리하지 않는다. 기숙사에
-  // 아무도 없어서 그날 아예 재생을 안 하는 날도 있으니, 재생 안 된 곡은 다음
-  // 기회에 다시 대기열 맨 앞에 남아 있어야 한다.
+  // ENDED) — 건너뛰기로는 절대 '재생 완료' 처리하지 않는다. 기숙사에 아무도
+  // 없어서 그날 아예 재생을 안 하는 날도 있으니, 재생 안 된 곡은 다음 기회에
+  // 다시 대기열 맨 앞에 남아 있어야 한다.
   const advance = async (markCurrentPlayed: boolean) => {
     const current = nowPlaying;
-    if (markCurrentPlayed && current) await markPlayed(current);
+    if (current) await setSongStatus(current, markCurrentPlayed ? 'played' : 'approved');
     const nextIndex = sessionIndex + 1;
     if (session && nextIndex < session.length) {
       setSessionIndex(nextIndex);
       setPaused(false);
       playerRef.current?.loadVideoById(session[nextIndex].youtube_video_id);
+      await setSongStatus(session[nextIndex], 'playing');
     } else {
       endSession();
       if (markCurrentPlayed) showSuccess('오늘 재생을 모두 마쳤어요.');
@@ -140,17 +161,21 @@ export default function AdminWakeupPage() {
     else { playerRef.current?.pauseVideo(); setPaused(true); }
   };
 
-  // 신청은 즉시 승인 상태로 들어오므로 검토 대기열은 없다 — 담당자는
-  // 오늘 재생될 곡 중 부적절한 것만 사후에 거절한다.
+  // 신청은 즉시 승인 상태로 들어오므로 검토 대기열은 없다 — 담당자는 부적절한
+  // 것만 사후에 거절한다. 거절은 오늘 곡만이 아니라 앞으로 예정된 모든 날짜의
+  // 신청곡에 대해서도 가능해야 해서, 재생용(오늘만)과 별도로 날짜 상관없이
+  // 전체 승인된 신청곡도 함께 가져온다.
   const fetchAll = async () => {
-    const { data, error } = await supabase
-      .from('wakeup_songs')
-      .select('*, profiles:user_id (full_name, student_id)')
-      .eq('dorm', dorm)
-      .eq('status', 'approved')
-      .eq('play_date', todayStr())
-      .order('created_at', { ascending: true });
-    if (!error) setQueue(data || []);
+    const [todayRes, allRes] = await Promise.all([
+      supabase.from('wakeup_songs').select('*, profiles:user_id (full_name, student_id)')
+        .eq('dorm', dorm).eq('status', 'approved').eq('play_date', todayStr())
+        .order('created_at', { ascending: true }),
+      supabase.from('wakeup_songs').select('*, profiles:user_id (full_name, student_id)')
+        .eq('dorm', dorm).eq('status', 'approved')
+        .order('play_date', { ascending: true }).order('created_at', { ascending: true }),
+    ]);
+    if (!todayRes.error) setQueue(todayRes.data || []);
+    if (!allRes.error) setAllApproved(allRes.data || []);
     setLoading(false);
   };
 
@@ -213,7 +238,7 @@ export default function AdminWakeupPage() {
                 {paused ? <><Play className="size-4 mr-1.5" /> 재생</> : <><Pause className="size-4 mr-1.5" /> 일시정지</>}
               </Button>
               <Button variant="secondary" onClick={() => advance(false)} className="flex-1"><SkipForward className="size-4 mr-1.5" /> 건너뛰기</Button>
-              <Button variant="secondary" onClick={endSession} className="flex-1"><Square className="size-4 mr-1.5" /> 정지</Button>
+              <Button variant="secondary" onClick={stopPlayback} className="flex-1"><Square className="size-4 mr-1.5" /> 정지</Button>
             </div>
           </div>
         ) : (
@@ -243,26 +268,39 @@ export default function AdminWakeupPage() {
       </section>
 
       <section className="space-y-3">
-        <div className="flex items-center gap-2"><h2 className="text-lg font-black">오늘 신청곡</h2><Badge variant="default">{queue.length}곡</Badge></div>
-        {queue.length === 0 && <p className="text-sm text-muted-foreground">오늘로 신청된 곡이 없어요.</p>}
-        {queue.map((song) => (
-          <div key={song.id} className="rounded-2xl bg-card ring-1 ring-border/60 p-3 space-y-2">
-            <div className="flex items-center gap-3">
-              {song.thumbnail_url && <Image src={song.thumbnail_url} alt={song.title} width={56} height={42} className="rounded-lg object-cover shrink-0" />}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold truncate">{song.title}</p>
-                <p className="text-xs text-muted-foreground truncate">{song.profiles?.full_name} ({song.profiles?.student_id})</p>
+        <div className="flex items-center gap-2"><h2 className="text-lg font-black">신청곡 관리</h2><Badge variant="default">{allApproved.length}곡</Badge></div>
+        <p className="text-xs text-muted-foreground">오늘만이 아니라 앞으로 예정된 모든 날짜의 신청곡을 거절할 수 있어요.</p>
+        {allApproved.length === 0 && <p className="text-sm text-muted-foreground">신청된 곡이 없어요.</p>}
+        {Object.entries(
+          allApproved.reduce<Record<string, any[]>>((groups, song) => {
+            (groups[song.play_date] ??= []).push(song);
+            return groups;
+          }, {})
+        ).map(([date, songs]) => (
+          <div key={date} className="space-y-2">
+            <p className="text-[11px] font-black uppercase tracking-widest text-primary">
+              {format(new Date(date + 'T00:00:00'), 'M/d(eee)', { locale: ko })}{date === todayStr() ? ' · 오늘' : ''}
+            </p>
+            {songs.map((song) => (
+              <div key={song.id} className="rounded-2xl bg-card ring-1 ring-border/60 p-3 space-y-2">
+                <div className="flex items-center gap-3">
+                  {song.thumbnail_url && <Image src={song.thumbnail_url} alt={song.title} width={56} height={42} className="rounded-lg object-cover shrink-0" />}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold truncate">{song.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">{song.profiles?.full_name} ({song.profiles?.student_id})</p>
+                  </div>
+                </div>
+                {rejectingId === song.id ? (
+                  <div className="flex gap-2">
+                    <Input placeholder="거절 사유 (선택)" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} className="flex-1" />
+                    <Button size="sm" variant="destructive" onClick={() => reject(song.id)}>거절 확정</Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setRejectingId(null); setRejectReason(''); }}>취소</Button>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="destructive" onClick={() => setRejectingId(song.id)} className="w-full"><X className="size-3.5 mr-1" /> 거절</Button>
+                )}
               </div>
-            </div>
-            {rejectingId === song.id ? (
-              <div className="flex gap-2">
-                <Input placeholder="거절 사유 (선택)" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} className="flex-1" />
-                <Button size="sm" variant="destructive" onClick={() => reject(song.id)}>거절 확정</Button>
-                <Button size="sm" variant="ghost" onClick={() => { setRejectingId(null); setRejectReason(''); }}>취소</Button>
-              </div>
-            ) : (
-              <Button size="sm" variant="destructive" onClick={() => setRejectingId(song.id)} className="w-full"><X className="size-3.5 mr-1" /> 거절</Button>
-            )}
+            ))}
           </div>
         ))}
       </section>

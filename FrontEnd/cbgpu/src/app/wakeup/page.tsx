@@ -27,14 +27,15 @@ interface WakeupSong {
   title: string;
   thumbnail_url: string | null;
   message: string;
-  status: 'pending' | 'approved' | 'rejected' | 'played';
+  status: 'pending' | 'approved' | 'playing' | 'rejected' | 'played';
   reject_reason: string | null;
   created_at: string;
 }
 
 const STATUS_BADGE: Record<WakeupSong['status'], { label: string; variant: 'default' | 'success' | 'warning' | 'danger' }> = {
   pending: { label: '검토 중', variant: 'warning' },
-  approved: { label: '대기열', variant: 'default' },
+  approved: { label: '재생 전', variant: 'default' },
+  playing: { label: '재생 중', variant: 'warning' },
   played: { label: '재생 완료', variant: 'success' },
   rejected: { label: '거절됨', variant: 'danger' },
 };
@@ -43,13 +44,17 @@ export default function WakeupSongPage() {
   const { user, isApproved } = useAuth();
   const { showError, showSuccess } = useAlert();
 
-  const [dorm, setDorm] = useState<Dorm>(DORMS[0]);
-  useEffect(() => {
+  // 지연 초기화(useState(() => ...))로 첫 렌더에서 곧바로 저장된 기숙사를 읽는다 —
+  // 마운트 이펙트로 나중에 고치면 그 사이에 기본값(청운학사)으로 한 번 먼저
+  // fetch가 나가버려서, 새로고침할 때마다 잠깐(또는 어떤 순서에선 계속) 엉뚱한
+  // 기숙사 데이터가 보이는 문제가 있었다.
+  const [dorm, setDorm] = useState<Dorm>(() => {
     try {
       const saved = localStorage.getItem(DORM_KEY);
-      if (saved && (DORMS as readonly string[]).includes(saved)) setDorm(saved as Dorm);
+      if (saved && (DORMS as readonly string[]).includes(saved)) return saved as Dorm;
     } catch { /* localStorage unavailable */ }
-  }, []);
+    return DORMS[0];
+  });
   const changeDorm = (value: string) => {
     setDorm(value as Dorm);
     try { localStorage.setItem(DORM_KEY, value); } catch { /* best-effort only */ }
