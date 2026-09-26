@@ -17,8 +17,6 @@ async function isManager(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   if (!(await isManager(request))) return NextResponse.json({ message: '기상송 담당자 권한이 필요해요.' }, { status: 403 });
-  const youtubeKey = process.env.YOUTUBE_API_KEY;
-  if (!youtubeKey) return NextResponse.json({ message: 'YouTube 설정이 필요해요.' }, { status: 503 });
   const body = await request.json().catch(() => null);
   const count = Math.min(Math.max(Number(body?.count) || 0, 0), 8);
   const usedUris = new Set(Array.isArray(body?.usedUris) ? body.usedUris.filter((uri: unknown): uri is string => typeof uri === 'string') : []);
@@ -40,10 +38,10 @@ export async function POST(request: NextRequest) {
       if (!trackResponse.ok) continue;
       const track = await trackResponse.json().catch(() => null);
       if (!track?.uri || usedUris.has(track.uri)) continue;
-      const yt = await fetch(`https://www.googleapis.com/youtube/v3/search?${new URLSearchParams({ part: 'snippet', type: 'video', maxResults: '1', q: `${track.name} ${track.artists?.[0]?.name ?? ''} official audio`, key: youtubeKey })}`, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
-      const videoId = (await yt.json().catch(() => null))?.items?.[0]?.id?.videoId;
-      if (!videoId) continue;
-      items.push({ id: null, isFiller: true, _key: `ai-${track.id}`, title: track.name, thumbnail_url: track.album?.images?.[1]?.url ?? null, youtube_video_id: videoId, spotify_uri: track.uri, spotify_url: track.external_urls?.spotify, status: 'approved' });
+      // Filling the Spotify playlist must not depend on YouTube's expensive
+      // search quota. The existing YouTube playback resolves a video only
+      // when that slot is actually started.
+      items.push({ id: null, isFiller: true, _key: `catalog-${track.id}`, title: track.name, channel_title: track.artists?.map((artist: any) => artist.name).join(', ') ?? '', thumbnail_url: track.album?.images?.[1]?.url ?? null, youtube_video_id: '', spotify_uri: track.uri, spotify_url: track.external_urls?.spotify, status: 'approved' });
       usedUris.add(track.uri);
     }
     return NextResponse.json({ items });

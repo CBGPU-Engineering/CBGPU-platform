@@ -115,14 +115,21 @@ export default function AdminWakeupPage() {
 
   const startSession = async () => {
     const fillers = await generateAiFillers();
-    const today = [...queue.slice(0, SONGS_PER_DAY), ...fillers].slice(0, SONGS_PER_DAY);
-    if (today.length !== SONGS_PER_DAY) { showError(`하루 편성은 정확히 ${SONGS_PER_DAY}곡이어야 해요. AI 추천곡을 다시 생성해 주세요.`); return; }
-    setSession(today);
+    const lineup = [...queue.slice(0, SONGS_PER_DAY), ...fillers].slice(0, SONGS_PER_DAY);
+    const today = await Promise.all(lineup.map(async (song) => {
+      if (song.youtube_video_id) return song;
+      const response = await fetch(`/api/wakeup/youtube-resolve?q=${encodeURIComponent(`${song.title} ${song.channel_title ?? ''}`)}`);
+      const data = await response.json().catch(() => null);
+      return data?.videoId ? { ...song, youtube_video_id: data.videoId } : null;
+    }));
+    if (today.length !== SONGS_PER_DAY || today.some(song => !song)) { showError('YouTube 재생 영상을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.'); return; }
+    const playableToday = today as any[];
+    setSession(playableToday);
     setSessionIndex(0);
     setPaused(false);
     const player = await ensurePlayer();
-    player.loadVideoById(today[0].youtube_video_id);
-    await setSongStatus(today[0], 'playing');
+    player.loadVideoById(playableToday[0].youtube_video_id);
+    await setSongStatus(playableToday[0], 'playing');
   };
 
   const endSession = () => {
