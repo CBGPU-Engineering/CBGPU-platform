@@ -9,6 +9,7 @@ import {
 import { isNativeApp, onNativeBridgeReady } from '@/lib/nativeBridge';
 import LaunchPage from '@/components/LaunchPage';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import DailyBriefing from '@/components/DailyBriefing';
 
 /** 서버/클라이언트 시각이 다를 수 있어 SSR에서는 중립적인 기본값만 쓰고,
  * 마운트 후 클라이언트 시계 + 날씨로만 인사를 골라서 하이드레이션 불일치를 피한다 */
@@ -172,6 +173,8 @@ export default function Home() {
           </p>
         </div>
       </div>
+
+      {user && <DailyBriefing />}
 
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {FEATURES.map((f, i) => (

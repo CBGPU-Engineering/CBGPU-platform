@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
 import {
   Plus, Trash2, X, Edit3, BarChart3, ArrowLeft, ChevronUp, ChevronDown,
-  CheckSquare, Circle, Type, AlignLeft, Star, List, Lock, CheckCircle2,
+  CheckSquare, Circle, Type, AlignLeft, Star, List, Lock, CheckCircle2, Sparkles,
 } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import { requestAi } from '@/lib/requestAi';
 
 // ─── types ────────────────────────────────────────────────────────────────────
 type QType = 'choice' | 'checkbox' | 'text' | 'paragraph' | 'scale' | 'dropdown';
@@ -468,8 +469,11 @@ function PollForm({ poll, questions, onSubmitted, onBack }: { poll: Poll; questi
 function PollResults({ poll, questions, onBack }: { poll: Poll; questions: Question[]; onBack: () => void }) {
   const [allAnswers, setAllAnswers] = useState<any[]>([]);
   const [resCount,   setResCount]   = useState(0);
+  const [insight, setInsight] = useState('');
+  const insightKeyRef = useRef('');
 
   useEffect(() => {
+    setInsight('');
     (async () => {
       const { data: responses } = await supabase.from('poll_responses').select('id').eq('poll_id', poll.id);
       setResCount(responses?.length ?? 0);
@@ -480,6 +484,35 @@ function PollResults({ poll, questions, onBack }: { poll: Poll; questions: Quest
     })();
   }, [poll.id]);
 
+  useEffect(() => {
+    if (resCount < 3 || allAnswers.length === 0) return;
+    const key = `poll-insight:${poll.id}:${resCount}:${allAnswers.length}`;
+    if (insightKeyRef.current === key) return;
+    insightKeyRef.current = key;
+    const cached = sessionStorage.getItem(key);
+    if (cached) { setInsight(cached); return; }
+    const lines = questions.map(q => {
+      const values = allAnswers.filter(answer => answer.question_id === q.id).map(answer => answer.value);
+      if (q.type === 'text' || q.type === 'paragraph') return `${q.title}: 서술형 응답 ${values.length}개`;
+      if (q.type === 'scale') {
+        const nums = values.map(Number).filter(Number.isFinite);
+        const average = nums.length ? (nums.reduce((sum, value) => sum + value, 0) / nums.length).toFixed(1) : '응답 없음';
+        return `${q.title}: 평균 ${average}, 응답 ${nums.length}개`;
+      }
+      return `${q.title}: ${q.options.map(option => {
+        const count = values.filter(value => Array.isArray(value) ? value.includes(option.id) : value === option.id).length;
+        return `${option.text} ${count}명`;
+      }).join(', ')}`;
+    });
+    let cancelled = false;
+    requestAi('poll_insight', `총 응답자 ${resCount}명\n${lines.join('\n')}`).then(text => {
+      if (cancelled) return;
+      setInsight(text);
+      sessionStorage.setItem(key, text);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [allAnswers, poll.id, questions, resCount]);
+
   return (
     <div className="space-y-5 max-w-2xl mx-auto">
       <div className="flex items-center gap-3">
@@ -489,6 +522,7 @@ function PollResults({ poll, questions, onBack }: { poll: Poll; questions: Quest
           <p className="text-xs text-muted-foreground font-medium mt-0.5">총 {resCount}명 응답</p>
         </div>
       </div>
+      {insight && <p className="flex items-start gap-2 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-relaxed" aria-label="AI 결과 요약"><Sparkles className="mt-0.5 size-4 shrink-0 text-primary" /><span>{insight} <span className="text-xs text-muted-foreground">AI가 집계만 보고 만든 요약이에요. 정확한 수치는 아래를 확인하세요.</span></span></p>}
       <div className="space-y-4">
         {questions.map((q, i) => (
           <div key={q.id} className="p-5 border border-border/50 rounded-2xl bg-card space-y-3">
