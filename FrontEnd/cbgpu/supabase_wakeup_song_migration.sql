@@ -59,6 +59,31 @@ alter table wakeup_songs add constraint wakeup_songs_status_check
 
 create index if not exists wakeup_songs_status_idx on wakeup_songs (dorm, play_date, status);
 
+-- Exactly eight slots are available for each dorm and morning. The advisory
+-- lock makes this safe even when several students submit at the same moment.
+create or replace function public.enforce_wakeup_song_daily_limit()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  perform pg_advisory_xact_lock(hashtextextended(new.dorm || ':' || new.play_date::text, 0));
+  if (
+    select count(*) from public.wakeup_songs
+    where dorm = new.dorm
+      and play_date = new.play_date
+      and status in ('approved', 'playing', 'played')
+  ) >= 8 then
+    raise exception '하루 기상송은 기숙사별 최대 8곡입니다.';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists wakeup_songs_daily_limit on wakeup_songs;
+create trigger wakeup_songs_daily_limit
+before insert on wakeup_songs
+for each row execute function public.enforce_wakeup_song_daily_limit();
+
 -- Spotify is the sole source of truth for song selection and playlist playback.
 alter table wakeup_songs alter column youtube_video_id drop not null;
 alter table wakeup_songs add column if not exists spotify_track_id text;
