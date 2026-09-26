@@ -21,12 +21,6 @@ const DORMS = ['청운학사', '사름학사'] as const;
 type Dorm = typeof DORMS[number];
 const DORM_KEY = 'cbgpu.admin.wakeup.dorm';
 
-const STATUS_LABEL: Record<string, { label: string; variant: 'default' | 'success' | 'warning' }> = {
-  approved: { label: '재생 전', variant: 'default' },
-  playing: { label: '재생 중', variant: 'warning' },
-  played: { label: '재생 완료', variant: 'success' },
-};
-
 function todayStr() {
   return format(new Date(), 'yyyy-MM-dd');
 }
@@ -317,7 +311,6 @@ export default function AdminWakeupPage() {
               <li key={song.id ?? song._key} className="flex items-center gap-2 text-xs p-2 rounded-lg">
                 <span className="text-muted-foreground font-black w-4 shrink-0">{i + 1}</span>
                 <span className={`truncate flex-1 font-semibold ${song.isFiller ? 'text-muted-foreground italic' : ''}`}>{song.title}</span>
-                {!song.isFiller && <Badge variant={STATUS_LABEL[song.status]?.variant ?? 'default'}>{STATUS_LABEL[song.status]?.label ?? song.status}</Badge>}
               </li>
             ))}
         </ul>

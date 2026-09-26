@@ -37,14 +37,6 @@ interface WakeupSong {
   created_at: string;
 }
 
-const STATUS_BADGE: Record<WakeupSong['status'], { label: string; variant: 'default' | 'success' | 'warning' | 'danger' }> = {
-  pending: { label: '검토 중', variant: 'warning' },
-  approved: { label: '재생 전', variant: 'default' },
-  playing: { label: '재생 중', variant: 'warning' },
-  played: { label: '재생 완료', variant: 'success' },
-  rejected: { label: '거절됨', variant: 'danger' },
-};
-
 export default function WakeupSongPage() {
   const { user, isApproved } = useAuth();
   const { showError, showSuccess } = useAlert();
@@ -202,7 +194,6 @@ export default function WakeupSongPage() {
               <li key={song.id ?? song._key} className="flex items-center gap-2 text-xs p-2 rounded-lg">
                 <span className="text-muted-foreground font-black w-4 shrink-0">{i + 1}</span>
                 <span className={`truncate flex-1 font-semibold ${song.isFiller ? 'text-muted-foreground italic' : ''}`}>{song.title}</span>
-                {!song.isFiller && <Badge variant={STATUS_BADGE[song.status].variant}>{STATUS_BADGE[song.status].label}</Badge>}
               </li>
             );
           })}
@@ -299,13 +290,13 @@ export default function WakeupSongPage() {
                 {song.thumbnail_url && <Image src={song.thumbnail_url} alt={song.title} width={64} height={48} className="rounded-lg object-cover shrink-0" />}
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold truncate">{song.title}</p>
+                  <p className="text-xs text-muted-foreground">신청 날짜 · {format(new Date(song.created_at), 'M/d(eee)', { locale: ko })}</p>
                   {song.spotify_url && <a href={song.spotify_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-[#1DB954] hover:underline">Spotify에서 열기</a>}
                   {song.message && <p className="text-xs text-muted-foreground truncate">&quot;{song.message}&quot;</p>}
                   {song.status === 'rejected' && song.reject_reason && (
                     <p className="text-xs text-destructive">{song.reject_reason}</p>
                   )}
                 </div>
-                <Badge variant={STATUS_BADGE[song.status].variant}>{STATUS_BADGE[song.status].label}</Badge>
                 <Button size="icon-sm" variant="ghost" onClick={() => setDeleteTarget(song)} aria-label="신청 삭제"><Trash2 className="size-4 text-destructive" /></Button>
               </li>
             ))}
