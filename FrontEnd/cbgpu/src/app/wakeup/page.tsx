@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
-import { extractYoutubeId } from '@/lib/youtube';
 import { loadYoutubeIframeApi, type YTPlayer } from '@/lib/youtubePlayer';
-import { Music, Play, Square, SkipForward, Send, ListMusic, History } from 'lucide-react';
+import { Music, Play, Square, SkipForward, Send, ListMusic, History, Search } from 'lucide-react';
+
+interface SearchResult { videoId: string; title: string; channelTitle: string; thumbnailUrl: string }
 
 interface WakeupSong {
   id: string;
@@ -36,10 +37,12 @@ export default function WakeupSongPage() {
   const { user, isApproved } = useAuth();
   const { showError, showSuccess } = useAlert();
 
-  const [urlInput, setUrlInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const [message, setMessage] = useState('');
-  const [preview, setPreview] = useState<{ videoId: string; title: string; channelTitle: string; thumbnailUrl: string } | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [preview, setPreview] = useState<SearchResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [myRequests, setMyRequests] = useState<WakeupSong[]>([]);
@@ -72,29 +75,35 @@ export default function WakeupSongPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // 링크를 붙여넣으면 잠깐 뒤에 자동으로 제목/채널/썸네일을 미리 보여준다 — 잘못된
-  // 링크를 신청하고 나서야 알게 되는 일이 없게.
+  // 검색어를 입력하면 잠깐 뒤에 유튜브에서 찾아 목록으로 보여준다 — 링크를 직접
+  // 찾아 붙여넣을 필요 없이 바로 골라서 신청할 수 있게.
   useEffect(() => {
-    const videoId = extractYoutubeId(urlInput);
-    if (!videoId) { setPreview(null); return; }
-    setPreviewLoading(true);
+    const q = searchQuery.trim();
+    if (!q) { setSearchResults([]); setSearchError(''); return; }
+    setSearching(true);
     const timer = setTimeout(() => {
-      fetch(`/api/wakeup/oembed?videoId=${videoId}`)
+      fetch(`/api/wakeup/search?q=${encodeURIComponent(q)}`)
         .then(res => res.json())
         .then(data => {
-          if (data?.title) setPreview({ videoId, title: data.title, channelTitle: data.channelTitle, thumbnailUrl: data.thumbnailUrl });
-          else setPreview(null);
+          if (data?.items) { setSearchResults(data.items); setSearchError(''); }
+          else { setSearchResults([]); setSearchError(data?.message || '검색에 실패했어요.'); }
         })
-        .catch(() => setPreview(null))
-        .finally(() => setPreviewLoading(false));
-    }, 500);
+        .catch(() => { setSearchResults([]); setSearchError('검색 중 오류가 발생했어요.'); })
+        .finally(() => setSearching(false));
+    }, 400);
     return () => clearTimeout(timer);
-  }, [urlInput]);
+  }, [searchQuery]);
+
+  const selectResult = (result: SearchResult) => {
+    setPreview(result);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isApproved) { showError('학번 또는 이름 확인이 필요해 신청할 수 없습니다. 프로필에서 정보를 확인해 주세요.'); return; }
-    if (!preview) { showError('유효한 유튜브 링크를 입력해 주세요.'); return; }
+    if (!preview) { showError('신청할 곡을 먼저 검색해서 골라주세요.'); return; }
     if (!user) return;
 
     setSubmitting(true);
@@ -109,7 +118,6 @@ export default function WakeupSongPage() {
     setSubmitting(false);
     if (error) { showError('신청 실패: ' + error.message); return; }
     showSuccess('기상송 신청이 완료됐어요! 관리자 승인 후 대기열에 올라가요.');
-    setUrlInput('');
     setMessage('');
     setPreview(null);
     fetchAll();
@@ -220,24 +228,52 @@ export default function WakeupSongPage() {
       {/* ── 신청 폼 ──────────────────────────────────────────────────── */}
       <form onSubmit={handleSubmit} className="rounded-[28px] border border-border/60 bg-card p-5 space-y-4">
         <div className="flex items-center gap-2"><Send className="size-5 text-primary" /><h2 className="text-lg font-black">신청하기</h2></div>
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">유튜브 링크</label>
-          <Input
-            placeholder="https://www.youtube.com/watch?v=..."
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-          />
-        </div>
-        {previewLoading && <p className="text-xs text-muted-foreground">확인 중...</p>}
-        {preview && (
+
+        {preview ? (
           <div className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3">
             {preview.thumbnailUrl && <Image src={preview.thumbnailUrl} alt={preview.title} width={80} height={60} className="rounded-lg object-cover shrink-0" />}
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-bold line-clamp-2">{preview.title}</p>
               <p className="text-xs text-muted-foreground">{preview.channelTitle}</p>
             </div>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setPreview(null)}>다시 고르기</Button>
+          </div>
+        ) : (
+          <div className="space-y-1.5 relative">
+            <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">노래 검색</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="노래 제목이나 가수 이름으로 검색"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {searching && <p className="text-xs text-muted-foreground">검색 중...</p>}
+            {searchError && <p className="text-xs text-destructive">{searchError}</p>}
+            {searchResults.length > 0 && (
+              <ul className="space-y-1.5 max-h-72 overflow-y-auto custom-scrollbar">
+                {searchResults.map((result) => (
+                  <li key={result.videoId}>
+                    <button
+                      type="button"
+                      onClick={() => selectResult(result)}
+                      className="flex items-center gap-3 w-full text-left rounded-2xl bg-muted/50 hover:bg-muted p-2 transition-colors"
+                    >
+                      {result.thumbnailUrl && <Image src={result.thumbnailUrl} alt={result.title} width={64} height={48} className="rounded-lg object-cover shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold line-clamp-2">{result.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{result.channelTitle}</p>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
+
         <div className="space-y-1.5">
           <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">한마디 (선택)</label>
           <Input placeholder="누구에게, 어떤 마음으로 신청하는지 적어보세요" value={message} onChange={(e) => setMessage(e.target.value)} maxLength={80} />
@@ -269,7 +305,7 @@ export default function WakeupSongPage() {
         </div>
       )}
       <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground justify-center">
-        <ListMusic className="size-3" /> 저작권이 있는 음원이라 유튜브 광고가 함께 재생될 수 있어요.
+        <ListMusic className="size-3" /> 광고 없이 재생하려면 재생하는 기기에서 브레이브(Brave) 브라우저를 사용하세요.
       </p>
     </div>
   );
