@@ -202,29 +202,18 @@ export default function AdminWakeupPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return [];
     setFillingSongs(true);
-    const items: any[] = aiFillers.slice(0, needed);
-    setFillProgress({ done: items.length, total: needed });
-    for (let index = items.length; index < needed; index++) {
-      const response = await fetch('/api/wakeup/ai-fill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ count: 1, usedUris: [...todayLineup, ...items].map(song => song.spotify_uri).filter((uri): uri is string => typeof uri === 'string') }),
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        setFillingSongs(false);
-        setFillProgress(null);
-        showError(data?.message || 'AI 추천곡 생성에 실패했어요.');
-        return items;
-      }
-      const item = data?.items?.[0];
-      if (!item) break;
-      items.push(item);
-      setAiFillers([...items]);
-      setFillProgress({ done: items.length, total: needed });
-    }
+    setFillProgress({ done: 0, total: needed });
+    const response = await fetch('/api/wakeup/ai-fill', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ count: needed, usedUris: todayLineup.map(song => song.spotify_uri).filter((uri): uri is string => typeof uri === 'string') }),
+    });
+    const data = await response.json().catch(() => null);
     setFillingSongs(false);
     setFillProgress(null);
+    if (!response.ok) { showError(data?.message || '추천곡 채우기에 실패했어요.'); return []; }
+    const items: any[] = data?.items ?? [];
+    setAiFillers(items);
     if (items.length !== needed) showError(`${needed}곡 중 ${items.length}곡만 준비됐어요. 다시 눌러 남은 곡을 채워 주세요.`);
     return items;
   };

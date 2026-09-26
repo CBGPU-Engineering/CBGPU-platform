@@ -48,6 +48,6 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ items });
   } catch {
-    return NextResponse.json({ message: 'AI 추천곡을 만들지 못했어요. 다시 시도해 주세요.' }, { status: 502 });
+    return NextResponse.json({ message: '추천곡 목록을 채우지 못했어요. 다시 시도해 주세요.' }, { status: 502 });
   }
 }
