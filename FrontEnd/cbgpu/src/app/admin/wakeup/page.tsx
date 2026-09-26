@@ -61,6 +61,7 @@ export default function AdminWakeupPage() {
   const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [aiFillers, setAiFillers] = useState<any[]>([]);
+  const [fillingSongs, setFillingSongs] = useState(false);
   const [legacyDeleteOpen, setLegacyDeleteOpen] = useState(false);
   const [deletingLegacy, setDeletingLegacy] = useState(false);
 
@@ -199,11 +200,14 @@ export default function AdminWakeupPage() {
     if (aiFillers.length === needed) return aiFillers;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return [];
+    setFillingSongs(true);
     const response = await fetch('/api/wakeup/ai-fill', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ count: needed, songs: todayLineup.map(song => `${song.title} — ${song.channel_title ?? ''}`) }) });
     const data = await response.json().catch(() => null);
+    setFillingSongs(false);
     if (!response.ok) { showError(data?.message || 'AI 추천곡 생성에 실패했어요.'); return []; }
     const items = data?.items ?? [];
     setAiFillers(items);
+    if (items.length !== needed) showError(`${needed}곡 중 ${items.length}곡만 준비됐어요. 다시 눌러 남은 곡을 채워 주세요.`);
     return items;
   };
 
@@ -212,12 +216,6 @@ export default function AdminWakeupPage() {
     else if (!authLoading) setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, isWakeupManager, dorm]);
-
-  useEffect(() => {
-    if (!loading && isWakeupManager) generateAiFillers();
-    // Queue size and dorm are the inputs that determine the automatic fill.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, isWakeupManager, dorm, queue.length]);
 
   const reject = async (id: string) => {
     const { error } = await supabase.from('wakeup_songs').update({ status: 'rejected', reject_reason: rejectReason.trim() || null }).eq('id', id);
@@ -290,6 +288,7 @@ export default function AdminWakeupPage() {
         </div>
 
         <div className="flex gap-2">
+          <Button variant="secondary" onClick={generateAiFillers} disabled={fillingSongs || queue.length >= SONGS_PER_DAY} className="flex-1"><ListPlus className="size-4 mr-1.5" />{fillingSongs ? 'AI 추천 중...' : '나머지 곡들 채우기'}</Button>
           <Button variant="secondary" onClick={createSpotifyPlaylist} disabled={creatingPlaylist} className="flex-1"><ListPlus className="size-4 mr-1.5" />{creatingPlaylist ? 'Spotify 생성 중...' : 'Spotify 플레이리스트 만들기'}</Button>
           {playlistUrl && <Button asChild variant="secondary"><a href={playlistUrl} target="_blank" rel="noreferrer"><ExternalLink className="size-4 mr-1.5" />링크 열기</a></Button>}
         </div>
@@ -318,7 +317,7 @@ export default function AdminWakeupPage() {
           </div>
         ) : (
           <Button onClick={startSession} className="w-full py-5 font-black">
-            <Play className="size-4 mr-1.5" /> 오늘 재생 시작 ({SONGS_PER_DAY}곡)
+            <Play className="size-4 mr-1.5" /> 유튜브로 오늘 재생 시작하기 (광고 없으려면 Brave Browser)
           </Button>
         )}
 
