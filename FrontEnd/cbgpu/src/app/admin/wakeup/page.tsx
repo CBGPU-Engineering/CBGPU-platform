@@ -1,16 +1,23 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ShieldAlert, Check, X, Trash2, UserCog } from 'lucide-react';
+import { ShieldAlert, Check, X, Trash2, UserCog, Play, Pause, Square, SkipForward, ListMusic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { PersonSearchSelect } from '@/components/manufacturing/PersonSearchSelect';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import { supabase } from '@/lib/supabase';
+import { loadYoutubeIframeApi, type YTPlayer } from '@/lib/youtubePlayer';
+
+const DORMS = ['청운학사', '사름학사'] as const;
+type Dorm = typeof DORMS[number];
+const DORM_KEY = 'cbgpu.admin.wakeup.dorm';
+const SONGS_PER_DAY = 8;
 
 export default function AdminWakeupPage() {
   const { isAdmin, isWakeupManager, isLoading: authLoading } = useAuth();
@@ -18,11 +25,93 @@ export default function AdminWakeupPage() {
   const router = useRouter();
   const canManage = isAdmin || isWakeupManager;
 
+  const [dorm, setDorm] = useState<Dorm>(DORMS[0]);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DORM_KEY);
+      if (saved && (DORMS as readonly string[]).includes(saved)) setDorm(saved as Dorm);
+    } catch { /* localStorage unavailable */ }
+  }, []);
+  const changeDorm = (value: string) => {
+    endSession();
+    setDorm(value as Dorm);
+    try { localStorage.setItem(DORM_KEY, value); } catch { /* best-effort only */ }
+  };
+
   const [pending, setPending] = useState<any[]>([]);
   const [queue, setQueue] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+
+  // ── 재생: 하루 최대 8곡, 실제로 끝까지 재생된 곡만 '재생 완료'로 기록 ──────
+  const playerRef = useRef<YTPlayer | null>(null);
+  const [session, setSession] = useState<any[] | null>(null);
+  const [sessionIndex, setSessionIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const nowPlaying = session?.[sessionIndex] ?? null;
+
+  const ensurePlayer = async () => {
+    if (playerRef.current) return playerRef.current;
+    await loadYoutubeIframeApi();
+    return new Promise<YTPlayer>((resolve) => {
+      const player = new window.YT!.Player('wakeup-yt-player', {
+        height: '200', width: '100%',
+        playerVars: { autoplay: 1, rel: 0 },
+        events: {
+          onReady: () => { playerRef.current = player; resolve(player); },
+          onStateChange: (event: { data: number }) => {
+            if (event.data === window.YT!.PlayerState.ENDED) advance(true);
+          },
+        },
+      });
+    });
+  };
+
+  const markPlayed = async (song: any) => {
+    await supabase.from('wakeup_songs').update({ status: 'played', played_at: new Date().toISOString() }).eq('id', song.id);
+  };
+
+  const startSession = async () => {
+    if (queue.length === 0) return;
+    const today = queue.slice(0, SONGS_PER_DAY);
+    setSession(today);
+    setSessionIndex(0);
+    setPaused(false);
+    const player = await ensurePlayer();
+    player.loadVideoById(today[0].youtube_video_id);
+  };
+
+  const endSession = () => {
+    playerRef.current?.stopVideo();
+    setSession(null);
+    setSessionIndex(0);
+    setPaused(false);
+  };
+
+  // markCurrentPlayed=true는 노래가 실제로 끝까지 재생됐을 때만(onStateChange
+  // ENDED) — 건너뛰기나 정지로는 절대 '재생 완료' 처리하지 않는다. 기숙사에
+  // 아무도 없어서 그날 아예 재생을 안 하는 날도 있으니, 재생 안 된 곡은 다음
+  // 기회에 다시 대기열 맨 앞에 남아 있어야 한다.
+  const advance = async (markCurrentPlayed: boolean) => {
+    const current = nowPlaying;
+    if (markCurrentPlayed && current) await markPlayed(current);
+    const nextIndex = sessionIndex + 1;
+    if (session && nextIndex < session.length) {
+      setSessionIndex(nextIndex);
+      setPaused(false);
+      playerRef.current?.loadVideoById(session[nextIndex].youtube_video_id);
+    } else {
+      endSession();
+      if (markCurrentPlayed) showSuccess('오늘 재생을 모두 마쳤어요.');
+      fetchAll();
+    }
+  };
+
+  const togglePause = () => {
+    if (paused) { playerRef.current?.playVideo(); setPaused(false); }
+    else { playerRef.current?.pauseVideo(); setPaused(true); }
+  };
 
   // ── 기상송 담당자 지정 (진짜 사이트 관리자만) ────────────────────────────
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
@@ -54,8 +143,8 @@ export default function AdminWakeupPage() {
 
   const fetchAll = async () => {
     const [pendingRes, queueRes] = await Promise.all([
-      supabase.from('wakeup_songs').select('*, profiles:user_id (full_name, student_id)').eq('status', 'pending').order('created_at', { ascending: true }),
-      supabase.from('wakeup_songs').select('*, profiles:user_id (full_name, student_id)').eq('status', 'approved').order('created_at', { ascending: true }),
+      supabase.from('wakeup_songs').select('*, profiles:user_id (full_name, student_id)').eq('dorm', dorm).eq('status', 'pending').order('created_at', { ascending: true }),
+      supabase.from('wakeup_songs').select('*, profiles:user_id (full_name, student_id)').eq('dorm', dorm).eq('status', 'approved').order('created_at', { ascending: true }),
     ]);
     if (!pendingRes.error) setPending(pendingRes.data || []);
     if (!queueRes.error) setQueue(queueRes.data || []);
@@ -63,10 +152,10 @@ export default function AdminWakeupPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && canManage) { fetchAll(); fetchManagers(); }
+    if (!authLoading && canManage) { setLoading(true); fetchAll(); fetchManagers(); }
     else if (!authLoading) setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, canManage]);
+  }, [authLoading, canManage, dorm]);
 
   const approve = async (id: string) => {
     const { error } = await supabase.from('wakeup_songs').update({ status: 'approved' }).eq('id', id);
@@ -102,7 +191,10 @@ export default function AdminWakeupPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 pb-10">
-      <h1 className="text-3xl font-black italic tracking-tighter">기상송 관리</h1>
+      <div className="space-y-3">
+        <h1 className="text-3xl font-black italic tracking-tighter">기상송 관리</h1>
+        <SegmentedTabs items={DORMS.map(d => ({ value: d, label: d }))} value={dorm} onChange={changeDorm} />
+      </div>
 
       {isAdmin && (
         <section className="space-y-3 rounded-[28px] border border-border/60 bg-card p-5">
@@ -123,6 +215,57 @@ export default function AdminWakeupPage() {
           )}
         </section>
       )}
+
+      {/* ── 재생 ─────────────────────────────────────────────────────── */}
+      <section className="rounded-[28px] border border-primary/15 bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <ListMusic className="size-5 text-primary" />
+          <h2 className="text-lg font-black">{dorm} 재생</h2>
+          <Badge variant="default">대기열 {queue.length}곡</Badge>
+        </div>
+
+        <div id="wakeup-yt-player" className={nowPlaying ? 'rounded-2xl overflow-hidden' : 'hidden'} />
+
+        {nowPlaying ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3">
+              {nowPlaying.thumbnail_url && (
+                <Image src={nowPlaying.thumbnail_url} alt={nowPlaying.title} width={64} height={48} className="rounded-lg object-cover shrink-0" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">재생 중 · {sessionIndex + 1}/{session?.length}</p>
+                <p className="text-sm font-bold truncate">{nowPlaying.title}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={togglePause} className="flex-1">
+                {paused ? <><Play className="size-4 mr-1.5" /> 재생</> : <><Pause className="size-4 mr-1.5" /> 일시정지</>}
+              </Button>
+              <Button variant="secondary" onClick={() => advance(false)} className="flex-1"><SkipForward className="size-4 mr-1.5" /> 건너뛰기</Button>
+              <Button variant="secondary" onClick={endSession} className="flex-1"><Square className="size-4 mr-1.5" /> 정지</Button>
+            </div>
+          </div>
+        ) : queue.length > 0 ? (
+          <Button onClick={startSession} className="w-full py-5 font-black">
+            <Play className="size-4 mr-1.5" /> 오늘 재생 시작 (최대 {SONGS_PER_DAY}곡)
+          </Button>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">대기열이 비어 있어요.</p>
+        )}
+
+        {queue.length > 0 && !nowPlaying && (
+          <ul className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+            {queue.slice(0, SONGS_PER_DAY).map((song, i) => (
+              <li key={song.id} className="flex items-center gap-2 text-xs p-2 rounded-lg">
+                <span className="text-muted-foreground font-black w-4 shrink-0">{i + 1}</span>
+                <span className="truncate flex-1 font-semibold">{song.title}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p className="text-[11px] text-muted-foreground">광고 없이 재생하려면 재생하는 기기에서 브레이브(Brave) 브라우저를 사용하세요.</p>
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-black">검토 대기 ({pending.length})</h2>
@@ -154,7 +297,7 @@ export default function AdminWakeupPage() {
       </section>
 
       <section className="space-y-3">
-        <div className="flex items-center gap-2"><h2 className="text-lg font-black">대기열</h2><Badge variant="default">{queue.length}곡</Badge></div>
+        <div className="flex items-center gap-2"><h2 className="text-lg font-black">전체 대기열</h2><Badge variant="default">{queue.length}곡</Badge></div>
         {queue.length === 0 && <p className="text-sm text-muted-foreground">대기열이 비어 있어요.</p>}
         {queue.map((song, i) => (
           <div key={song.id} className="flex items-center gap-3 rounded-2xl bg-card ring-1 ring-border/60 p-3">

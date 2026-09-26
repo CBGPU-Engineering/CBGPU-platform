@@ -24,9 +24,12 @@ as $$
   select coalesce((select p.is_wakeup_manager from public.profiles p where p.id = uid), false);
 $$;
 
+-- 청운학사/사름학사는 완전히 별도 큐 — 기숙사마다 스피커/재생 담당이 다르고, 그날
+-- 그 기숙사에 있는 사람만 그 기숙사 신청곡을 듣게 되니 섞이면 안 된다.
 create table if not exists wakeup_songs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references profiles(id) on delete cascade,
+  dorm text not null check (dorm in ('청운학사', '사름학사')),
   youtube_video_id text not null,
   title text not null,
   channel_title text,
@@ -39,7 +42,7 @@ create table if not exists wakeup_songs (
   created_at timestamptz not null default now()
 );
 
-create index if not exists wakeup_songs_status_idx on wakeup_songs (status, created_at);
+create index if not exists wakeup_songs_status_idx on wakeup_songs (dorm, status, created_at);
 
 alter table wakeup_songs enable row level security;
 
@@ -60,20 +63,15 @@ drop policy if exists "wakeup_songs_insert" on wakeup_songs;
 create policy "wakeup_songs_insert" on wakeup_songs for insert
   with check (user_id = auth.uid());
 
--- Only an admin or a designated wakeup manager approves/rejects. Anyone
--- signed in can flip an already-approved row to 'played' though — that's
--- just "this finished playing" bookkeeping from whoever's on wake-up-song
--- duty that morning, not a moderation action, and requiring manager/admin
--- status for it would defeat the point of letting the queue play itself.
+-- Only an admin or a designated wakeup manager can change a row at all —
+-- approve/reject, and marking a song 'played' once it actually finishes
+-- playing (playback itself lives on /admin/wakeup, not the public page, so
+-- this is the same audience either way).
 drop policy if exists "wakeup_songs_update" on wakeup_songs;
 drop policy if exists "wakeup_songs_admin_update" on wakeup_songs;
+drop policy if exists "wakeup_songs_mark_played" on wakeup_songs;
 create policy "wakeup_songs_admin_update" on wakeup_songs for update
   using (public.is_admin(auth.uid()) or public.is_wakeup_manager(auth.uid()));
-
-drop policy if exists "wakeup_songs_mark_played" on wakeup_songs;
-create policy "wakeup_songs_mark_played" on wakeup_songs for update
-  using (status = 'approved')
-  with check (status = 'played');
 
 -- A submitter can cancel their own still-pending request; admins/managers can remove any.
 drop policy if exists "wakeup_songs_delete" on wakeup_songs;
