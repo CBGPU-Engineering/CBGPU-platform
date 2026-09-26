@@ -1,15 +1,16 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
-import { Plus, Users, X, Trash2, Lock } from 'lucide-react';
+import { Plus, Users, X, Trash2, Lock, Sparkles } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import { requestAi } from '@/lib/requestAi';
 
 interface StudyPost {
   id: string; created_at: string; user_id: string;
@@ -112,6 +113,21 @@ function CreateForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
   const [tags,     setTags]     = useState<string[]>([]);
   const [max,      setMax]      = useState(4);
   const [saving,   setSaving]   = useState(false);
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
+  const [suggestingTags, setSuggestingTags] = useState(false);
+  const suggestedFromRef = useRef('');
+
+  const suggestTags = async () => {
+    const source = `${subject}\n${title}\n${desc}`.trim();
+    if (source.length < 30 || suggestingTags || suggestedFromRef.current === source) return;
+    suggestedFromRef.current = source;
+    setSuggestingTags(true);
+    try {
+      const result = await requestAi('study_tags', source);
+      setSuggestedTags(result.split(/[,，\n]+/).map(tag => tag.replace(/^[#\s\d.\-]+/, '').trim()).filter(tag => tag.length > 1 && tag.length <= 20).slice(0, 3));
+    } catch { /* Optional suggestions never block group creation. */ }
+    finally { setSuggestingTags(false); }
+  };
 
   const addTag = () => {
     const t = tagInput.trim();
@@ -143,7 +159,7 @@ function CreateForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
           ))}
         </div>
         <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="스터디 제목 *" className="font-bold" />
-        <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="설명 (선택)" rows={3}
+        <textarea value={desc} onChange={e => setDesc(e.target.value)} onBlur={suggestTags} placeholder="설명 (선택)" rows={3}
           className="w-full px-3 py-2 text-sm bg-muted/30 border border-border/50 rounded-xl outline-none focus:border-primary resize-none font-medium" />
         <div className="flex items-center gap-3">
           <div className="flex-1">
@@ -166,6 +182,8 @@ function CreateForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
             </span>)}
           </div>
         )}
+        {(suggestingTags || suggestedTags.some(tag => !tags.includes(tag))) && <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground" aria-live="polite"><Sparkles className="size-3 text-primary" /><span>{suggestingTags ? '태그 추천 중…' : '추천 태그'}</span>{suggestedTags.filter(tag => !tags.includes(tag)).map(tag => <button key={tag} type="button" onClick={() => setTags(current => current.length < 5 && !current.includes(tag) ? [...current, tag] : current)} disabled={tags.length >= 5} className="rounded-full border border-primary/30 px-2 py-1 font-bold text-primary disabled:opacity-50">+ {tag}</button>)}</div>}
+        <p className="text-[10px] text-muted-foreground">설명을 마치면 태그 추천을 위해 제목과 설명이 NVIDIA AI로 전송됩니다.</p>
         <Button onClick={submit} disabled={saving} className="w-full font-black uppercase tracking-widest">
           {saving ? '만드는 중...' : '스터디 만들기'}
         </Button>

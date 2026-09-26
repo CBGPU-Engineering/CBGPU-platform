@@ -5,10 +5,11 @@ import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
-import { Plus, Trash2, ArrowLeft, Share2, Lock, Save, Tag, X, Check } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Share2, Lock, Save, Tag, X, Check, Sparkles } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import { requestAi } from '@/lib/requestAi';
 
 // ─── types ────────────────────────────────────────────────────────────────────
 interface Note {
@@ -60,6 +61,9 @@ function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () =
   const [shared,   setShared]   = useState(note?.is_shared ?? false);
   const [tagInput, setTagInput] = useState('');
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
+  const [suggestingTags, setSuggestingTags] = useState(false);
+  const lastTagRequestRef = useRef('');
   const [view,     setView]     = useState<'edit'|'preview'>('edit');
   const autoRef = useRef<ReturnType<typeof setTimeout>|null>(null);
   const savedFlashRef = useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -98,6 +102,21 @@ function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () =
     const t = tagInput.trim();
     if (t && !tags.includes(t)) { const next = [...tags, t]; setTags(next); scheduleAutoSave(); }
     setTagInput('');
+  };
+
+  const suggestTags = async () => {
+    const signature = `${title}\n${content}`.slice(0, 500);
+    if (content.trim().length < 80 || suggestingTags || signature === lastTagRequestRef.current) return;
+    lastTagRequestRef.current = signature;
+    setSuggestingTags(true);
+    try {
+      const result = await requestAi('tags', `${title}\n${content.slice(0, 1200)}`);
+      setSuggestedTags(result.split(/[,，\n]+/).map(tag => tag.replace(/^[#\s\d.\-]+/, '').trim()).filter(tag => tag.length > 1 && tag.length <= 20 && !tags.includes(tag)).slice(0, 3));
+    } catch {
+      // Suggestions are optional; never interrupt editing or saving.
+    } finally {
+      setSuggestingTags(false);
+    }
   };
 
   // toolbar shortcuts
@@ -202,6 +221,7 @@ function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () =
         {view === 'edit' ? (
           <textarea id="note-content" value={content}
             onChange={e => { setContent(e.target.value); scheduleAutoSave(); }}
+            onBlur={suggestTags}
             placeholder={'# 연구 노트 제목\n\n내용을 입력하세요...\n\n## 마크다운 문법 지원\n- **굵게**, *기울임*, `코드`\n- # H1, ## H2, ### H3\n- > 인용, --- 구분선\n- ``` 코드 블록 ```'}
             className="flex-1 w-full resize-none px-6 py-4 text-sm font-mono bg-background outline-none leading-relaxed animate-in fade-in duration-200"
           />
@@ -222,6 +242,12 @@ function NoteEditor({ note, onBack, onSaved }: { note: Note | null; onBack: () =
         <input value={tagInput} onChange={e => setTagInput(e.target.value)}
           onKeyDown={e => (e.key === 'Enter' || e.key === ',') && (e.preventDefault(), addTag())}
           placeholder="태그 추가 (Enter)" className="text-[10px] bg-transparent outline-none font-medium text-muted-foreground placeholder:text-muted-foreground/40 w-24" />
+        {(suggestingTags || suggestedTags.length > 0) && <span className="flex basis-full flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground" aria-live="polite">
+          <Sparkles className="size-3 text-primary" />{suggestingTags ? '태그를 찾는 중…' : '추천 태그'}
+          {suggestedTags.filter(tag => !tags.includes(tag)).map(tag => <button key={tag} type="button" onClick={() => { const next = [...tags, tag]; setTags(next); setSuggestedTags(current => current.filter(item => item !== tag)); saveNow(title, content, next, shared); }} className="rounded-full border border-primary/30 px-2 py-1 font-bold text-primary hover:bg-primary/10">+ {tag}</button>)}
+          {!suggestingTags && <span>· AI 제안은 눌렀을 때만 저장돼요</span>}
+        </span>}
+        {content.trim().length >= 80 && <span className="basis-full text-[10px] text-muted-foreground">편집을 마치면 태그 추천을 위해 노트 내용이 NVIDIA AI로 전송됩니다.</span>}
       </div>
     </div>
   );

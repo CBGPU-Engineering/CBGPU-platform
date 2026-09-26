@@ -4,6 +4,7 @@ import { ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import HeadlineTrend from './HeadlineTrend';
 
 const TABS = [
   { id: 'notice',   label: '공지사항' },
@@ -74,6 +75,8 @@ export default function SchoolNews() {
           <LoadingSpinner done={justFinished} size={48} label="공지사항 불러오는 중" />
         </div>
       )}
+
+      {!loading && !justFinished && !error && <HeadlineTrend titles={items.map(item => item.title)} scope={`school:${tab}`} />}
 
       <div className={`space-y-1.5 ${loading || justFinished ? 'hidden' : ''}`}>
         {items.map((item, i) => (

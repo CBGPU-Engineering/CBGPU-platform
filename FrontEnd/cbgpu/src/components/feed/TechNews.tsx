@@ -4,6 +4,7 @@ import { RefreshCw, ExternalLink, MessageSquare, ChevronUp, Zap } from 'lucide-r
 import { Button } from '@/components/ui/button';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import HeadlineTrend from './HeadlineTrend';
 
 // ─── category config ──────────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -186,6 +187,8 @@ export default function TechNews() {
           <LoadingSpinner done={justFinished} size={48} label="뉴스 불러오는 중" />
         </div>
       )}
+
+      {!loading && !justFinished && !error && <HeadlineTrend titles={(src === 'hn' ? stories : gnNews).map(item => item.title)} scope={`tech:${src}:${cat}`} />}
 
       {/* HN stories */}
       {src === 'hn' && (

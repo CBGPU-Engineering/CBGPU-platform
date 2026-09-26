@@ -4,9 +4,10 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
 import { useAlert } from '@/lib/alert';
-import { Edit3, Save, X, RotateCcw, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Edit3, Save, X, RotateCcw, RefreshCw, AlertTriangle, Sparkles } from 'lucide-react';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import { useCachedAi } from '@/lib/useCachedAi';
 
 const DAYS    = ['월', '화', '수', '목', '금'];
 const MAX_P   = 7;
@@ -58,6 +59,12 @@ export default function TimetablePage() {
   const [source,  setSource]  = useState<'comcigan' | 'manual'>('comcigan');
   const [dbMissing, setDbMissing] = useState(false);
   const todayWd = (() => { const d = new Date().getDay(); return d === 0 ? -1 : d - 1; })();
+  const todaySubjects = todayWd >= 0 && todayWd < 5
+    ? PERIODS.map(period => grid[todayWd]?.[period]?.subject).filter(Boolean)
+    : [];
+  const todayDate = new Date().toLocaleDateString('sv-SE');
+  const prepInput = todaySubjects.length >= 2 ? `${todayDate} ${grade}학년 ${cls}반 시간표: ${todaySubjects.join(', ')}` : '';
+  const prepTip = useCachedAi('timetable', prepInput, `timetable:${grade}:${cls}:${todayDate}`, !!prepInput && !loading && !editing);
 
   const loadComcigan = useCallback(async (g: number, c: number, refresh = false) => {
     setLoading(true); setError('');
@@ -202,6 +209,8 @@ export default function TimetablePage() {
           </p>
         </div>
       )}
+
+      {prepTip && !editing && <p className="flex items-start gap-2 rounded-xl border border-primary/15 bg-primary/5 p-3 text-xs leading-relaxed"><Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" /><span><span className="font-black text-primary">오늘의 복습 힌트 · </span>{prepTip}<span className="ml-1 text-muted-foreground">과목명만 참고한 제안이에요.</span></span></p>}
 
       {loading || justFinished ? (
         <div className="py-16 flex items-center justify-center">
