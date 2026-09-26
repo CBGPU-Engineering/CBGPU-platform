@@ -34,6 +34,7 @@ interface WakeupSong {
   message: string;
   status: 'pending' | 'approved' | 'playing' | 'rejected' | 'played';
   reject_reason: string | null;
+  play_date: string;
   created_at: string;
 }
 
@@ -291,7 +292,7 @@ export default function WakeupSongPage() {
                 {song.thumbnail_url && <Image src={song.thumbnail_url} alt={song.title} width={64} height={48} className="rounded-lg object-cover shrink-0" />}
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold truncate">{song.title}</p>
-                  <p className="text-xs text-muted-foreground">신청 날짜 · {format(new Date(song.created_at), 'M/d(eee)', { locale: ko })}</p>
+                  <p className="text-xs text-muted-foreground">재생 신청 날짜 · {format(new Date(song.play_date + 'T00:00:00'), 'M/d(eee)', { locale: ko })}</p>
                   {song.spotify_url && <a href={song.spotify_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-[#1DB954] hover:underline">Spotify에서 열기</a>}
                   {song.message && <p className="text-xs text-muted-foreground truncate">&quot;{song.message}&quot;</p>}
                   {song.status === 'rejected' && song.reject_reason && (
