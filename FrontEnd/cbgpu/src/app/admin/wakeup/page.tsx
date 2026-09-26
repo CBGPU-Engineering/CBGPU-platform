@@ -51,6 +51,20 @@ export default function AdminWakeupPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
+  // 필러 곡(자동 채움)은 DB 행이 없어서 status로는 '재생 중'을 알릴 수 없다 —
+  // /wakeup이 실시간으로 지금 몇 번째 자리가 나가고 있는지 알 수 있게 같은
+  // 기숙사 채널에 브로드캐스트로 위치만 알린다.
+  const liveChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  useEffect(() => {
+    const channel = supabase.channel(`wakeup-live-${dorm}`);
+    channel.subscribe();
+    liveChannelRef.current = channel;
+    return () => { supabase.removeChannel(channel); };
+  }, [dorm]);
+  const broadcastPosition = (position: number | null) => {
+    liveChannelRef.current?.send({ type: 'broadcast', event: 'now-playing', payload: { position } });
+  };
+
   // ── 재생: 하루 정확히 8곡(모자라면 기본 기상송으로 채움), 실제로 끝까지
   // 재생된 곡만 '재생 완료'로 기록 ──────────────────────────────────────
   const playerRef = useRef<YTPlayer | null>(null);
@@ -106,6 +120,7 @@ export default function AdminWakeupPage() {
     const player = await ensurePlayer();
     player.loadVideoById(today[0].youtube_video_id);
     await setSongStatus(today[0], 'playing');
+    broadcastPosition(0);
   };
 
   const endSession = () => {
@@ -113,6 +128,7 @@ export default function AdminWakeupPage() {
     setSession(null);
     setSessionIndex(0);
     setPaused(false);
+    broadcastPosition(null);
   };
 
   // 그 자리에서 멈추는 것(정지/기숙사 전환)은 항상 지금 재생 중이던 곡을
@@ -136,6 +152,7 @@ export default function AdminWakeupPage() {
       setPaused(false);
       playerRef.current?.loadVideoById(session[nextIndex].youtube_video_id);
       await setSongStatus(session[nextIndex], 'playing');
+      broadcastPosition(nextIndex);
     } else {
       endSession();
       if (markCurrentPlayed) showSuccess('오늘 재생을 모두 마쳤어요.');
