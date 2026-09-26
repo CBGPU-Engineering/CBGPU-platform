@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/useAuth';
 import {
   Cpu, CalendarDays, BookOpen, UtensilsCrossed, Vote,
-  NotebookPen, Users, Gamepad2, Wrench, Newspaper, Server, Printer,
+  NotebookPen, Users, Gamepad2, Wrench, Newspaper, Server, Printer, Music,
 } from 'lucide-react';
 import { isNativeApp, onNativeBridgeReady } from '@/lib/nativeBridge';
 import LaunchPage from '@/components/LaunchPage';
@@ -102,6 +102,7 @@ const FEATURES = [
   { href: '/study', label: '자습신청', icon: BookOpen, color: 'text-blue-400 bg-blue-400/10' },
   { href: '/timetable', label: '시간표', icon: CalendarDays, color: 'text-indigo-400 bg-indigo-400/10' },
   { href: '/meal', label: '급식', icon: UtensilsCrossed, color: 'text-amber-400 bg-amber-400/10' },
+  { href: '/wakeup', label: '기상송', icon: Music, color: 'text-pink-400 bg-pink-400/10' },
   { href: '/polls', label: '투표', icon: Vote, color: 'text-violet-400 bg-violet-400/10' },
   { href: '/notes', label: '연구노트', icon: NotebookPen, color: 'text-teal-400 bg-teal-400/10' },
   { href: '/match', label: '스터디 매칭', icon: Users, color: 'text-sky-400 bg-sky-400/10' },

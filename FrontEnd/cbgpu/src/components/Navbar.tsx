@@ -123,7 +123,7 @@ function BottomCategoryButton({ cat, isOpen, onToggle, pathname }: {
 }
 
 export default function Navbar() {
-  const { user, profile, isAdmin, isLoading } = useAuth();
+  const { user, profile, isAdmin, isWakeupManager, isLoading } = useAuth();
   const { showError, showSuccess } = useAlert();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openCat, setOpenCat] = useState<string | null>(null);
@@ -300,6 +300,13 @@ export default function Navbar() {
                         </Link>
                       </DropdownMenuPrimitive.Item>
                     )}
+                    {isWakeupManager && (
+                      <DropdownMenuPrimitive.Item asChild>
+                        <Link href="/admin/wakeup" className="block px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-pink-500 hover:bg-pink-500/10 transition-colors outline-none">
+                          기상송 관리
+                        </Link>
+                      </DropdownMenuPrimitive.Item>
+                    )}
                     <DropdownMenuPrimitive.Item asChild>
                       <button onClick={handleLogout} className="w-full text-left px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-destructive hover:bg-destructive/10 transition-colors outline-none">
                         Sign Out
@@ -384,6 +391,11 @@ export default function Navbar() {
                 {isAdmin && (
                   <Link href="/admin" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/admin' ? 'text-orange-500' : 'text-orange-400'}`}>
                     Admin Panel
+                  </Link>
+                )}
+                {isWakeupManager && (
+                  <Link href="/admin/wakeup" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/admin/wakeup' ? 'text-pink-500' : 'text-pink-400'}`}>
+                    기상송 관리
                   </Link>
                 )}
               </div>
