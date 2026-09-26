@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     // near-identical suggestions.
     for (let attempt = 0; items.length < count && attempt < count * 5; attempt++) {
       const context = [...songs, ...items.map(item => `${item.title} — AI 추천곡`)].join(' | ') || 'none';
-      const ai = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'google/diffusiongemma-26b-a4b-it', messages: [{ role: 'system', content: 'Recommend exactly one upbeat wake-up song. Return ONLY JSON: {"title":"...","artist":"..."}. No markdown.' }, { role: 'user', content: `Already in this morning lineup: ${context}. Give one different song that complements it.` }], max_tokens: 100, stream: false }), signal: AbortSignal.timeout(25_000), cache: 'no-store' });
+      const ai = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'google/diffusiongemma-26b-a4b-it', messages: [{ role: 'system', content: 'Recommend exactly one REAL, officially released upbeat wake-up track that is available on Spotify. Never invent a title. Return ONLY JSON: {"title":"...","artist":"..."}. No markdown.' }, { role: 'user', content: `Already in this morning lineup: ${context}. Give one different song that complements it.` }], max_tokens: 100, stream: false }), signal: AbortSignal.timeout(25_000), cache: 'no-store' });
       if (!ai.ok) continue;
       const aiData = await ai.json().catch(() => null);
       const raw = aiData?.choices?.[0]?.message?.content;
@@ -45,8 +45,15 @@ export async function POST(request: NextRequest) {
         pick = Array.isArray(parsed) ? parsed[0] : parsed;
       } catch { continue; }
       if (typeof pick?.title !== 'string' || typeof pick?.artist !== 'string') continue;
-      const search = await spotifyApi(`/search?${new URLSearchParams({ q: `track:${pick.title} artist:${pick.artist}`, type: 'track', limit: '1', market: 'KR' })}`, token);
-      const track = (await search.json().catch(() => null))?.tracks?.items?.[0];
+      // Search broadly first. If the AI still hallucinates a title, use a
+      // real Spotify track by that artist instead of discarding the slot.
+      const search = await spotifyApi(`/search?${new URLSearchParams({ q: `${pick.title} ${pick.artist}`, type: 'track', limit: '1', market: 'KR' })}`, token);
+      let track = (await search.json().catch(() => null))?.tracks?.items?.[0];
+      if (!track?.uri) {
+        const artistSearch = await spotifyApi(`/search?${new URLSearchParams({ q: pick.artist, type: 'track', limit: '10', market: 'KR' })}`, token);
+        const artistTracks = (await artistSearch.json().catch(() => null))?.tracks?.items ?? [];
+        track = artistTracks.find((candidate: any) => !usedUris.has(candidate?.uri));
+      }
       if (!track?.uri || usedUris.has(track.uri)) continue;
       const yt = await fetch(`https://www.googleapis.com/youtube/v3/search?${new URLSearchParams({ part: 'snippet', type: 'video', maxResults: '1', q: `${track.name} ${track.artists?.[0]?.name ?? ''} official audio`, key: youtubeKey })}`, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
       const videoId = (await yt.json().catch(() => null))?.items?.[0]?.id?.videoId;
