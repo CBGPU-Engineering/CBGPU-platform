@@ -16,9 +16,9 @@ async function isManager(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   if (!(await isManager(request))) return NextResponse.json({ message: '기상송 담당자 권한이 필요해요.' }, { status: 403 });
-  const key = process.env.NVIDIA_API_KEY;
+  const key = process.env.GEMINI_API_KEY;
   const youtubeKey = process.env.YOUTUBE_API_KEY;
-  if (!key || !youtubeKey) return NextResponse.json({ message: 'AI 또는 YouTube 설정이 필요해요.' }, { status: 503 });
+  if (!key || !youtubeKey) return NextResponse.json({ message: 'Gemini AI 또는 YouTube 설정이 필요해요.' }, { status: 503 });
   const body = await request.json().catch(() => null);
   const count = Math.min(Math.max(Number(body?.count) || 0, 0), 8);
   const songs = Array.isArray(body?.songs) ? body.songs.slice(0, 8).map((song: unknown) => typeof song === 'string' ? song.slice(0, 160) : '').filter(Boolean) : [];
@@ -32,16 +32,27 @@ export async function POST(request: NextRequest) {
     // near-identical suggestions.
     for (let attempt = 0; items.length < count && attempt < count * 5; attempt++) {
       const context = [...songs, ...items.map(item => `${item.title} — AI 추천곡`)].join(' | ') || 'none';
-      const ai = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'google/diffusiongemma-26b-a4b-it', messages: [{ role: 'system', content: 'Recommend exactly one REAL, officially released upbeat wake-up track that is available on Spotify. Never invent a title. Return ONLY JSON: {"title":"...","artist":"..."}. No markdown.' }, { role: 'user', content: `Already in this morning lineup: ${context}. Give one different song that complements it.` }], max_tokens: 100, stream: false }), signal: AbortSignal.timeout(25_000), cache: 'no-store' });
+      const ai = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent', {
+        method: 'POST',
+        headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: 'Recommend exactly one REAL, officially released upbeat wake-up track that is available on Spotify. Never invent a title.' }] },
+          contents: [{ parts: [{ text: `Already in this morning lineup: ${context}. Give one different song that complements it.` }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseJsonSchema: { type: 'object', properties: { title: { type: 'string' }, artist: { type: 'string' } }, required: ['title', 'artist'] },
+          },
+        }),
+        signal: AbortSignal.timeout(25_000), cache: 'no-store',
+      });
       if (!ai.ok) continue;
       const aiData = await ai.json().catch(() => null);
-      const raw = aiData?.choices?.[0]?.message?.content;
+      const raw = aiData?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text ?? '').join('');
       let pick: { title?: unknown; artist?: unknown } | null = null;
       try {
         // Models sometimes still wrap a one-song answer in an array or a
         // fenced block. Accept both while never executing model output.
-        const json = typeof raw === 'string' ? raw.match(/\{[\s\S]*\}|\[[\s\S]*\]/)?.[0] : null;
-        const parsed = json ? JSON.parse(json) : null;
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : null;
         pick = Array.isArray(parsed) ? parsed[0] : parsed;
       } catch { continue; }
       if (typeof pick?.title !== 'string' || typeof pick?.artist !== 'string') continue;
