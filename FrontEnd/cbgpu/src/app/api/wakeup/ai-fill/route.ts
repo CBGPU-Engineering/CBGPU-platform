@@ -25,17 +25,21 @@ export async function POST(request: NextRequest) {
   if (!count) return NextResponse.json({ items: [] });
   try {
     const token = await getSpotifyAppToken();
-    const catalogResponse = await spotifyApi(`/tracks?${new URLSearchParams({ ids: WAKEUP_CATALOG_TRACK_IDS.join(','), market: 'KR' })}`, token);
-    if (!catalogResponse.ok) return NextResponse.json({ message: '추천곡 목록을 Spotify에서 불러오지 못했어요.' }, { status: 502 });
-    const catalog = ((await catalogResponse.json()).tracks ?? []).filter((track: any) => track?.uri && !usedUris.has(track.uri));
-    // Shuffle the approved pool so each day can use a different subset.
+    const catalog = [...WAKEUP_CATALOG_TRACK_IDS];
+    // Spotify's development mode rejects the batch /tracks endpoint but
+    // permits an individual /tracks/{id} lookup. Shuffle IDs and resolve
+    // only until the requested number of verified slots has been filled.
     for (let index = catalog.length - 1; index > 0; index--) {
       const swap = Math.floor(Math.random() * (index + 1));
       [catalog[index], catalog[swap]] = [catalog[swap], catalog[index]];
     }
     const items: any[] = [];
-    for (const track of catalog) {
+    for (const trackId of catalog) {
       if (items.length === count) break;
+      const trackResponse = await spotifyApi(`/tracks/${trackId}?market=KR`, token);
+      if (!trackResponse.ok) continue;
+      const track = await trackResponse.json().catch(() => null);
+      if (!track?.uri || usedUris.has(track.uri)) continue;
       const yt = await fetch(`https://www.googleapis.com/youtube/v3/search?${new URLSearchParams({ part: 'snippet', type: 'video', maxResults: '1', q: `${track.name} ${track.artists?.[0]?.name ?? ''} official audio`, key: youtubeKey })}`, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
       const videoId = (await yt.json().catch(() => null))?.items?.[0]?.id?.videoId;
       if (!videoId) continue;
