@@ -33,11 +33,10 @@ SPOTIFY_REDIRECT_URI=https://cbgpu.vercel.app/api/wakeup/spotify/callback
 만들기**를 눌러 자신의 Spotify 계정을 한 번 승인하면 됩니다. Spotify refresh token은
 해당 담당자 브라우저의 HTTP-only 쿠키에만 저장됩니다.
 
-관리 화면은 당일 신청곡이 8곡보다 적으면 기존 신청곡의 분위기와 아티스트를
-바탕으로 AI가 Spotify 곡을 추천해 빈 자리를 자동으로 채웁니다. 이 기능에는 기존
-`GEMINI_API_KEY`와 `YOUTUBE_API_KEY`도 필요합니다. Gemini 키는 Google AI Studio에서
-발급한 뒤 Vercel 환경 변수에도 추가하세요. AI 추천곡 역시 Spotify에서
-확인한 뒤 YouTube 재생용 영상만 별도로 매칭하므로, 신청곡의 기준은 Spotify입니다.
+관리 화면에서 당일 신청곡이 8곡보다 적을 때 **나머지 곡들 채우기**를 누르면,
+운영자가 지정한 Spotify 곡 목록에서 중복되지 않는 곡을 선택합니다. 이 기능에는
+`YOUTUBE_API_KEY`도 필요합니다. 각 곡은 Spotify에서 확인한 뒤 YouTube 재생용
+영상만 별도로 매칭하므로, 신청곡의 기준은 Spotify입니다.
 
 ## 3. Supabase SQL
 

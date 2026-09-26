@@ -62,6 +62,7 @@ export default function AdminWakeupPage() {
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [aiFillers, setAiFillers] = useState<any[]>([]);
   const [fillingSongs, setFillingSongs] = useState(false);
+  const [fillProgress, setFillProgress] = useState<{ done: number; total: number } | null>(null);
   const [legacyDeleteOpen, setLegacyDeleteOpen] = useState(false);
   const [deletingLegacy, setDeletingLegacy] = useState(false);
 
@@ -201,12 +202,29 @@ export default function AdminWakeupPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return [];
     setFillingSongs(true);
-    const response = await fetch('/api/wakeup/ai-fill', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ count: needed, songs: todayLineup.map(song => `${song.title} — ${song.channel_title ?? ''}`) }) });
-    const data = await response.json().catch(() => null);
+    const items: any[] = aiFillers.slice(0, needed);
+    setFillProgress({ done: items.length, total: needed });
+    for (let index = items.length; index < needed; index++) {
+      const response = await fetch('/api/wakeup/ai-fill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ count: 1, usedUris: [...todayLineup, ...items].map(song => song.spotify_uri).filter((uri): uri is string => typeof uri === 'string') }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        setFillingSongs(false);
+        setFillProgress(null);
+        showError(data?.message || 'AI 추천곡 생성에 실패했어요.');
+        return items;
+      }
+      const item = data?.items?.[0];
+      if (!item) break;
+      items.push(item);
+      setAiFillers([...items]);
+      setFillProgress({ done: items.length, total: needed });
+    }
     setFillingSongs(false);
-    if (!response.ok) { showError(data?.message || 'AI 추천곡 생성에 실패했어요.'); return []; }
-    const items = data?.items ?? [];
-    setAiFillers(items);
+    setFillProgress(null);
     if (items.length !== needed) showError(`${needed}곡 중 ${items.length}곡만 준비됐어요. 다시 눌러 남은 곡을 채워 주세요.`);
     return items;
   };
@@ -288,11 +306,12 @@ export default function AdminWakeupPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={generateAiFillers} disabled={fillingSongs || queue.length >= SONGS_PER_DAY} className="flex-1"><ListPlus className="size-4 mr-1.5" />{fillingSongs ? 'AI 추천 중...' : '나머지 곡들 채우기'}</Button>
+          <Button variant="secondary" onClick={generateAiFillers} disabled={fillingSongs || queue.length >= SONGS_PER_DAY} className="flex-1"><ListPlus className="size-4 mr-1.5" />{fillingSongs ? `추천곡 확인 중 (${fillProgress?.done ?? 0}/${fillProgress?.total ?? 0})` : '나머지 곡들 채우기'}</Button>
           <Button variant="secondary" onClick={createSpotifyPlaylist} disabled={creatingPlaylist} className="flex-1"><ListPlus className="size-4 mr-1.5" />{creatingPlaylist ? 'Spotify 생성 중...' : 'Spotify 플레이리스트 만들기'}</Button>
           {playlistUrl && <Button asChild variant="secondary"><a href={playlistUrl} target="_blank" rel="noreferrer"><ExternalLink className="size-4 mr-1.5" />링크 열기</a></Button>}
         </div>
-        {aiFillers.length > 0 && <p className="text-xs text-[#1DB954] font-medium">신청곡을 바탕으로 AI가 {aiFillers.length}곡을 자동 추천해 채웠어요.</p>}
+        {aiFillers.length > 0 && <p className="text-xs text-[#1DB954] font-medium">지정한 추천곡 목록에서 {aiFillers.length}곡을 자동으로 채웠어요.</p>}
+        {fillingSongs && <p className="text-xs text-muted-foreground">지정한 추천곡 목록에서 Spotify와 YouTube를 한 곡씩 확인하고 있어요. 잠시만 기다려 주세요.</p>}
 
         <div id="wakeup-yt-player" className={nowPlaying ? 'rounded-2xl overflow-hidden' : 'hidden'} />
 

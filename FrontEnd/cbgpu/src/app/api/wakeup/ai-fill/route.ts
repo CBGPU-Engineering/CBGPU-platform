@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSpotifyAppToken, spotifyApi } from '@/lib/spotify';
+import { WAKEUP_CATALOG_TRACK_IDS } from '@/lib/wakeupCatalog';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,56 +17,25 @@ async function isManager(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   if (!(await isManager(request))) return NextResponse.json({ message: '기상송 담당자 권한이 필요해요.' }, { status: 403 });
-  const key = process.env.GEMINI_API_KEY;
   const youtubeKey = process.env.YOUTUBE_API_KEY;
-  if (!key || !youtubeKey) return NextResponse.json({ message: 'Gemini AI 또는 YouTube 설정이 필요해요.' }, { status: 503 });
+  if (!youtubeKey) return NextResponse.json({ message: 'YouTube 설정이 필요해요.' }, { status: 503 });
   const body = await request.json().catch(() => null);
   const count = Math.min(Math.max(Number(body?.count) || 0, 0), 8);
-  const songs = Array.isArray(body?.songs) ? body.songs.slice(0, 8).map((song: unknown) => typeof song === 'string' ? song.slice(0, 160) : '').filter(Boolean) : [];
+  const usedUris = new Set(Array.isArray(body?.usedUris) ? body.usedUris.filter((uri: unknown): uri is string => typeof uri === 'string') : []);
   if (!count) return NextResponse.json({ items: [] });
   try {
     const token = await getSpotifyAppToken();
+    const catalogResponse = await spotifyApi(`/tracks?${new URLSearchParams({ ids: WAKEUP_CATALOG_TRACK_IDS.join(','), market: 'KR' })}`, token);
+    if (!catalogResponse.ok) return NextResponse.json({ message: '추천곡 목록을 Spotify에서 불러오지 못했어요.' }, { status: 502 });
+    const catalog = ((await catalogResponse.json()).tracks ?? []).filter((track: any) => track?.uri && !usedUris.has(track.uri));
+    // Shuffle the approved pool so each day can use a different subset.
+    for (let index = catalog.length - 1; index > 0; index--) {
+      const swap = Math.floor(Math.random() * (index + 1));
+      [catalog[index], catalog[swap]] = [catalog[swap], catalog[index]];
+    }
     const items: any[] = [];
-    const usedUris = new Set<string>();
-    // One recommendation at a time: each accepted song becomes context for
-    // the next request, keeping the final eight varied rather than a batch of
-    // near-identical suggestions.
-    for (let attempt = 0; items.length < count && attempt < count * 5; attempt++) {
-      const context = [...songs, ...items.map(item => `${item.title} — AI 추천곡`)].join(' | ') || 'none';
-      const ai = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent', {
-        method: 'POST',
-        headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: 'Recommend exactly one REAL, officially released upbeat wake-up track that is available on Spotify. Never invent a title.' }] },
-          contents: [{ parts: [{ text: `Already in this morning lineup: ${context}. Give one different song that complements it.` }] }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseJsonSchema: { type: 'object', properties: { title: { type: 'string' }, artist: { type: 'string' } }, required: ['title', 'artist'] },
-          },
-        }),
-        signal: AbortSignal.timeout(25_000), cache: 'no-store',
-      });
-      if (!ai.ok) continue;
-      const aiData = await ai.json().catch(() => null);
-      const raw = aiData?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text ?? '').join('');
-      let pick: { title?: unknown; artist?: unknown } | null = null;
-      try {
-        // Models sometimes still wrap a one-song answer in an array or a
-        // fenced block. Accept both while never executing model output.
-        const parsed = typeof raw === 'string' ? JSON.parse(raw) : null;
-        pick = Array.isArray(parsed) ? parsed[0] : parsed;
-      } catch { continue; }
-      if (typeof pick?.title !== 'string' || typeof pick?.artist !== 'string') continue;
-      // Search broadly first. If the AI still hallucinates a title, use a
-      // real Spotify track by that artist instead of discarding the slot.
-      const search = await spotifyApi(`/search?${new URLSearchParams({ q: `${pick.title} ${pick.artist}`, type: 'track', limit: '1', market: 'KR' })}`, token);
-      let track = (await search.json().catch(() => null))?.tracks?.items?.[0];
-      if (!track?.uri) {
-        const artistSearch = await spotifyApi(`/search?${new URLSearchParams({ q: pick.artist, type: 'track', limit: '10', market: 'KR' })}`, token);
-        const artistTracks = (await artistSearch.json().catch(() => null))?.tracks?.items ?? [];
-        track = artistTracks.find((candidate: any) => !usedUris.has(candidate?.uri));
-      }
-      if (!track?.uri || usedUris.has(track.uri)) continue;
+    for (const track of catalog) {
+      if (items.length === count) break;
       const yt = await fetch(`https://www.googleapis.com/youtube/v3/search?${new URLSearchParams({ part: 'snippet', type: 'video', maxResults: '1', q: `${track.name} ${track.artists?.[0]?.name ?? ''} official audio`, key: youtubeKey })}`, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
       const videoId = (await yt.json().catch(() => null))?.items?.[0]?.id?.videoId;
       if (!videoId) continue;
