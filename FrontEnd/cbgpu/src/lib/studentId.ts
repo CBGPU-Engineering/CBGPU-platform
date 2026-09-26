@@ -7,3 +7,12 @@ export function isValidStudentId(value: string): boolean {
 }
 
 export const STUDENT_ID_HINT = '학번 4자리 (예: 2309 = 2학년 3반 9번)';
+
+/** 학번 앞 두 자리에서 학년/반을 뽑는다. 형식이 아니면 null. */
+export function parseStudentGradeClass(studentId?: string | null): { grade: number; cls: number } | null {
+  if (!studentId || studentId.length < 2) return null;
+  const grade = +studentId[0];
+  const cls = +studentId[1];
+  if (grade < 1 || grade > 3 || cls < 1) return null;
+  return { grade, cls };
+}
