@@ -64,6 +64,8 @@ alter table wakeup_songs alter column youtube_video_id drop not null;
 alter table wakeup_songs add column if not exists spotify_track_id text;
 alter table wakeup_songs add column if not exists spotify_uri text;
 alter table wakeup_songs add column if not exists spotify_url text;
+create index if not exists wakeup_songs_recent_spotify_idx on wakeup_songs (created_at desc)
+  where spotify_uri is not null and status in ('approved', 'playing', 'played');
 
 -- One shareable Spotify playlist link per dorm and morning.
 create table if not exists wakeup_playlists (
