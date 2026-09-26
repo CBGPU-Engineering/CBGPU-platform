@@ -37,7 +37,13 @@ export async function POST(request: NextRequest) {
       const aiData = await ai.json().catch(() => null);
       const raw = aiData?.choices?.[0]?.message?.content;
       let pick: { title?: unknown; artist?: unknown } | null = null;
-      try { pick = typeof raw === 'string' ? JSON.parse(raw.replace(/^```json\s*|\s*```$/g, '')) : null; } catch { continue; }
+      try {
+        // Models sometimes still wrap a one-song answer in an array or a
+        // fenced block. Accept both while never executing model output.
+        const json = typeof raw === 'string' ? raw.match(/\{[\s\S]*\}|\[[\s\S]*\]/)?.[0] : null;
+        const parsed = json ? JSON.parse(json) : null;
+        pick = Array.isArray(parsed) ? parsed[0] : parsed;
+      } catch { continue; }
       if (typeof pick?.title !== 'string' || typeof pick?.artist !== 'string') continue;
       const search = await spotifyApi(`/search?${new URLSearchParams({ q: `track:${pick.title} artist:${pick.artist}`, type: 'track', limit: '1', market: 'KR' })}`, token);
       const track = (await search.json().catch(() => null))?.tracks?.items?.[0];
