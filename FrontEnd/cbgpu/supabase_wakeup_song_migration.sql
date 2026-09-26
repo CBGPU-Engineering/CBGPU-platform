@@ -42,7 +42,7 @@ create table if not exists wakeup_songs (
   thumbnail_url text,
   message text default '',
   status text not null default 'approved'
-    check (status in ('pending', 'approved', 'rejected', 'played')),
+    check (status in ('pending', 'approved', 'playing', 'rejected', 'played')),
   reject_reason text,
   played_at timestamptz,
   created_at timestamptz not null default now()
