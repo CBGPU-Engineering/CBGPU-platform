@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import { format, addDays, startOfDay, isSameDay } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { useAlert } from '@/lib/alert';
@@ -9,11 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
-import { Music, Send, History, Search } from 'lucide-react';
+import { Music, Send, History, Search, Trash2 } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 const DORMS = ['청운학사', '사름학사'] as const;
 type Dorm = typeof DORMS[number];
 const DORM_KEY = 'cbgpu.wakeup.dorm';
+const NEXT_14_DAYS = Array.from({ length: 14 }, (_, i) => addDays(startOfDay(new Date()), i));
 
 interface SearchResult { videoId: string; title: string; channelTitle: string; thumbnailUrl: string }
 
@@ -51,6 +55,9 @@ export default function WakeupSongPage() {
     try { localStorage.setItem(DORM_KEY, value); } catch { /* best-effort only */ }
   };
 
+  const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
+  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -67,7 +74,7 @@ export default function WakeupSongPage() {
     if (!user) return;
     const [mineRes, queueRes] = await Promise.all([
       supabase.from('wakeup_songs').select('*').eq('user_id', user.id).eq('dorm', dorm).order('created_at', { ascending: false }).limit(20),
-      supabase.from('wakeup_songs').select('*').eq('dorm', dorm).eq('status', 'approved').order('created_at', { ascending: true }),
+      supabase.from('wakeup_songs').select('*').eq('dorm', dorm).eq('status', 'approved').eq('play_date', selectedDateStr).order('created_at', { ascending: true }),
     ]);
     if (!mineRes.error) setMyRequests(mineRes.data || []);
     if (!queueRes.error) setQueue(queueRes.data || []);
@@ -83,7 +90,7 @@ export default function WakeupSongPage() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, dorm]);
+  }, [user?.id, dorm, selectedDateStr]);
 
   // 검색어를 입력하면 잠깐 뒤에 유튜브에서 찾아 목록으로 보여준다 — 링크를 직접
   // 찾아 붙여넣을 필요 없이 바로 골라서 신청할 수 있게.
@@ -104,6 +111,16 @@ export default function WakeupSongPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  const [deleteTarget, setDeleteTarget] = useState<WakeupSong | null>(null);
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.from('wakeup_songs').delete().eq('id', deleteTarget.id);
+    setDeleteTarget(null);
+    if (error) { showError('삭제 실패: ' + error.message); return; }
+    showSuccess('신청을 삭제했어요.');
+    fetchAll();
+  };
+
   const selectResult = (result: SearchResult) => {
     setPreview(result);
     setSearchQuery('');
@@ -120,6 +137,7 @@ export default function WakeupSongPage() {
     const { error } = await supabase.from('wakeup_songs').insert({
       user_id: user.id,
       dorm,
+      play_date: selectedDateStr,
       youtube_video_id: preview.videoId,
       title: preview.title,
       channel_title: preview.channelTitle,
@@ -128,7 +146,7 @@ export default function WakeupSongPage() {
     });
     setSubmitting(false);
     if (error) { showError('신청 실패: ' + error.message); return; }
-    showSuccess('기상송 신청이 완료됐어요! 관리자 승인 후 대기열에 올라가요.');
+    showSuccess(`${format(selectedDate, 'M/d(eee)', { locale: ko })} 대기열에 바로 올라갔어요!`);
     setMessage('');
     setPreview(null);
     fetchAll();
@@ -143,7 +161,7 @@ export default function WakeupSongPage() {
       <div className="space-y-3">
         <div className="space-y-1">
           <h1 className="text-3xl font-black italic tracking-tighter">기상송 신청</h1>
-          <p className="text-sm text-muted-foreground font-medium">듣고 싶은 노래를 신청하면, 승인 후 아침 대기열에 올라가요.</p>
+          <p className="text-sm text-muted-foreground font-medium">듣고 싶은 노래를 신청하면 바로 그날 아침 대기열에 올라가요.</p>
         </div>
         <SegmentedTabs items={DORMS.map(d => ({ value: d, label: d }))} value={dorm} onChange={changeDorm} />
       </div>
@@ -152,11 +170,11 @@ export default function WakeupSongPage() {
       <div className="rounded-[28px] border border-primary/15 bg-card p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Music className="size-5 text-primary" />
-          <h2 className="text-lg font-black">{dorm} 대기열</h2>
+          <h2 className="text-lg font-black">{dorm} · {format(selectedDate, 'M/d(eee)', { locale: ko })} 대기열</h2>
           <Badge variant="default">{queue.length}곡</Badge>
         </div>
         {queue.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">대기열이 비어 있어요. 신청곡이 승인되면 여기 쌓여요.</p>
+          <p className="text-sm text-muted-foreground text-center py-4">이 날짜엔 아직 신청곡이 없어요.</p>
         ) : (
           <ul className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
             {queue.map((song, i) => (
@@ -172,6 +190,28 @@ export default function WakeupSongPage() {
       {/* ── 신청 폼 ──────────────────────────────────────────────────── */}
       <form onSubmit={handleSubmit} className="rounded-[28px] border border-border/60 bg-card p-5 space-y-4">
         <div className="flex items-center gap-2"><Send className="size-5 text-primary" /><h2 className="text-lg font-black">{dorm}에 신청하기</h2></div>
+
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">틀어줄 날짜</label>
+          <div className="flex gap-1.5 overflow-x-auto py-1 -mx-1 px-1">
+            {NEXT_14_DAYS.map((day, i) => {
+              const isSelected = isSameDay(day, selectedDate);
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setSelectedDate(day)}
+                  className={`flex flex-col items-center gap-0.5 shrink-0 px-2.5 py-1.5 rounded-xl border text-center transition-all active:scale-95 ${
+                    isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-border/50 hover:bg-muted/30'
+                  }`}
+                >
+                  <span className="text-[9px] font-bold opacity-70">{i === 0 ? '오늘' : i === 1 ? '내일' : format(day, 'eee', { locale: ko })}</span>
+                  <span className="text-xs font-black">{format(day, 'M/d')}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {preview ? (
           <div className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3">
@@ -243,11 +283,21 @@ export default function WakeupSongPage() {
                   )}
                 </div>
                 <Badge variant={STATUS_BADGE[song.status].variant}>{STATUS_BADGE[song.status].label}</Badge>
+                <Button size="icon-sm" variant="ghost" onClick={() => setDeleteTarget(song)} aria-label="신청 삭제"><Trash2 className="size-4 text-destructive" /></Button>
               </li>
             ))}
           </ul>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="신청을 삭제할까요?"
+        description={deleteTarget ? `"${deleteTarget.title}" 신청을 삭제합니다. 이 작업은 되돌릴 수 없어요.` : ''}
+        confirmLabel="삭제"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
