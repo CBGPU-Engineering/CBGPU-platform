@@ -48,6 +48,15 @@ create table if not exists wakeup_songs (
   created_at timestamptz not null default now()
 );
 
+-- The inline check above only ever applies at table-creation time — once
+-- the table exists, re-running this file with a wider allowed-values list
+-- (e.g. adding 'playing') does nothing to the already-existing constraint.
+-- Drop and recreate it explicitly every time so this file stays safely
+-- re-runnable as the status list grows.
+alter table wakeup_songs drop constraint if exists wakeup_songs_status_check;
+alter table wakeup_songs add constraint wakeup_songs_status_check
+  check (status in ('pending', 'approved', 'playing', 'rejected', 'played'));
+
 create index if not exists wakeup_songs_status_idx on wakeup_songs (dorm, play_date, status);
 
 alter table wakeup_songs enable row level security;
