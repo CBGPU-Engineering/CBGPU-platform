@@ -19,6 +19,17 @@ const _siteUrl = 'https://cbgpu.vercel.app/';
 const _siteHost = 'cbgpu.vercel.app';
 const _bridgeChannel = 'CBGPUNativeChannel';
 
+/// Tags every URL we load with `?native=1` so the site can tell it's running
+/// inside this app from its very first synchronous render — before the JS
+/// bridge script even gets injected (that only happens once the page finishes
+/// loading). Without this hint, the site had no fast way to know "wait for a
+/// possible native session restore" vs. "this browser really has no session",
+/// so it would flash (or get stuck on) a "please log in" screen while the
+/// getPersistedSession fallback was still in flight.
+Uri _withNativeFlag(Uri uri) {
+  return uri.replace(queryParameters: {...uri.queryParameters, 'native': '1'});
+}
+
 /// Injected into the page once it finishes loading. Gives the web app a
 /// promise-based `window.CBGPUNative` bridge into the native alarm layer —
 /// the "connector" between the webview and Supabase-backed alarm scheduling
@@ -118,9 +129,11 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
         ),
       )
       ..loadRequest(
-        initialPath == null
-            ? Uri.parse(_siteUrl)
-            : Uri.parse(_siteUrl).resolve(initialPath),
+        _withNativeFlag(
+          initialPath == null
+              ? Uri.parse(_siteUrl)
+              : Uri.parse(_siteUrl).resolve(initialPath),
+        ),
       );
 
     // Widget data needs a Supabase session, which only arrives once the
@@ -147,7 +160,7 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
     final path = pendingWidgetPath.value;
     if (path == null) return;
     pendingWidgetPath.value = null;
-    _controller.loadRequest(Uri.parse(_siteUrl).resolve(path));
+    _controller.loadRequest(_withNativeFlag(Uri.parse(_siteUrl).resolve(path)));
   }
 
   Future<NavigationDecision> _handleNavigationRequest(
