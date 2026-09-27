@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { format } from 'date-fns';
+import { addDays, format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ShieldAlert, X, Play, Pause, Square, SkipForward, ListMusic, ExternalLink, ListPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,9 @@ const DORM_KEY = 'cbgpu.admin.wakeup.dorm';
 
 function todayStr() {
   return format(new Date(), 'yyyy-MM-dd');
+}
+function tomorrowStr() {
+  return format(addDays(new Date(), 1), 'yyyy-MM-dd');
 }
 
 export default function AdminWakeupPage() {
@@ -48,11 +51,13 @@ export default function AdminWakeupPage() {
 
   const [queue, setQueue] = useState<any[]>([]);
   const [todayLineup, setTodayLineup] = useState<any[]>([]);
+  const [tomorrowLineup, setTomorrowLineup] = useState<any[]>([]);
   const [allApproved, setAllApproved] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
+  const [tomorrowPlaylistUrl, setTomorrowPlaylistUrl] = useState<string | null>(null);
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [aiFillers, setAiFillers] = useState<any[]>([]);
   const [fillingSongs, setFillingSongs] = useState(false);
@@ -180,12 +185,15 @@ export default function AdminWakeupPage() {
   // 화면에 보여주는 "오늘 신청곡 N곡"과 목록은 이미 재생을 마쳤어도 사라지면
   // 안 되기 때문.
   const fetchAll = async () => {
-    const [approvedRes, todayRes, allRes] = await Promise.all([
+    const [approvedRes, todayRes, tomorrowRes, allRes] = await Promise.all([
       supabase.from('wakeup_songs').select('*, profiles:user_id (full_name, student_id)')
         .eq('dorm', dorm).eq('status', 'approved').eq('play_date', todayStr())
         .order('created_at', { ascending: true }),
       supabase.from('wakeup_songs').select('*, profiles:user_id (full_name, student_id)')
         .eq('dorm', dorm).in('status', ['approved', 'playing', 'played']).eq('play_date', todayStr())
+        .order('created_at', { ascending: true }),
+      supabase.from('wakeup_songs').select('*')
+        .eq('dorm', dorm).in('status', ['approved', 'playing', 'played']).eq('play_date', tomorrowStr())
         .order('created_at', { ascending: true }),
       supabase.from('wakeup_songs').select('*, profiles:user_id (full_name, student_id)')
         .eq('dorm', dorm).eq('status', 'approved')
@@ -193,9 +201,14 @@ export default function AdminWakeupPage() {
     ]);
     if (!approvedRes.error) setQueue(approvedRes.data || []);
     if (!todayRes.error) setTodayLineup(todayRes.data || []);
+    if (!tomorrowRes.error) setTomorrowLineup(tomorrowRes.data || []);
     if (!allRes.error) setAllApproved(allRes.data || []);
-    const { data: playlist } = await supabase.from('wakeup_playlists').select('spotify_playlist_url').eq('dorm', dorm).eq('play_date', todayStr()).maybeSingle();
+    const [{ data: playlist }, { data: tomorrowPlaylist }] = await Promise.all([
+      supabase.from('wakeup_playlists').select('spotify_playlist_url').eq('dorm', dorm).eq('play_date', todayStr()).maybeSingle(),
+      supabase.from('wakeup_playlists').select('spotify_playlist_url').eq('dorm', dorm).eq('play_date', tomorrowStr()).maybeSingle(),
+    ]);
     setPlaylistUrl(playlist?.spotify_playlist_url ?? null);
+    setTomorrowPlaylistUrl(tomorrowPlaylist?.spotify_playlist_url ?? null);
     setLoading(false);
   };
 
@@ -259,6 +272,30 @@ export default function AdminWakeupPage() {
     showSuccess('Spotify 플레이리스트 링크를 만들었어요.');
   };
 
+  const createTomorrowPlaylist = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { showError('로그인이 필요해요.'); return; }
+    let fillers: any[] = [];
+    const needed = Math.max(0, SONGS_PER_DAY - tomorrowLineup.length);
+    if (needed) {
+      const fillResponse = await fetch('/api/wakeup/ai-fill', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ count: needed, usedUris: tomorrowLineup.map(song => song.spotify_uri).filter((uri): uri is string => typeof uri === 'string') }) });
+      const fillData = await fillResponse.json().catch(() => null);
+      if (!fillResponse.ok) { showError(fillData?.message || '내일 추천곡을 채우지 못했어요.'); return; }
+      fillers = fillData?.items ?? [];
+    }
+    const tracks = [...tomorrowLineup, ...fillers].slice(0, SONGS_PER_DAY).map(song => song.spotify_uri).filter((uri): uri is string => typeof uri === 'string');
+    if (tracks.length !== SONGS_PER_DAY) { showError(`내일 플레이리스트도 정확히 ${SONGS_PER_DAY}곡이 필요해요.`); return; }
+    setCreatingPlaylist(true);
+    const response = await fetch('/api/wakeup/spotify/playlist', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ name: `${dorm} 기상송 · ${format(addDays(new Date(), 1), 'M월 d일', { locale: ko })}`, tracks }) });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data?.url) { setCreatingPlaylist(false); if (response.status === 401) { window.location.assign('/api/wakeup/spotify/connect'); return; } showError(data?.message || '내일 플레이리스트 생성에 실패했어요.'); return; }
+    const { error } = await supabase.from('wakeup_playlists').upsert({ dorm, play_date: tomorrowStr(), spotify_playlist_id: data.id, spotify_playlist_url: data.url, created_by: user?.id }, { onConflict: 'dorm,play_date' });
+    setCreatingPlaylist(false);
+    if (error) { showError(`내일 링크 저장 실패: ${error.message}`); return; }
+    setTomorrowPlaylistUrl(data.url);
+    showSuccess('내일 Spotify 플레이리스트 링크를 만들었어요.');
+  };
+
   const deleteLegacyRequests = async () => {
     setDeletingLegacy(true);
     const { error } = await supabase.from('wakeup_songs').delete().is('spotify_uri', null);
@@ -315,6 +352,19 @@ export default function AdminWakeupPage() {
             ))}
         </ul>
 
+      </section>
+
+      <section className="rounded-[28px] border border-primary/15 bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <ListMusic className="size-5 text-primary" />
+          <h2 className="text-lg font-black">{dorm} 내일 재생</h2>
+          <Badge variant="default">총 {Math.min(SONGS_PER_DAY, tomorrowLineup.length)}/{SONGS_PER_DAY}곡</Badge>
+        </div>
+        <p className="text-xs text-muted-foreground">내일 아침용 플레이리스트를 미리 생성할 수 있어요.</p>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={createTomorrowPlaylist} disabled={creatingPlaylist} className="flex-1"><ListPlus className="size-4 mr-1.5" />{creatingPlaylist ? 'Spotify 생성 중...' : '내일 플레이리스트 만들기'}</Button>
+          {tomorrowPlaylistUrl && <Button asChild variant="secondary"><a href={tomorrowPlaylistUrl} target="_blank" rel="noreferrer"><ExternalLink className="size-4 mr-1.5" />생성된 플레이리스트 열기</a></Button>}
+        </div>
       </section>
 
       <section className="space-y-3">
