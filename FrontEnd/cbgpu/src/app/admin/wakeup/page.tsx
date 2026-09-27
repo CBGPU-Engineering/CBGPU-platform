@@ -14,7 +14,7 @@ import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import { supabase } from '@/lib/supabase';
 import { loadYoutubeIframeApi, type YTPlayer } from '@/lib/youtubePlayer';
-import { SONGS_PER_DAY } from '@/lib/wakeupFiller';
+import { SONGS_PER_DAY, arrangeLineup } from '@/lib/wakeupFiller';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 const DORMS = ['청운학사', '사름학사'] as const;
@@ -114,7 +114,7 @@ export default function AdminWakeupPage() {
 
   const startSession = async () => {
     const fillers = await generateAiFillers();
-    const lineup = [...queue.slice(0, SONGS_PER_DAY), ...fillers].slice(0, SONGS_PER_DAY);
+    const lineup = arrangeLineup(queue, fillers);
     const today: any[] = [];
     let unresolvedTitle = '';
     for (const song of lineup) {
@@ -249,7 +249,7 @@ export default function AdminWakeupPage() {
 
   const createSpotifyPlaylist = async () => {
     const fillers = await generateAiFillers();
-    const tracks = [...todayLineup.slice(0, SONGS_PER_DAY), ...fillers].slice(0, SONGS_PER_DAY).map(song => song.spotify_uri).filter((uri): uri is string => typeof uri === 'string');
+    const tracks = arrangeLineup(todayLineup, fillers).map(song => song.spotify_uri).filter((uri): uri is string => typeof uri === 'string');
     if (tracks.length !== SONGS_PER_DAY) { showError(`플레이리스트는 하루 정확히 ${SONGS_PER_DAY}곡이 준비된 뒤 만들 수 있어요.`); return; }
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { showError('로그인이 필요해요.'); return; }
@@ -283,7 +283,7 @@ export default function AdminWakeupPage() {
       if (!fillResponse.ok) { showError(fillData?.message || '내일 추천곡을 채우지 못했어요.'); return; }
       fillers = fillData?.items ?? [];
     }
-    const tracks = [...tomorrowLineup, ...fillers].slice(0, SONGS_PER_DAY).map(song => song.spotify_uri).filter((uri): uri is string => typeof uri === 'string');
+    const tracks = arrangeLineup(tomorrowLineup, fillers).map(song => song.spotify_uri).filter((uri): uri is string => typeof uri === 'string');
     if (tracks.length !== SONGS_PER_DAY) { showError(`내일 플레이리스트도 정확히 ${SONGS_PER_DAY}곡이 필요해요.`); return; }
     setCreatingPlaylist(true);
     const response = await fetch('/api/wakeup/spotify/playlist', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ name: `${dorm} 기상송 · ${format(addDays(new Date(), 1), 'M월 d일', { locale: ko })}`, tracks }) });
@@ -344,7 +344,7 @@ export default function AdminWakeupPage() {
         {fillingSongs && <p className="text-xs text-muted-foreground">지정한 Spotify 추천곡 목록에서 빈자리를 채우고 있어요. 잠시만 기다려 주세요.</p>}
 
         <ul className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
-            {[...todayLineup.slice(0, SONGS_PER_DAY), ...aiFillers].slice(0, SONGS_PER_DAY).map((song, i) => (
+            {arrangeLineup(todayLineup, aiFillers).map((song, i) => (
               <li key={song.id ?? song._key} className="flex items-center gap-2 text-xs p-2 rounded-lg">
                 <span className="text-muted-foreground font-black w-4 shrink-0">{i + 1}</span>
                 <span className={`truncate flex-1 font-semibold ${song.isFiller ? 'text-muted-foreground italic' : ''}`}>{song.title}</span>
