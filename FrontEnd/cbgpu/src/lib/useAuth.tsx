@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
-import { getNativeBridge, onNativeBridgeReady } from '@/lib/nativeBridge';
+import { getNativeBridge, onNativeBridgeReady, isNativeAppHint } from '@/lib/nativeBridge';
 
 type AuthContextType = {
   user: User | null;
@@ -72,12 +72,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    // supabase-js fires onAuthStateChange immediately with whatever's in this
+    // WebView's OWN localStorage (often nothing, right after an app restart —
+    // that storage doesn't reliably survive one). Inside the native app we
+    // hold off declaring "logged out" (isLoading stays true) until the
+    // native-session fallback below has had its chance, instead of flashing
+    // (or, if that fallback is slow, getting stuck on) AuthGate's "please log
+    // in" screen a moment before the real session comes back. isNativeAppHint
+    // is readable synchronously (via the ?native=1 the app's WebView always
+    // loads with) unlike isNativeApp(), which needs the JS bridge script that
+    // only gets injected once the page finishes loading.
+    const nativeHint = isNativeAppHint();
+    let resolved = false;
+    const resolveLoading = () => {
+      if (resolved) return;
+      resolved = true;
+      setIsLoading(false);
+    };
+    // Never wait forever — an old app build, a slow bridge injection, or a
+    // genuinely session-less install should still land on the login screen
+    // rather than spin indefinitely.
+    const fallbackTimeout = nativeHint ? setTimeout(resolveLoading, 4000) : null;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
-      // Resolve loading immediately so the navbar always renders
-      setIsLoading(false);
+      if (currentUser || !nativeHint || resolved) {
+        resolveLoading();
+      }
 
       // Fetch profile in the background after auth state is known
       if (currentUser) {
@@ -104,31 +127,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // finishes loading, which can land after the auth listener above has
     // already fired once — cover that race by syncing again once it's ready.
     const unsubscribeBridge = onNativeBridgeReady(async (bridge) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        bridge.syncSession({ accessToken: session.access_token, refreshToken: session.refresh_token });
-        return;
-      }
-      // This WebView's own localStorage session didn't survive (app
-      // restarts don't reliably keep it) — fall back to the native app's
-      // own Supabase session, which supabase_flutter persists on its own,
-      // so the user isn't forced to log in again every time they reopen it.
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          bridge.syncSession({ accessToken: session.access_token, refreshToken: session.refresh_token });
+          return;
+        }
+        // This WebView's own localStorage session didn't survive (app
+        // restarts don't reliably keep it) — fall back to the native app's
+        // own Supabase session, which supabase_flutter persists on its own,
+        // so the user isn't forced to log in again every time they reopen it.
         const { session: persisted } = await bridge.getPersistedSession();
         if (persisted) {
+          // Triggers onAuthStateChange again with the restored user, which
+          // resolves loading via the `currentUser` branch above.
           await supabase.auth.setSession({
             access_token: persisted.accessToken,
             refresh_token: persisted.refreshToken,
           });
         }
       } catch {
-        // Older app build without this bridge action — just stays logged out.
+        // Older app build without this bridge action, or the persisted
+        // refresh token was rejected — just stays logged out.
+      } finally {
+        resolveLoading();
       }
     });
 
     return () => {
       subscription.unsubscribe();
       unsubscribeBridge();
+      if (fallbackTimeout) clearTimeout(fallbackTimeout);
     };
   }, []);
 

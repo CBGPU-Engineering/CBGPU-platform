@@ -63,6 +63,27 @@ export function isNativeApp(): boolean {
 }
 
 /**
+ * True as soon as the very first script on the page runs, well before
+ * `isNativeApp()` can be (the app only injects `window.CBGPUNative` once its
+ * WebView finishes loading — this reads the `?native=1` the app's WebView
+ * always loads pages with instead). Used to decide "should I hold off
+ * declaring the visitor logged-out until the native-session restore has had
+ * a chance to run" — without it, a cold app start whose WebView-local
+ * localStorage session didn't survive would flash (or, if that restore is
+ * slow, get stuck on) a "please log in" screen even though the native app
+ * actually has a session to restore.
+ */
+export function isNativeAppHint(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (window.CBGPUNative) return true;
+  try {
+    return new URLSearchParams(window.location.search).get('native') === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Calls `callback` once the bridge exists. The app injects it asynchronously
  * after the WebView finishes loading, so it's frequently NOT there yet at
  * hydration time even inside the native app — code that only checks
