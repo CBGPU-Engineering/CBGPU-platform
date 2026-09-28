@@ -11,8 +11,6 @@ const MAX_BPM = 190;
 const HIT_WINDOW_FRACTION = 0.32;
 const PERFECT_FRACTION = 0.35;
 const GOOD_FRACTION = 0.7;
-const NOTE_LOOKAHEAD_SEC = 0.25;
-const SCALE = [220, 246.94, 261.63, 293.66, 329.63, 392, 440, 493.88];
 
 const TRACKS = [
   { id: '1', label: 'Track 1', src: '/games/adofai/1.mp4', duration: 33.6, beats: [0.896,2.411,2.901,3.243,3.904,5.419,6.123,6.571,6.891,7.232,7.893,8.576,8.896,9.557,9.899,10.24,10.56,11.904,13.717,15.659,16.491,16.832,17.152,17.472,17.813,18.155,18.475,19.136,19.477,19.797,20.459,20.779,21.12,21.781,22.443,22.763,23.104,23.424,23.765,24.256,24.747,25.088,25.408,25.749,26.069,26.411,27.051,27.392,27.733,28.395,28.715,29.056,31.701,32.021,32.341,32.683,33.003] },
@@ -23,14 +21,6 @@ const TRACKS = [
 ] as const;
 
 interface Pt { x: number; y: number }
-
-const STARS = Array.from({ length: 70 }, () => ({
-  x: Math.random() * W,
-  y: Math.random() * H,
-  r: Math.random() * 1.6 + 0.4,
-  phase: Math.random() * Math.PI * 2,
-  speed: 0.5 + Math.random() * 1.5,
-}));
 
 const ANGLE_POOL = [
   { angle: 180, weight: 30 },
@@ -44,10 +34,14 @@ const ANGLE_POOL = [
   { angle: 45, weight: 2 }, { angle: 315, weight: 2 },
 ];
 
-function pickAngle(hardness: number) {
+function pseudoRandom(index: number) {
+  return (Math.sin(index * 12.9898 + 78.233) * 43758.5453) % 1 + 1;
+}
+
+function pickAngle(hardness: number, index: number) {
   const pool = ANGLE_POOL.map(a => a.angle === 180 ? { ...a, weight: Math.max(4, a.weight * (1 - hardness * 0.7)) } : a);
   const total = pool.reduce((s, a) => s + a.weight, 0);
-  let r = Math.random() * total;
+  let r = pseudoRandom(index) * total;
   for (const a of pool) { r -= a.weight; if (r <= 0) return a.angle; }
   return 180;
 }
@@ -83,7 +77,7 @@ class Level {
         continue;
       }
       const hardness = Math.min(1, i / 140);
-      const A = pickAngle(hardness);
+      const A = pickAngle(hardness, i);
       this.angles[i] = A;
       const dir = dirOf(i);
       const D = (((this.bearings[i - 1] + 180 + dir * A) % 360) + 360) % 360;
@@ -98,22 +92,20 @@ class Level {
 
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; color: string }
 interface Judgment { label: string; color: string; start: number }
-interface PendingOsc { osc: OscillatorNode; time: number }
+interface AdofaiProps { onExit?: () => void }
 
-export default function Adofai() {
+export default function Adofai({ onExit }: AdofaiProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const levelRef = useRef<Level>(new Level(60));
   const audioRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number>(0);
+  const autoRef = useRef(false);
   const s = useRef({
     running: false,
     cur: 0,
     checkpoint: 0,
     origin: 0,       // performance.now() - origin == chart time (ms)
-    audioOrigin: 0,  // ctx.currentTime - audioOrigin*1000 aligns with origin
-    nextNoteIndex: 0,
-    pendingOscs: [] as PendingOsc[],
     camera: { x: 0, y: 0 },
     flash: 0,
     particles: [] as Particle[],
@@ -124,6 +116,7 @@ export default function Adofai() {
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(0);
   const [combo, setCombo] = useState(0);
+  const [autoMode, setAutoMode] = useState(false);
   const [trackId, setTrackId] = useState<(typeof TRACKS)[number]['id']>('1');
   const track = TRACKS.find(item => item.id === trackId)!;
 
@@ -164,32 +157,10 @@ export default function Adofai() {
     src.start();
   }, [ensureAudio]);
 
-  // Schedules one chart note precisely on the AudioContext clock — this is
-  // what actually plays "the song": it fires whether or not the player
-  // presses correctly, so the player can play by ear, not just by sight.
-  const scheduleNote = useCallback((when: number, j: number) => {
-    if (videoRef.current) return;
-    const ctx = ensureAudio();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.value = SCALE[j % SCALE.length];
-    gain.gain.setValueAtTime(0.0001, when);
-    gain.gain.exponentialRampToValueAtTime(0.15, when + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.16);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(when);
-    osc.stop(when + 0.18);
-    s.current.pendingOscs.push({ osc, time: when });
-  }, [ensureAudio]);
-
   const resetTimeline = useCallback((refChartTime: number) => {
-    const ctx = ensureAudio();
     const t0 = performance.now();
     s.current.origin = t0 - refChartTime;
-    s.current.audioOrigin = ctx.currentTime - refChartTime / 1000;
-  }, [ensureAudio]);
+  }, []);
 
   const spawnBurst = useCallback((p: Pt, color: string) => {
     for (let k = 0; k < 18; k++) {
@@ -206,14 +177,9 @@ export default function Adofai() {
     const st = s.current;
     const lvl = levelRef.current;
 
-    const t = performance.now() / 1000;
-    const hue = (200 + st.cur * 1.2 + t * 6) % 360;
-    const grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, `hsla(${hue}, 55%, 11%, 0.58)`);
-    grad.addColorStop(1, `hsla(${(hue + 45) % 360}, 60%, 6%, 0.58)`);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-
+    // The canvas must stay transparent: the selected MP4 is the actual game
+    // background, not a dark decorative layer drawn over it.
+    ctx.clearRect(0, 0, W, H);
 
     if (st.flash > 0) {
       ctx.fillStyle = `rgba(255,255,255,${st.flash * 0.25})`;
@@ -226,14 +192,22 @@ export default function Adofai() {
     // path
     const from = Math.max(0, st.cur - 2);
     const to = Math.min(lvl.points.length - 1, st.cur + 7);
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-    ctx.lineWidth = 4;
+    // A near-black under-stroke keeps the route visible over both bright and
+    // dark sections of the video. The coloured line is drawn on top of it.
+    ctx.strokeStyle = 'rgba(5, 10, 24, 0.92)';
+    ctx.lineWidth = 10;
     ctx.beginPath();
     for (let i = from; i <= to; i++) {
       const p = lvl.points[i];
       if (i === from) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
     }
     ctx.stroke();
+    ctx.strokeStyle = 'rgba(65, 230, 255, 0.95)';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#25d9ff';
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
 
     for (let i = from; i <= to; i++) {
       const p = lvl.points[i];
@@ -245,10 +219,13 @@ export default function Adofai() {
         ctx.shadowColor = '#ffe066';
         ctx.shadowBlur = 16;
       } else {
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fillStyle = '#18243d';
+        ctx.strokeStyle = '#77ecff';
+        ctx.lineWidth = 2;
         ctx.shadowBlur = 0;
       }
       ctx.fill();
+      if (!isCur) ctx.stroke();
       ctx.shadowBlur = 0;
     }
 
@@ -323,24 +300,16 @@ export default function Adofai() {
     if (st.dying) return;
     st.dying = true;
     st.running = false;
+    videoRef.current?.pause();
     st.judgment = { label: 'MISS', color: '#ff4d5e', start: performance.now() };
     noiseBurst(0.35);
     spawnBurst(levelRef.current.points[st.cur], '#ff884d');
     st.flash = 1;
     setBest(b => Math.max(b, st.cur));
 
-    const ctx = audioRef.current;
-    if (ctx) {
-      st.pendingOscs = st.pendingOscs.filter(p => {
-        if (p.time > ctx.currentTime) { try { p.osc.stop(ctx.currentTime); } catch { /* already stopped */ } return false; }
-        return true;
-      });
-    }
-
     setTimeout(() => {
       const lvl = levelRef.current;
       st.cur = st.checkpoint;
-      st.nextNoteIndex = st.checkpoint;
       st.camera = { ...lvl.points[st.checkpoint] };
       st.dying = false;
       st.running = true;
@@ -367,12 +336,21 @@ export default function Adofai() {
   const handleInput = useCallback(() => {
     const st = s.current;
     if (phase !== 'running' || !st.running || st.dying) return;
+    // A manual tap always takes control back from autoplay.
+    if (autoRef.current) {
+      autoRef.current = false;
+      setAutoMode(false);
+      st.judgment = { label: 'MANUAL', color: '#ffe066', start: performance.now() };
+      return;
+    }
     const lvl = levelRef.current;
     const i = st.cur;
     const hopDur = lvl.times[i + 1] - lvl.times[i];
     const elapsedInHop = (performance.now() - st.origin) - lvl.times[i];
-    const bpm = bpmFor(i);
-    const windowMs = (60000 / bpm) * HIT_WINDOW_FRACTION;
+    // The chart contains real, per-note timestamps from the chosen video's
+    // audio. Never use a guessed global BPM here: long and short gaps need
+    // their own timing window.
+    const windowMs = Math.min(170, hopDur * HIT_WINDOW_FRACTION);
     const diff = elapsedInHop - hopDur;
     const absDiff = Math.abs(diff);
     if (absDiff <= windowMs) {
@@ -393,9 +371,6 @@ export default function Adofai() {
     if (ctx.state === 'suspended') ctx.resume();
     const st = s.current;
     st.cur = 0; st.checkpoint = 0; st.dying = false; st.running = true;
-    st.nextNoteIndex = 0;
-    st.pendingOscs.forEach(p => { try { p.osc.stop(ctx.currentTime); } catch { /* already stopped */ } });
-    st.pendingOscs = [];
     resetTimeline(0);
     st.camera = { ...levelRef.current.points[0] };
     st.particles = [];
@@ -413,29 +388,6 @@ export default function Adofai() {
     handleInput();
   }, [phase, start, handleInput]);
 
-  // Independent lookahead scheduler: plays the chart's notes on the
-  // AudioContext's own precise clock, regardless of whether the player
-  // is hitting or missing — this is "the music", not hit-feedback.
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const st = s.current;
-      const ctx = audioRef.current;
-      if (!st.running || st.dying || !ctx) return;
-      const lvl = levelRef.current;
-      lvl.extend(Math.max(st.cur + 30, st.nextNoteIndex + 12));
-      while (
-        st.nextNoteIndex < lvl.times.length &&
-        st.audioOrigin + lvl.times[st.nextNoteIndex] / 1000 < ctx.currentTime + NOTE_LOOKAHEAD_SEC
-      ) {
-        const j = st.nextNoteIndex;
-        const when = st.audioOrigin + lvl.times[j] / 1000;
-        if (when > ctx.currentTime - 0.05) scheduleNote(when, j);
-        st.nextNoteIndex = j + 1;
-      }
-    }, 30);
-    return () => clearInterval(timer);
-  }, [scheduleNote]);
-
   const tick = useCallback(() => {
     const st = s.current;
     const lvl = levelRef.current;
@@ -449,9 +401,13 @@ export default function Adofai() {
       const i = st.cur;
       const hopDur = lvl.times[i + 1] - lvl.times[i];
       const elapsedInHop = (performance.now() - st.origin) - lvl.times[i];
-      const bpm = bpmFor(i);
-      const windowMs = (60000 / bpm) * HIT_WINDOW_FRACTION;
-      if (elapsedInHop > hopDur + windowMs) fail();
+      const windowMs = Math.min(170, hopDur * HIT_WINDOW_FRACTION);
+      if (autoRef.current && elapsedInHop >= hopDur) {
+        st.judgment = { label: 'AUTO', color: '#b88cff', start: performance.now() };
+        advance();
+      } else if (elapsedInHop > hopDur + windowMs) {
+        fail();
+      }
 
       const target = lvl.points[st.cur];
       st.camera.x += (target.x - st.camera.x) * 0.28;
@@ -464,7 +420,7 @@ export default function Adofai() {
 
     draw();
     rafRef.current = requestAnimationFrame(tick);
-  }, [draw, fail, track.duration]);
+  }, [advance, draw, fail, track.duration]);
 
   useEffect(() => {
     rafRef.current = requestAnimationFrame(tick);
@@ -477,10 +433,27 @@ export default function Adofai() {
     return () => { cancelAnimationFrame(rafRef.current); window.removeEventListener('keydown', onKey); };
   }, [tick, tap]);
 
+  const exit = useCallback(() => {
+    const st = s.current;
+    st.running = false;
+    st.dying = false;
+    videoRef.current?.pause();
+    if (audioRef.current?.state === 'running') audioRef.current.suspend().catch(() => {});
+    setPhase('idle');
+    onExit?.();
+  }, [onExit]);
+
+  const toggleAuto = useCallback(() => {
+    autoRef.current = !autoRef.current;
+    setAutoMode(autoRef.current);
+  }, []);
+
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-muted p-1">
+      <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl bg-muted p-1">
         {TRACKS.map(item => <button key={item.id} onClick={() => { if (phase === 'idle') setTrackId(item.id); }} className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-black ${trackId === item.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>{item.label}</button>)}
+        <button aria-pressed={autoMode} onClick={toggleAuto} className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-black ${autoMode ? 'bg-violet-600 text-white' : 'text-muted-foreground hover:bg-background hover:text-foreground'}`}>자동 {autoMode ? 'ON' : 'OFF'}</button>
+        <button onClick={exit} className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-black text-muted-foreground hover:bg-background hover:text-foreground">나가기</button>
       </div>
       <div className="flex items-center gap-6">
         <span className="text-sm font-black uppercase tracking-widest">Tiles: {score}</span>
@@ -497,12 +470,12 @@ export default function Adofai() {
           onTouchStart={e => { e.preventDefault(); tap(); }}
         />
         {phase === 'idle' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/50 rounded-2xl px-6 text-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/20 rounded-2xl px-6 text-center">
             <p className="text-white font-black text-2xl uppercase tracking-tight drop-shadow-lg">🔥 얼불춤 ❄️</p>
             <p className="text-white/80 text-sm font-medium leading-relaxed">
               영상과 음악에 맞춰 탭 또는 아무 키나
             </p>
-            <p className="text-white/50 text-xs font-medium">실수하면 마지막 체크포인트로 리셋됩니다</p>
+            <p className="text-white/50 text-xs font-medium">실수하면 마지막 체크포인트로 리셋됩니다 · 자동 모드도 지원</p>
             <Button onClick={start} className="font-black uppercase tracking-widest">Start</Button>
           </div>
         )}
