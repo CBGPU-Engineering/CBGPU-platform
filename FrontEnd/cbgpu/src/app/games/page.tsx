@@ -7,19 +7,19 @@ import Game2048 from '@/components/games/Game2048';
 import FlappyBird from '@/components/games/FlappyBird';
 import MemoryMatch from '@/components/games/MemoryMatch';
 import Minesweeper from '@/components/games/Minesweeper';
-import WordleKR from '@/components/games/WordleKR';
 import PolyBridge from '@/components/games/PolyBridge';
+import Adofai from '@/components/games/Adofai';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 
 const GAMES = [
   { id: 'flappy',     label: 'Flappy',     emoji: '🐦', tag: 'touch' },
   { id: 'memory',     label: 'Memory',     emoji: '🧠', tag: 'touch' },
   { id: 'mines',      label: 'Mines',      emoji: '💣', tag: 'touch' },
-  { id: 'wordle',     label: 'Wordle',     emoji: '🇰🇷', tag: 'touch' },
   { id: 'snake',      label: 'Snake',      emoji: '🐍', tag: 'keys'  },
   { id: 'tetris',     label: 'Tetris',     emoji: '🟦', tag: 'keys'  },
   { id: '2048',       label: '2048',       emoji: '🔢', tag: 'touch' },
   { id: 'polybridge', label: 'PolyBridge', emoji: '🌉', tag: 'touch' },
+  { id: 'adofai',     label: '얼불춤',      emoji: '🔥', tag: 'touch' },
 ] as const;
 
 type GameId = typeof GAMES[number]['id'];
@@ -51,11 +51,11 @@ export default function GamesPage() {
         {active === 'flappy'     && <FlappyBird />}
         {active === 'memory'     && <MemoryMatch />}
         {active === 'mines'      && <Minesweeper />}
-        {active === 'wordle'     && <WordleKR />}
         {active === 'snake'      && <Snake />}
         {active === 'tetris'     && <Tetris />}
         {active === '2048'       && <Game2048 />}
         {active === 'polybridge' && <PolyBridge />}
+        {active === 'adofai'     && <Adofai />}
       </div>
     </main>
   );
