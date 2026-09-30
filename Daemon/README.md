@@ -33,6 +33,19 @@ nano config.yaml
 
 ## 서비스 관리
 
+CPU 서버 배포 기능은 Supabase 서비스 롤 키가 필요합니다. 서버에서만
+`/etc/cbgpu-daemon.env`에 `CBGPU_SUPABASE_SERVICE_ROLE_KEY=<key>`를 저장하고
+권한을 `0600`으로 설정한 뒤 `setup.sh`를 다시 실행하거나 systemd 서비스에
+`EnvironmentFile=-/etc/cbgpu-daemon.env`를 추가해 재시작하세요. 이 키를
+`config.yaml`이나 Git에 넣지 마세요. Docker Git 배포는 컨테이너가 실행되고
+저장소 설치가 끝난 뒤에만 `deployed_at`을 기록합니다.
+Supabase에는 `Migrations/cpu_projects_deployment_fix.sql`을 적용해 소유자
+조회/신청 정책과 승인 상태 보호 트리거를 설치해야 합니다.
+웹에서 접속 주소를 표시하려면 `NEXT_PUBLIC_CPU_SERVER_TAILSCALE_HOST`,
+`NEXT_PUBLIC_CPU_SERVER_SCHOOL_HOST`, `NEXT_PUBLIC_CPU_SERVER_PUBLIC_HOST`를
+배포 환경에 설정할 수 있습니다. Private 프로젝트는 Tailscale 주소에만 바인딩하고,
+School/Public 프로젝트는 UFW가 활성화되어 있어야 배포합니다.
+
 ```bash
 # 상태 확인
 sudo systemctl status cbgpu-daemon

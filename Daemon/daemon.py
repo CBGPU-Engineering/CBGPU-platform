@@ -14,6 +14,8 @@ import sys
 import time
 import logging
 import subprocess
+import os
+import shlex
 import secrets
 import string
 from datetime import datetime, timezone
@@ -51,6 +53,14 @@ def supabase_headers(cfg: dict) -> dict:
         "apikey": cfg["supabase_anon_key"],
         "Authorization": f"Bearer {cfg['supabase_anon_key']}",
     }
+
+
+def cpu_headers() -> dict:
+    """CPU deployment writes require a server-only credential, never the public key."""
+    key = os.environ.get("CBGPU_SUPABASE_SERVICE_ROLE_KEY")
+    if not key:
+        raise RuntimeError("CBGPU_SUPABASE_SERVICE_ROLE_KEY is not configured")
+    return {"apikey": key, "Authorization": f"Bearer {key}"}
 
 
 def fetch_gpus(cfg: dict) -> list[dict]:
@@ -192,7 +202,7 @@ def fetch_cpu_projects(cfg: dict) -> list[dict]:
         cfg["supabase_url"].rstrip("/")
         + "/rest/v1/cpu_projects?select=*&status=in.(approved,deleted)"
     )
-    resp = requests.get(url, headers=supabase_headers(cfg), timeout=10)
+    resp = requests.get(url, headers=cpu_headers(), timeout=10)
     resp.raise_for_status()
     return resp.json()
 
@@ -202,12 +212,14 @@ def update_cpu_deployed_at(cfg: dict, project_id: str):
     url = cfg["supabase_url"].rstrip("/") + f"/rest/v1/cpu_projects?id=eq.{project_id}"
     now = datetime.now(timezone.utc).isoformat()
     headers = {
-        **supabase_headers(cfg),
+        **cpu_headers(),
         "Content-Type": "application/json",
-        "Prefer": "return=minimal",
+        "Prefer": "return=representation",
     }
     resp = requests.patch(url, headers=headers, json={"deployed_at": now}, timeout=10)
     resp.raise_for_status()
+    if len(resp.json()) != 1:
+        raise RuntimeError(f"CPU project {project_id} deployment timestamp was not updated")
 
 
 def cpu_container_name(project_id: str) -> str:
@@ -218,29 +230,74 @@ def cpu_volume_name(project_id: str) -> str:
     return f"cbcpu_{project_id[:8]}_data"
 
 
+def cpu_container_running(project_id: str) -> bool:
+    proc = subprocess.run(
+        ["docker", "inspect", "--format", "{{.State.Running}}", cpu_container_name(project_id)],
+        capture_output=True, text=True,
+    )
+    return proc.returncode == 0 and proc.stdout.strip() == "true"
+
+
+def wait_for_cpu_container(project_id: str, git_mode: bool, timeout_seconds: int = 180):
+    """A detached docker run only means Docker accepted the request."""
+    container = cpu_container_name(project_id)
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if not cpu_container_running(project_id):
+            logs = subprocess.run(["docker", "logs", "--tail", "20", container], capture_output=True, text=True)
+            raise RuntimeError(f"CPU container exited during startup: {logs.stderr[-1000:] or logs.stdout[-1000:]}")
+        if git_mode:
+            ready = subprocess.run(["docker", "exec", container, "test", "-f", "/tmp/cbgpu-ready"], capture_output=True)
+            if ready.returncode == 0:
+                return
+        elif time.monotonic() <= deadline - timeout_seconds + 3:
+            time.sleep(1)
+            continue
+        else:
+            return
+        time.sleep(1)
+    raise RuntimeError("CPU container did not finish setup in time")
+
+
 def apply_firewall(port: int, scope: str, action: str = "allow"):
     """Add/remove a port access rule via ufw. scope: school | public (private is ignored)"""
     if scope == "private":
         return
+    if action not in ("allow", "delete"):
+        raise ValueError(f"Unknown firewall action: {action}")
+    status = subprocess.run(["ufw", "status"], capture_output=True, text=True)
+    if status.returncode != 0 or not status.stdout.startswith("Status: active"):
+        raise RuntimeError("UFW must be active before school/public CPU ports can be exposed")
     try:
         if action == "allow":
             if scope == "school":
-                subprocess.run(
+                proc = subprocess.run(
                     ["ufw", "allow", "from", "10.138.26.0/24", "to", "any", "port", str(port)],
                     capture_output=True, text=True,
                 )
             else:  # public
-                subprocess.run(["ufw", "allow", str(port)], capture_output=True, text=True)
+                proc = subprocess.run(["ufw", "allow", str(port)], capture_output=True, text=True)
         elif action == "delete":
             if scope == "school":
-                subprocess.run(
+                proc = subprocess.run(
                     ["ufw", "delete", "allow", "from", "10.138.26.0/24", "to", "any", "port", str(port)],
                     capture_output=True, text=True,
                 )
             else:
-                subprocess.run(["ufw", "delete", "allow", str(port)], capture_output=True, text=True)
+                proc = subprocess.run(["ufw", "delete", "allow", str(port)], capture_output=True, text=True)
+        if proc.returncode != 0:
+            raise RuntimeError(proc.stderr.strip() or proc.stdout.strip())
     except Exception as e:
-        log.warning("Failed to apply firewall rule (port=%d, scope=%s, action=%s): %s", port, scope, action, e)
+        raise RuntimeError(f"Failed to apply firewall rule (port={port}, scope={scope}, action={action}): {e}") from e
+
+
+def private_bind_address() -> str:
+    """Prefer the VPN interface; never publish a private project on all NICs."""
+    try:
+        proc = subprocess.run(["tailscale", "ip", "-4"], capture_output=True, text=True)
+    except FileNotFoundError:
+        return "127.0.0.1"
+    return proc.stdout.strip().splitlines()[0] if proc.returncode == 0 and proc.stdout.strip() else "127.0.0.1"
 
 
 def start_cpu_container(project: dict):
@@ -258,7 +315,7 @@ def start_cpu_container(project: dict):
         "--name", container,
         "--cpus", str(project["cpu_limit"]),
         "-m", str(project["memory_limit"]),
-        "-p", f"{host_port}:{ctr_port}",
+        "-p", f"{private_bind_address() if project.get('access_scope', 'private') == 'private' else '0.0.0.0'}:{host_port}:{ctr_port}",
         "--restart", "unless-stopped",
     ]
 
@@ -282,25 +339,33 @@ def start_cpu_container(project: dict):
         base_image = RUNTIME_IMAGES.get(runtime, "node:20-alpine")
         volume     = cpu_volume_name(project_id)
 
-        subprocess.run(["docker", "volume", "create", volume], capture_output=True, text=True)
+        volume_proc = subprocess.run(["docker", "volume", "create", volume], capture_output=True, text=True)
+        if volume_proc.returncode != 0:
+            raise RuntimeError(f"docker volume create failed: {volume_proc.stderr.strip()}")
+
+        quoted_url = shlex.quote(git_url)
+        quoted_branch = shlex.quote(git_branch)
+        quoted_run = shlex.quote(run_cmd)
 
         if "python" in runtime:
             # python:slim image -> install git via apt-get
             setup = (
-                f"apt-get update -qq && apt-get install -y -qq git 2>/dev/null && "
-                f"([ -d /app/.git ] || git clone {git_url} /app) && "
-                f"cd /app && git fetch && git checkout {git_branch} && git pull && "
-                f"([ -f requirements.txt ] && pip install -r requirements.txt -q 2>/dev/null || true) && "
-                f"{run_cmd}"
+                "set -e; apt-get update -qq; apt-get install -y -qq git; "
+                f"if [ ! -d /app/.git ]; then git clone -- {quoted_url} /app; fi; "
+                f"git -C /app remote set-url origin {quoted_url}; "
+                f"git -C /app fetch origin {quoted_branch}; git -C /app checkout -B {quoted_branch} FETCH_HEAD; "
+                "cd /app; if [ -f requirements.txt ]; then pip install -r requirements.txt -q; fi; "
+                f"touch /tmp/cbgpu-ready; exec sh -c {quoted_run}"
             )
         else:
             # node:alpine image -> install git via apk
             setup = (
-                f"apk add --no-cache git 2>/dev/null && "
-                f"([ -d /app/.git ] || git clone {git_url} /app) && "
-                f"cd /app && git fetch && git checkout {git_branch} && git pull && "
-                f"([ -f package.json ] && npm install --silent 2>/dev/null || true) && "
-                f"{run_cmd}"
+                "set -e; apk add --no-cache git; "
+                f"if [ ! -d /app/.git ]; then git clone -- {quoted_url} /app; fi; "
+                f"git -C /app remote set-url origin {quoted_url}; "
+                f"git -C /app fetch origin {quoted_branch}; git -C /app checkout -B {quoted_branch} FETCH_HEAD; "
+                "cd /app; if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi; "
+                f"touch /tmp/cbgpu-ready; exec sh -c {quoted_run}"
             )
 
         cmd += ["-v", f"{volume}:/app", base_image, "sh", "-c", setup]
@@ -312,13 +377,17 @@ def start_cpu_container(project: dict):
     if proc.returncode != 0:
         raise RuntimeError(f"docker run failed: {proc.stderr.strip()}")
 
+    wait_for_cpu_container(project_id, deploy_type == "git")
+
     log.info("CPU project '%s' deployed (container=%s, port=%d)", project.get("name"), container, host_port)
 
 
 def stop_cpu_container(project: dict):
     """Stop and remove a CPU project container (volume is preserved)"""
     container = cpu_container_name(project["id"])
-    subprocess.run(["docker", "rm", "-f", container], capture_output=True, text=True)
+    proc = subprocess.run(["docker", "rm", "-f", container], capture_output=True, text=True)
+    if proc.returncode != 0 and "No such container" not in proc.stderr:
+        raise RuntimeError(f"docker rm failed: {proc.stderr.strip()}")
     log.info("CPU project '%s' container removed (container=%s)", project.get("name"), container)
 
 
@@ -425,15 +494,15 @@ def main():
             deploy_requested = proj.get("deploy_requested_at")
             deployed         = proj.get("deployed_at")
 
-            needs_deploy = deployed is None or (
+            needs_deploy = not cpu_container_running(proj_id) or deployed is None or (
                 deploy_requested is not None and deploy_requested > deployed
             )
 
             if needs_deploy:
                 log.info("CPU project '%s' starting %s", proj.get("name"), "redeploy" if deployed else "initial deploy")
                 try:
-                    start_cpu_container(proj)
                     apply_firewall(proj["host_port"], proj.get("access_scope", "private"), "allow")
+                    start_cpu_container(proj)
                     update_cpu_deployed_at(cfg, proj_id)
                     cpu_cleaned.discard(proj_id)
                 except Exception as e:

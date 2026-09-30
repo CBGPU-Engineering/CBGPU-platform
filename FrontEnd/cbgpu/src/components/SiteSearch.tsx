@@ -82,6 +82,7 @@ export default function SiteSearch({ open, onOpenChange }: { open: boolean; onOp
           }}
           placeholder="어떤 기능을 찾으세요?"
           aria-label="기능 검색"
+          data-no-focus-ring
           className="min-w-0 flex-1 bg-transparent py-2 text-base outline-none placeholder:text-muted-foreground"
         />
         <button type="button" onClick={() => onOpenChange(false)} className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground">닫기</button>

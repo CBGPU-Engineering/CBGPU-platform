@@ -57,7 +57,11 @@ export default function PrivacyPage() {
       </Section>
 
       <Section title="6. 문의처">
-        <p className="text-muted-foreground">[동아리 문의 이메일을 여기에 기재해주세요]</p>
+        <p className="text-muted-foreground">
+          <a className="underline underline-offset-4" href="mailto:ahn.hyunjun2009@gmail.com">ahn.hyunjun2009@gmail.com</a>
+          {' · '}
+          <a className="underline underline-offset-4" href="mailto:lmw.hpc@gmail.com">lmw.hpc@gmail.com</a>
+        </p>
       </Section>
 
       <p className="text-xs text-muted-foreground pt-4 border-t">

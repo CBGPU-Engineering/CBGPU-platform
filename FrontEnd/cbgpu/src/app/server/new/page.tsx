@@ -70,7 +70,7 @@ const inputCls = 'h-10 w-full rounded-xl border border-input bg-transparent px-3
 const cardCls = 'rounded-2xl border border-border/60 bg-card p-6 space-y-5';
 
 const SCOPE_OPTS: { value: AccessScope; label: string; icon: React.ReactNode; desc: string }[] = [
-  { value: 'private', label: 'Private',  icon: <Lock   className="size-4" />, desc: 'Tailscale VPN으로 본인만' },
+  { value: 'private', label: 'Private',  icon: <Lock   className="size-4" />, desc: 'Tailscale VPN 접속자만' },
   { value: 'school',  label: 'School',   icon: <School className="size-4" />, desc: '교내 네트워크 + VPN' },
   { value: 'public',  label: 'Public',   icon: <Globe  className="size-4" />, desc: '인터넷 어디서나 접근' },
 ];
