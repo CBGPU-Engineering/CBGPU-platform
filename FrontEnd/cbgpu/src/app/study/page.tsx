@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { LoadingSpinner } from '@/components/ui/spinner';
+import SelfStudyReminderSettings from '@/components/study/SelfStudyReminderSettings';
 import {
   getRooms, getRoomComposition, getSeatOccupations, getStudent, getStudents,
   getSelfStudyPolicy, getPeriodCountForDate, localDateStr, searchSelfStudy,
@@ -417,6 +418,7 @@ export default function StudyPage() {
               <Puzzle className="size-4" /><span className="hidden sm:inline">기여하기</span>
             </Button>
           </Link>
+          <SelfStudyReminderSettings />
           <button
             onClick={() => loadData()}
             disabled={loading}

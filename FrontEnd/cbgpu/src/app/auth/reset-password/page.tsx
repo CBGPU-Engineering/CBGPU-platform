@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { signOutEverywhere } from '@/lib/signOutEverywhere';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +37,7 @@ export default function ResetPassword() {
         return;
       }
       showSuccess('비밀번호가 변경됐습니다! 다시 로그인해주세요.');
-      await supabase.auth.signOut();
+      await signOutEverywhere();
       router.push('/auth/login');
     } catch {
       showError('오류가 발생했습니다.');

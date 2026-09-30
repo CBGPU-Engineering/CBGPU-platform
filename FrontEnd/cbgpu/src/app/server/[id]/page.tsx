@@ -174,11 +174,16 @@ export default function ServerDetailPage() {
   const isOwner = user?.id === project.user_id;
   const canManage = isOwner || isAdmin;
   const isRunning = project.status === 'approved' && project.deployed_at;
-  const serverUrl = `http://[서버IP]:${project.host_port}`;
+  const serverHost = project.access_scope === 'private'
+    ? (process.env.NEXT_PUBLIC_CPU_SERVER_TAILSCALE_HOST || '100.100.136.37')
+    : project.access_scope === 'school'
+      ? (process.env.NEXT_PUBLIC_CPU_SERVER_SCHOOL_HOST || '10.138.26.144')
+      : process.env.NEXT_PUBLIC_CPU_SERVER_PUBLIC_HOST;
+  const serverUrl = serverHost ? `http://${serverHost}:${project.host_port}` : null;
 
   const STATUS_INFO: Record<string, { icon: React.ReactNode; variant: any; label: string }> = {
     pending:  { icon: <Clock className="size-4" />,         variant: 'warning', label: 'Pending — 관리자 승인 대기 중' },
-    approved: { icon: <CheckCircle2 className="size-4" />,  variant: 'success', label: isRunning ? 'Running' : 'Approved — 배포 준비 중' },
+    approved: { icon: <CheckCircle2 className="size-4" />,  variant: 'success', label: isRunning ? '배포 완료' : 'Approved — 배포 준비 중' },
     rejected: { icon: <XCircle className="size-4" />,       variant: 'danger',  label: 'Rejected' },
     deleted:  { icon: <Trash2 className="size-4" />,        variant: 'muted',   label: 'Deleted' },
   };
@@ -238,20 +243,20 @@ export default function ServerDetailPage() {
           <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-3">Access</p>
           <div className="flex items-center gap-2">
             <code className="text-sm font-black text-emerald-600 bg-emerald-500/10 px-3 py-1.5 rounded-lg">
-              {serverUrl}
+              {serverUrl ?? `포트 ${project.host_port} · 공개 서버 주소 미설정`}
             </code>
-            <Button
+            {serverUrl && <Button
               variant="ghost"
               size="icon"
               className="size-8 text-emerald-600"
-              onClick={() => window.open(serverUrl, '_blank')}
+              onClick={() => window.open(serverUrl, '_blank', 'noopener,noreferrer')}
             >
               <ExternalLink className="size-3.5" />
-            </Button>
+            </Button>}
           </div>
           <p className="text-[10px] text-muted-foreground mt-2 opacity-60">
             {project.access_scope === 'private' && '※ Tailscale VPN 연결 시에만 접근 가능합니다'}
-            {project.access_scope === 'school'  && '※ 교내 네트워크 또는 Tailscale VPN에서 접근 가능합니다'}
+            {project.access_scope === 'school'  && '※ 교내 네트워크에서 접근 가능합니다'}
             {project.access_scope === 'public'  && '※ 인터넷 어디서나 접근 가능합니다'}
           </p>
         </div>

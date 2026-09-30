@@ -92,7 +92,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Never wait forever — an old app build, a slow bridge injection, or a
     // genuinely session-less install should still land on the login screen
     // rather than spin indefinitely.
-    const fallbackTimeout = nativeHint ? setTimeout(resolveLoading, 4000) : null;
+    const fallbackTimeout = nativeHint ? setTimeout(resolveLoading, 8000) : null;
+    let restoringFromNative = false;
+    const failedNativeRefreshTokens = new Set<string>();
+
+    const restoreFromNative = async (bridge: NonNullable<ReturnType<typeof getNativeBridge>>) => {
+      if (restoringFromNative) return;
+      restoringFromNative = true;
+      try {
+        const { session: persisted } = await bridge.getPersistedSession();
+        if (!persisted || failedNativeRefreshTokens.has(persisted.refreshToken)) return;
+        const { error } = await supabase.auth.setSession({
+          access_token: persisted.accessToken,
+          refresh_token: persisted.refreshToken,
+        });
+        if (error) failedNativeRefreshTokens.add(persisted.refreshToken);
+      } catch {
+        // An older app build may not implement session restore.
+      } finally {
+        restoringFromNative = false;
+        resolveLoading();
+      }
+    };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const currentUser = session?.user ?? null;
@@ -117,8 +138,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (bridge) {
         if (session) {
           bridge.syncSession({ accessToken: session.access_token, refreshToken: session.refresh_token });
-        } else {
-          bridge.clearSession();
+        } else if (event === 'SIGNED_OUT' && nativeHint) {
+          // A web refresh can fail after the native client has rotated its
+          // refresh token. Give the app's persisted session a chance to win.
+          setTimeout(() => { void restoreFromNative(bridge); }, 0);
         }
       }
     });
@@ -137,15 +160,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // restarts don't reliably keep it) — fall back to the native app's
         // own Supabase session, which supabase_flutter persists on its own,
         // so the user isn't forced to log in again every time they reopen it.
-        const { session: persisted } = await bridge.getPersistedSession();
-        if (persisted) {
-          // Triggers onAuthStateChange again with the restored user, which
-          // resolves loading via the `currentUser` branch above.
-          await supabase.auth.setSession({
-            access_token: persisted.accessToken,
-            refresh_token: persisted.refreshToken,
-          });
-        }
+        await restoreFromNative(bridge);
       } catch {
         // Older app build without this bridge action, or the persisted
         // refresh token was rejected — just stays logged out.

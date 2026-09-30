@@ -160,6 +160,7 @@ After=network.target docker.service
 [Service]
 Type=simple
 User=root
+EnvironmentFile=-/etc/cbgpu-daemon.env
 ExecStart=${VENV_DIR}/bin/python3 ${SCRIPT_DIR}/daemon.py ${SCRIPT_DIR}/config.yaml
 WorkingDirectory=${SCRIPT_DIR}
 Restart=always

@@ -253,21 +253,19 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
         unawaited(refreshAllHomeWidgets());
         return {'ok': true};
       case 'getPersistedSession':
-        // The website's own WebView-local session (its Supabase client's
-        // localStorage) doesn't reliably survive a full app restart, but
-        // this native client's session does (supabase_flutter persists it
-        // itself) — this lets the page fall back to it instead of forcing
-        // the user to log in again every time they reopen the app.
-        //
-        // Read straight from supabase_flutter's own SharedPreferences entry
-        // (same key/format it uses internally — see local_storage.dart)
-        // rather than `Supabase.instance.client.auth.currentSession`: that
-        // getter is only populated once `Supabase.initialize()`'s session
-        // recovery finishes, which runs in the background and is NOT
-        // awaited before `runApp()` — so right after a cold start it's
-        // frequently still null exactly when this bridge call, racing it,
-        // arrives from a WebView page load that already finished.
+        // Prefer the recovered native session, then the persisted copy if
+        // the WebView asks before native recovery has populated the client.
+        final currentSession = Supabase.instance.client.auth.currentSession;
+        if (currentSession?.refreshToken != null) {
+          return {
+            'session': {
+              'accessToken': currentSession!.accessToken,
+              'refreshToken': currentSession.refreshToken,
+            },
+          };
+        }
         final prefs = await SharedPreferences.getInstance();
+        await prefs.reload();
         final storageKey =
             'sb-${Uri.parse(SupabaseConfig.url).host.split('.').first}-auth-token';
         final raw = prefs.getString(storageKey);
@@ -278,8 +276,13 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
         } catch (_) {
           return {'session': null};
         }
-        final accessToken = decoded['access_token'] as String?;
-        final refreshToken = decoded['refresh_token'] as String?;
+        // supabase_flutter stores {currentSession: {...}, expiresAt: ...},
+        // not a bare session object. Accept both shapes for older installs.
+        final storedSession = decoded['currentSession'] is Map
+            ? (decoded['currentSession'] as Map).cast<String, dynamic>()
+            : decoded;
+        final accessToken = storedSession['access_token'] as String?;
+        final refreshToken = storedSession['refresh_token'] as String?;
         if (accessToken == null || refreshToken == null) {
           return {'session': null};
         }

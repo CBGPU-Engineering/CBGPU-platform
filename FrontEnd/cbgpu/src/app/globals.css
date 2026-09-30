@@ -253,9 +253,17 @@
 }
 
 /* 화면마다 개별적으로 만든 링크와 버튼도 키보드 포커스를 분명히 보여준다. */
-:is(a, button, input, select, textarea, [role="button"]):focus-visible {
+:is(a, button, input, select, textarea, [role="button"]):not([data-no-focus-ring]):focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 3px;
+}
+
+/* 기능 찾기 입력창은 자동 포커스 시 브라우저 기본 테두리를 표시하지 않는다. */
+input[data-no-focus-ring],
+input[data-no-focus-ring]:focus,
+input[data-no-focus-ring]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 @layer base {

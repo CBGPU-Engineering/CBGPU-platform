@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
-import { supabase } from '@/lib/supabase';
+import { signOutEverywhere } from '@/lib/signOutEverywhere';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import SiteSearch from './SiteSearch';
@@ -162,7 +162,7 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await signOutEverywhere();
       if (error) throw error;
       showSuccess("로그아웃됐습니다.");
       router.push('/auth/login');

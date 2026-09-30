@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { signOutEverywhere } from '@/lib/signOutEverywhere';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +36,6 @@ async function resizeImageToJpeg(file: File, maxSize = 256, quality = 0.85): Pro
 const NOTIF_PREFS = [
   { key: 'notify_job_new', label: '새 제작 신청', hint: '3D프린팅/레이저 담당자에게: 신청이 들어오면', role: 'manager' as const },
   { key: 'notify_job_done', label: '제작 완료', hint: '내가 신청한 3D프린팅/레이저 커팅이 완료되면', role: 'anyone' as const },
-  { key: 'notify_selfstudy_reminder', label: '자습신청 리마인더', hint: '오늘 13:15까지 자습신청을 안 했으면', role: 'student' as const },
   { key: 'notify_admin_signup', label: '새 회원가입', hint: '관리자에게: 새 계정이 가입하면', role: 'admin' as const },
   { key: 'notify_admin_gpu_request', label: 'GPU 예약 신청', hint: '관리자에게: GPU 예약 신청이 들어오면', role: 'admin' as const },
 ] as const;
@@ -58,7 +58,6 @@ export default function Profile() {
   const [notifPrefs, setNotifPrefs] = useState<Record<NotifPrefKey, boolean>>({
     notify_job_new: true,
     notify_job_done: true,
-    notify_selfstudy_reminder: true,
     notify_admin_signup: true,
     notify_admin_gpu_request: true,
   });
@@ -169,7 +168,7 @@ export default function Profile() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) { showError(body?.message || '계정 삭제 실패'); return; }
 
-      await supabase.auth.signOut();
+      await signOutEverywhere();
       showSuccess('계정이 삭제됐습니다.');
       router.push('/');
     } catch (error: any) {
@@ -377,13 +376,12 @@ export default function Profile() {
           <BellRing className="size-5 text-primary" /> 알림 설정
         </h2>
         <p className="text-xs text-muted-foreground font-medium -mt-2">
-          CBGPU 앱을 설치해야 실제로 알림이 옵니다. 전부 기본으로 켜져 있어요.
+          자습신청 알림은 자습신청 페이지의 ‘신청 알림’에서 설정할 수 있습니다.
         </p>
         <div className="divide-y divide-foreground/5">
           {NOTIF_PREFS.filter(({ role }) =>
             role === 'anyone' ||
             (role === 'manager' && (is3DPrintManager || isLaserCutManager)) ||
-            (role === 'student' && !!profile?.student_id) ||
             (role === 'admin' && isAdmin)
           ).map(({ key, label, hint }) => (
             <div key={key} className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
