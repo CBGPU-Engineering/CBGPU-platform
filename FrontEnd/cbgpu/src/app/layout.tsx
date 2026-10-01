@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import AuthGate from '@/components/AuthGate';
@@ -109,6 +110,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   </div>
                   <div className="space-y-1">
                     <p className="font-bold text-foreground/80 px-4">Chungbuk Science High School Computing Service</p>
+                    <p className="flex items-center justify-center gap-3 text-xs font-bold">
+                      <Link href="/privacy" className="underline-offset-4 transition-colors hover:text-foreground hover:underline">개인정보처리방침</Link>
+                      <span className="opacity-30" aria-hidden="true">·</span>
+                      <Link href="/contact" className="underline-offset-4 transition-colors hover:text-foreground hover:underline">문의하기</Link>
+                    </p>
                     <p className="text-[10px] uppercase tracking-widest opacity-60">
                     © {currentYear} <a href="https://github.com/lmwmason" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors underline-offset-4 hover:underline">CBGPU</a>. All rights reserved.
                   </p>

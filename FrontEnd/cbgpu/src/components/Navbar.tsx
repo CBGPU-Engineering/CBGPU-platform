@@ -390,6 +390,9 @@ export default function Navbar() {
                 <Link href="/contact" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/contact' ? 'text-primary' : 'text-muted-foreground'}`}>
                   Contact
                 </Link>
+                <Link href="/privacy" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black tracking-widest py-2 ${pathname === '/privacy' ? 'text-primary' : 'text-muted-foreground'}`}>
+                  개인정보처리방침
+                </Link>
                 {isAdmin && (
                   <Link href="/admin" onClick={() => setIsMenuOpen(false)} className={`text-sm font-black uppercase tracking-widest py-2 ${pathname === '/admin' ? 'text-orange-500' : 'text-orange-400'}`}>
                     Admin Panel
