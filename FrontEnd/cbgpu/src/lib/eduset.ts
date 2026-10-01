@@ -254,10 +254,12 @@ export function getSeatOccupations(roomId: number, dateStr: string): Promise<Sea
  * 학생 권한으로 studentId/teacherId 필터 없이도 전체가 조회되는지는 확인되지 않았으므로
  * 실패 시 호출부에서 빈 배열로 대체해야 한다.
  */
-export function searchSelfStudy(params: { date: string }): Promise<SelfStudyEntry[]> {
+export function searchSelfStudy(params: { date: string }, options?: { fresh?: boolean }): Promise<SelfStudyEntry[]> {
   return apiFetch('/selfstudy/search', {
     method: 'POST',
     body: JSON.stringify(params),
+    // 프록시는 신청 현황을 몇 초간 공유 캐시한다. 사용자가 직접 새로고침했을 땐 건너뛴다.
+    headers: options?.fresh ? { 'x-cbgpu-fresh': '1' } : undefined,
   });
 }
 

@@ -197,24 +197,24 @@ export default function StudyPage() {
   const [justFinished, setJustFinished] = useState(false);
   const [searchMode, setSearchMode] = useState<'room' | 'student'>('room');
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (fresh = false) => {
     setLoading(true);
     setJustFinished(false);
     setError('');
 
     try {
-      const [rooms, policy, students] = await Promise.all([
-        getRooms(),
-        getSelfStudyPolicy().catch(() => null),
-        getStudents().catch(() => []),
-      ]);
-      setAllStudents(students);
       const today = new Date();
       const dateStr = localDateStr(today);
 
+      // 서로 의존하지 않는 요청은 전부 한꺼번에 시작한다. 예전엔 (방·정책·학생) → (신청 현황) → (방별 구성)
+      // 순서로 기다려서 왕복 지연이 세 번 쌓였다. 학생 목록은 학생 검색에서만 쓰므로 화면 표시를 막지 않는다.
+      const policyPromise = getSelfStudyPolicy().catch(() => null);
+      void getStudents().catch(() => []).then(setAllStudents);
+
       // /selfstudy/search는 승인 대기중인 신청까지 한 번에 보여준다. 정원제 방은 이 호출이
       // 유일한 데이터 소스라 좌석형보다 훨씬 더 중요하다 — 일시적 오류에 대비해 재시도한다.
-      const selfStudyEntries = await withRetry(() => searchSelfStudy({ date: dateStr }), 3, 400).catch(() => null);
+      const selfStudyPromise = withRetry(() => searchSelfStudy({ date: dateStr }, { fresh }), 3, 400).catch(() => null);
+      const rooms = await getRooms();
 
       const data = await Promise.all(
         rooms.map(async (room): Promise<RoomData> => {
@@ -227,6 +227,7 @@ export default function StudyPage() {
             // occupation 레코드 자체는 동일한 엔드포인트로 조회되는 경우가 많다.
             try {
               const occupancy: OccupancyEntry[] = [];
+              const selfStudyEntries = await selfStudyPromise;
               const roomEntries = selfStudyEntries?.filter(
                 (e) => e.room.id === room.id && e.status !== 'REJECTED'
               );
@@ -269,7 +270,9 @@ export default function StudyPage() {
             }
           }
           try {
+            // 방 구성 요청은 신청 현황 응답을 기다리지 않고 바로 시작한다 (selfStudyPromise는 아래에서 await).
             const composition = await getRoomComposition(room.id);
+            const selfStudyEntries = await selfStudyPromise;
             const seatNameById = new Map(composition.seats.map((s) => [s.id, s.name]));
             const occupantsBySeat = new Map<number, Occupant[]>();
             const occupancy: OccupancyEntry[] = [];
@@ -323,6 +326,7 @@ export default function StudyPage() {
 
       setRoomData(data);
 
+      const policy = await policyPromise;
       const policyCount = policy ? getPeriodCountForDate(policy, today) : 0;
       if (policyCount > 0) {
         setPeriodCount(policyCount);
@@ -420,7 +424,7 @@ export default function StudyPage() {
           </Link>
           <SelfStudyReminderSettings />
           <button
-            onClick={() => loadData()}
+            onClick={() => loadData(true)}
             disabled={loading}
             className="flex items-center justify-center size-10 rounded-full bg-card ring-1 ring-foreground/5 shadow-sm active:scale-90 transition-transform disabled:opacity-50"
           >
@@ -521,7 +525,7 @@ export default function StudyPage() {
             <AlertTriangle className="size-4 mt-0.5 text-amber-500 shrink-0" />
             <p className="text-sm text-amber-600 dark:text-amber-400">{error}</p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => loadData()}>
+          <Button type="button" variant="outline" size="sm" onClick={() => loadData(true)}>
             다시 시도
           </Button>
         </div>
@@ -611,7 +615,7 @@ export default function StudyPage() {
                   occupancy={openRoomData.occupancy}
                   selectedPeriod={selectedPeriod}
                   failed={openRoomData.failed}
-                  onRetry={() => loadData()}
+                  onRetry={() => loadData(true)}
                 />
               )}
             </>
