@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Fragment } from 'react';
 import { supabase } from '@/lib/supabase';
+import { fetchGpuEndpoints, FALLBACK_GPU_ENDPOINTS, type GpuEndpoint } from '@/lib/gpuEndpoints';
 import GPUCard from '@/components/GPUCard';
 import WeeklyGPUCard from '@/components/WeeklyGPUCard';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ export default function Dashboard() {
   const [cancelTarget, setCancelTarget] = useState<{ id: string; status: string } | null>(null);
   const [endTarget, setEndTarget] = useState<string | null>(null);
   const [currentHost, setCurrentHost] = useState<string>('100.89.196.43');
+  const [endpoints, setEndpoints] = useState<GpuEndpoint[]>(FALLBACK_GPU_ENDPOINTS);
   const [connectionMode, setConnectionMode] = useState<'internal' | 'public'>('public');
   const [gpuStatus, setGpuStatus] = useState<Record<number, 'online'|'offline'|'checking'>>({1:'checking',2:'checking',3:'checking',4:'checking'});
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
@@ -108,36 +110,14 @@ export default function Dashboard() {
     }
   }, []);
 
-  const effectiveHost = '10.138.23.12';
+  useEffect(() => { void fetchGpuEndpoints().then(setEndpoints); }, []);
 
-  const stableHost = 'cbshoj.tail0701ea.ts.net'; // 변경된 실제 Tailscale 도메인 주소
-
-  const gpus = [
-    {
-      id: 1,
-      name: "RTX5000",
-      username: "gpu1",
-      jupyterhubUrl: connectionMode === 'public' ? `https://tonight-rep-admit-cooperation.trycloudflare.com` : `http://${effectiveHost}:8001`
-    },
-    {
-      id: 2,
-      name: "RTX5000",
-      username: "gpu2",
-      jupyterhubUrl: connectionMode === 'public' ? `https://nearest-situations-elite-tools.trycloudflare.com` : `http://${effectiveHost}:8002`
-    },
-    {
-      id: 3,
-      name: "RTX5000",
-      username: "gpu3",
-      jupyterhubUrl: connectionMode === 'public' ? `https://expressions-invention-investments-consortium.trycloudflare.com` : `http://${effectiveHost}:8003`
-    },
-    {
-      id: 4,
-      name: "RTX5000",
-      username: "gpu4",
-      jupyterhubUrl: connectionMode === 'public' ? `https://september-notification-pants-whatever.trycloudflare.com` : `http://${effectiveHost}:8004`
-    },
-  ];
+  const gpus = endpoints.map(endpoint => ({
+    id: endpoint.gpu_id,
+    name: "RTX5000",
+    username: `gpu${endpoint.gpu_id}`,
+    jupyterhubUrl: connectionMode === 'public' ? endpoint.public_url : `http://${endpoint.internal_host}:${endpoint.internal_port}`,
+  }));
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);

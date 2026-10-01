@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server';
+import { fetchGpuEndpoints } from '@/lib/gpuEndpoints';
 
 export const dynamic = 'force-dynamic';
-
-const GPUS = [
-  { id: 1, url: 'https://tonight-rep-admit-cooperation.trycloudflare.com' },
-  { id: 2, url: 'https://nearest-situations-elite-tools.trycloudflare.com' },
-  { id: 3, url: 'https://expressions-invention-investments-consortium.trycloudflare.com' },
-  { id: 4, url: 'https://september-notification-pants-whatever.trycloudflare.com' },
-];
 
 async function ping(url: string): Promise<'online' | 'offline'> {
   try {
@@ -22,8 +16,9 @@ async function ping(url: string): Promise<'online' | 'offline'> {
 }
 
 export async function GET() {
+  const endpoints = await fetchGpuEndpoints();
   const results = await Promise.all(
-    GPUS.map(async g => ({ id: g.id, status: await ping(g.url), url: g.url }))
+    endpoints.map(async g => ({ id: g.gpu_id, status: await ping(g.public_url), url: g.public_url }))
   );
   return NextResponse.json({ gpus: results, checkedAt: new Date().toISOString() });
 }
