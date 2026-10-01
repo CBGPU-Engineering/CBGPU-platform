@@ -68,7 +68,7 @@ export default function SiteSearch({ open, onOpenChange }: { open: boolean; onOp
       onClose={() => onOpenChange(false)}
       onClick={event => { if (event.target === dialogRef.current) onOpenChange(false); }}
       aria-label="기능 찾기"
-      className="fixed inset-0 m-auto w-[min(92vw,34rem)] max-h-[min(80vh,42rem)] rounded-2xl border border-border bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/60"
+      className="site-search fixed inset-0 m-auto w-[min(92vw,34rem)] max-h-[min(80vh,42rem)] rounded-2xl border border-border bg-background p-0 text-foreground shadow-2xl"
     >
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
         <Search className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -88,16 +88,17 @@ export default function SiteSearch({ open, onOpenChange }: { open: boolean; onOp
         />
         <button type="button" onClick={() => onOpenChange(false)} className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground">닫기</button>
       </div>
-      <div className="max-h-[min(65vh,34rem)] overflow-y-auto p-2">
+      <div className="thin-scroll max-h-[min(65vh,34rem)] overflow-y-auto p-2">
         {results.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-muted-foreground">검색 결과가 없어요. 다른 단어로 찾아보세요.</p>
         ) : results.map((page, index) => (
           <button
             key={page.href}
             type="button"
+            style={{ '--i': Math.min(index, 8) } as React.CSSProperties}
             onClick={() => navigate(page.href)}
             onMouseEnter={() => setSelected(index)}
-            className={`flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-left transition-colors ${selected === index ? 'bg-primary/10' : 'hover:bg-muted'}`}
+            className={`site-search-item flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-left transition-colors ${selected === index ? 'bg-primary/10' : 'hover:bg-muted'}`}
           >
             <span className="min-w-0">
               <span className="block font-bold">{page.title}</span>
