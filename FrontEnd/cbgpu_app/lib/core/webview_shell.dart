@@ -5,10 +5,14 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import 'alarm_service.dart';
 import 'home_widgets.dart';
@@ -18,6 +22,7 @@ import 'supabase_config.dart';
 const _siteUrl = 'https://cbgpu.vercel.app/';
 const _siteHost = 'cbgpu.vercel.app';
 const _bridgeChannel = 'CBGPUNativeChannel';
+const _materialsApiUrl = 'https://cbshoj.taild105d1.ts.net:8443';
 
 /// Tags every URL we load with `?native=1` so the site can tell it's running
 /// inside this app from its very first synchronous render — before the JS
@@ -64,6 +69,7 @@ final _bridgeScript = '''
     syncSession: function (opts) { return call('syncSession', opts); },
     clearSession: function () { return call('clearSession', {}); },
     getPersistedSession: function () { return call('getPersistedSession', {}); },
+    downloadMaterial: function (opts) { return call('downloadMaterial', opts); },
     _resolve: function (callId, ok, result) {
       var p = pending[callId];
       if (!p) return;
@@ -135,6 +141,18 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
               : Uri.parse(_siteUrl).resolve(initialPath),
         ),
       );
+
+    if (Platform.isAndroid && _controller.platform is AndroidWebViewController) {
+      (_controller.platform as AndroidWebViewController).setOnShowFileSelector((params) async {
+        final selection = await FilePicker.platform.pickFiles(
+          type: FileType.any,
+          allowMultiple: params.mode == FileSelectorMode.openMultiple,
+        );
+        return selection?.files.where((file) => file.path != null)
+                .map((file) => Uri.file(file.path!).toString()).toList() ??
+            <String>[];
+      });
+    }
 
     // Widget data needs a Supabase session, which only arrives once the
     // page's own auth state calls the syncSession bridge action — refresh
@@ -289,6 +307,33 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
         return {
           'session': {'accessToken': accessToken, 'refreshToken': refreshToken},
         };
+      case 'downloadMaterial':
+        final id = payload['id'] as String?;
+        final token = payload['accessToken'] as String?;
+        final requestedName = payload['fileName'] as String?;
+        if (id == null || !RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(id) ||
+            token == null || requestedName == null) {
+          throw ArgumentError('Invalid material download request');
+        }
+        final fileName = requestedName.split(RegExp(r'[/\\]')).last;
+        final client = HttpClient();
+        final file = File('${(await getTemporaryDirectory()).path}/$id-$fileName');
+        try {
+          final request = await client.getUrl(Uri.parse('$_materialsApiUrl/materials/$id/content'));
+          request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+          final response = await request.close();
+          if (response.statusCode != HttpStatus.ok) {
+            throw StateError('파일을 내려받지 못했습니다 (${response.statusCode})');
+          }
+          await response.pipe(file.openWrite());
+          await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
+          return {'ok': true};
+        } catch (_) {
+          if (await file.exists()) await file.delete();
+          rethrow;
+        } finally {
+          client.close();
+        }
       default:
         throw ArgumentError('Unknown bridge action: $action');
     }

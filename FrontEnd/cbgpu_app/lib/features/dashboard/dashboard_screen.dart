@@ -1178,7 +1178,7 @@ class _ReservationCard extends StatelessWidget {
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
                     onPressed: () => launchUrl(
-                      Uri.parse('http://10.138.24.219:800${r.gpuId}'),
+                      Uri.parse('http://10.138.23.12:800${r.gpuId}'),
                       mode: LaunchMode.externalApplication,
                     ),
                     icon: const Icon(Icons.open_in_new, size: 14),

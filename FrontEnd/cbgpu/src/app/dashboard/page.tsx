@@ -108,7 +108,7 @@ export default function Dashboard() {
     }
   }, []);
 
-  const effectiveHost = '10.138.24.219';
+  const effectiveHost = '10.138.23.12';
 
   const stableHost = 'cbshoj.tail0701ea.ts.net'; // 변경된 실제 Tailscale 도메인 주소
 
@@ -117,25 +117,25 @@ export default function Dashboard() {
       id: 1,
       name: "RTX5000",
       username: "gpu1",
-      jupyterhubUrl: connectionMode === 'public' ? `https://valley-cst-syntax-serum.trycloudflare.com` : `http://${effectiveHost}:8001`
+      jupyterhubUrl: connectionMode === 'public' ? `https://tonight-rep-admit-cooperation.trycloudflare.com` : `http://${effectiveHost}:8001`
     },
     {
       id: 2,
       name: "RTX5000",
       username: "gpu2",
-      jupyterhubUrl: connectionMode === 'public' ? `https://lakes-signatures-utility-entering.trycloudflare.com` : `http://${effectiveHost}:8002`
+      jupyterhubUrl: connectionMode === 'public' ? `https://nearest-situations-elite-tools.trycloudflare.com` : `http://${effectiveHost}:8002`
     },
     {
       id: 3,
       name: "RTX5000",
       username: "gpu3",
-      jupyterhubUrl: connectionMode === 'public' ? `https://preparation-barbara-ocean-physics.trycloudflare.com` : `http://${effectiveHost}:8003`
+      jupyterhubUrl: connectionMode === 'public' ? `https://expressions-invention-investments-consortium.trycloudflare.com` : `http://${effectiveHost}:8003`
     },
     {
       id: 4,
       name: "RTX5000",
       username: "gpu4",
-      jupyterhubUrl: connectionMode === 'public' ? `https://bite-tabs-dual-integrated.trycloudflare.com` : `http://${effectiveHost}:8004`
+      jupyterhubUrl: connectionMode === 'public' ? `https://september-notification-pants-whatever.trycloudflare.com` : `http://${effectiveHost}:8004`
     },
   ];
 
