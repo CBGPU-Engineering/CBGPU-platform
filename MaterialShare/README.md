@@ -22,4 +22,4 @@ docker run -d --restart unless-stopped --name cbgpu-materials \
   -p 127.0.0.1:8421:8421 cbgpu-materials:latest
 ```
 
-상태 확인: `curl https://cbshoj.taild105d1.ts.net:8443/health`. 파일 크기 제한은 200MB입니다. 서비스는 로그인 토큰을 Supabase Auth에 검증하고, 자료 접근 권한은 Supabase RLS로 확인합니다.
+상태 확인: `curl https://cbshoj.taild105d1.ts.net:8443/health`. 파일 하나는 1GB까지, 자료 공유 전체는 기본 100GB까지만 저장합니다(`CBGPU_MATERIALS_QUOTA_BYTES` 환경변수로 바꿀 수 있음). 한도를 넘으면 새 업로드는 `507`로 거절됩니다. `GET /materials/quota`(로그인 사용자)와 `GET /admin/materials/usage`(관리자)로 사용량을 조회합니다. 서비스는 로그인 토큰을 Supabase Auth에 검증하고, 자료 접근 권한은 Supabase RLS로 확인합니다.
