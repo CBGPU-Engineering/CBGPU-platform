@@ -42,7 +42,7 @@ export function SegmentedTabs({ items, value, onChange, className = '', pill = f
   const shape = pill ? 'rounded-full' : 'rounded-lg';
 
   return (
-    <div ref={containerRef} className={`relative flex gap-1 overflow-x-auto ${className}`}>
+    <div ref={containerRef} className={`segmented-tabs relative flex max-w-full gap-1 overflow-x-auto ${className}`}>
       <div
         aria-hidden
         className={`absolute top-0 bottom-0 bg-primary shadow-md transition-all duration-300 ease-[var(--ease-spring)] ${shape} ${

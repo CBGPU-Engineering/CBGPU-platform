@@ -252,10 +252,78 @@
   }
 }
 
+/* 가로 스크롤되는 탭/칩 줄의 스크롤바는 숨긴다. */
+.segmented-tabs {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.segmented-tabs::-webkit-scrollbar {
+  display: none;
+}
+
 /* 화면마다 개별적으로 만든 링크와 버튼도 키보드 포커스를 분명히 보여준다. */
 :is(a, button, input, select, textarea, [role="button"]):not([data-no-focus-ring]):focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 3px;
+}
+
+/* 기능 찾기 팝업 — 네이티브 <dialog>라 radix처럼 data-state 애니메이션이 없어서, 열림/닫힘을
+   @starting-style + allow-discrete 트랜지션으로 직접 만든다. 닫힐 때도 display:none이 되기
+   전에 페이드/축소가 재생된다. */
+.site-search {
+  opacity: 0;
+  transform: translateY(-14px) scale(0.96);
+  transition:
+    opacity 180ms var(--ease-quick),
+    transform 320ms var(--ease-spring),
+    overlay 320ms allow-discrete,
+    display 320ms allow-discrete;
+}
+.site-search[open] {
+  opacity: 1;
+  transform: none;
+}
+.site-search::backdrop {
+  background: oklch(0 0 0 / 0);
+  backdrop-filter: blur(0);
+  transition:
+    background 220ms var(--ease-quick),
+    backdrop-filter 220ms var(--ease-quick),
+    overlay 220ms allow-discrete,
+    display 220ms allow-discrete;
+}
+.site-search[open]::backdrop {
+  background: oklch(0 0 0 / 0.55);
+  backdrop-filter: blur(4px);
+}
+@starting-style {
+  .site-search[open] {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.96);
+  }
+  .site-search[open]::backdrop {
+    background: oklch(0 0 0 / 0);
+    backdrop-filter: blur(0);
+  }
+}
+/* 기본 스크롤바(화살표 버튼 + 두꺼운 트랙)는 유리 팝업과 어울리지 않아서, 평소엔 거의 안 보이고
+   hover/스크롤할 때만 또렷해지는 얇은 막대로 바꾼다. 표준 속성만 써서 Chrome/Firefox/Safari 모두 같다. */
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--muted-foreground) 30%, transparent) transparent;
+  scrollbar-gutter: stable;
+}
+.thin-scroll:hover {
+  scrollbar-color: color-mix(in oklab, var(--muted-foreground) 55%, transparent) transparent;
+}
+/* 결과 항목은 위에서부터 살짝 시차를 두고 나타난다 */
+@keyframes site-search-item-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.site-search[open] .site-search-item {
+  animation: site-search-item-in 260ms var(--ease-quick) backwards;
+  animation-delay: calc(var(--i, 0) * 25ms + 60ms);
 }
 
 /* 기능 찾기 입력창은 자동 포커스 시 브라우저 기본 테두리를 표시하지 않는다. */
