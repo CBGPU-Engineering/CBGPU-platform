@@ -13,9 +13,10 @@ import { LoadingSpinner } from '@/components/ui/spinner';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { PersonSearchSelect } from '@/components/manufacturing/PersonSearchSelect';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import MaterialsStorage from '@/components/admin/MaterialsStorage';
 import { Trash2 } from 'lucide-react';
 
-type AdminTab = 'gpu' | 'server' | 'accounts' | 'manufacture';
+type AdminTab = 'gpu' | 'server' | 'accounts' | 'manufacture' | 'materials';
 
 export default function AdminPage() {
   const { isAdmin, isLoading: authLoading } = useAuth();
@@ -423,6 +424,7 @@ export default function AdminPage() {
               { value: 'server',   label: `서버 배포${pendingCpuCount > 0 ? ` (${pendingCpuCount})` : ''}` },
               { value: 'accounts', label: `계정${unreviewedCount > 0 ? ` (${unreviewedCount})` : ''}` },
               { value: 'manufacture', label: 'Manufacture' },
+              { value: 'materials', label: '자료 공유' },
             ]}
             value={tab}
             onChange={v => setTab(v as AdminTab)}
@@ -808,6 +810,8 @@ export default function AdminPage() {
         )}
 
         {/* ── Manufacture tab ── */}
+        {tab === 'materials' && <MaterialsStorage />}
+
         {tab === 'manufacture' && (
           <div className="space-y-8">
             {manufactureLoading ? (
