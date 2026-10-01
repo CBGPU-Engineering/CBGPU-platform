@@ -126,7 +126,7 @@ export default function SelfStudyReminderSettings() {
             <span id="reminder-time-label">첫 알림 시각</span>
             <Select value={time} onValueChange={setTime}>
               <SelectTrigger aria-labelledby="reminder-time-label" className="h-10 w-full bg-background"><SelectValue /></SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" className="max-h-64 bg-[var(--card-opaque)]">
                 {TIMES.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -137,7 +137,7 @@ export default function SelfStudyReminderSettings() {
               <span id="reminder-repeat-minutes-label">재알림 간격</span>
               <Select value={String(repeatMinutes)} onValueChange={(value) => setRepeatMinutes(Number(value))}>
                 <SelectTrigger aria-labelledby="reminder-repeat-minutes-label" className="h-10 w-full bg-background"><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" className="bg-[var(--card-opaque)]">
                   {REPEAT_MINUTES.map(value => <SelectItem key={value} value={String(value)}>{value}분마다</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -146,7 +146,7 @@ export default function SelfStudyReminderSettings() {
               <span id="reminder-repeat-count-label">재알림 횟수</span>
               <Select value={String(repeatCount)} onValueChange={(value) => setRepeatCount(Number(value))}>
                 <SelectTrigger aria-labelledby="reminder-repeat-count-label" className="h-10 w-full bg-background"><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" className="bg-[var(--card-opaque)]">
                   {Array.from({ length: 6 }, (_, count) => <SelectItem key={count} value={String(count)}>{count}회</SelectItem>)}
                 </SelectContent>
               </Select>

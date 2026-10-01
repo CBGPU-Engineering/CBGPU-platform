@@ -13,6 +13,7 @@ const PAGES = [
   { title: '서버 배포', description: '내 서버 관리', href: '/server', keywords: '호스팅' },
   { title: '제작', description: '3D 프린터와 레이저 신청', href: '/manufacturing', keywords: '프린터 레이저' },
   { title: '연구노트', description: '노트 작성과 공유', href: '/notes', keywords: '메모 기록' },
+  { title: '자료 공유', description: '파일을 올리고 내려받기', href: '/materials', keywords: '파일 태그 학습자료' },
   { title: '도구', description: '타이머와 디데이', href: '/tools', keywords: '타이머 디데이' },
   { title: '투표', description: '의견을 모으는 투표', href: '/polls', keywords: '설문' },
   { title: 'Feed', description: '학교 소식과 글', href: '/feed', keywords: '피드' },

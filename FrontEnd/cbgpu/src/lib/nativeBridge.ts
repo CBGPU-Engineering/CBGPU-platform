@@ -45,6 +45,7 @@ export interface NativeBridge {
   /** The app's own Supabase session, kept alive by supabase_flutter across
    * restarts even when this WebView's own localStorage doesn't survive one. */
   getPersistedSession(): Promise<{ session: { accessToken: string; refreshToken: string } | null }>;
+  downloadMaterial(opts: { id: string; fileName: string; accessToken: string }): Promise<{ ok: true }>;
 }
 
 declare global {
