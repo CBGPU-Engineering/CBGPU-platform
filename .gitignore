@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .claude/
+.claude-sync/
 Daemon/venv/
 
 # Supabase CLI local link/session cache — machine-specific, not project config.
