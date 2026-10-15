@@ -50,45 +50,45 @@
 }
 
 :root {
-  /* 페이지 배경을 카드보다 살짝 어둡게 — 흰 배경에 흰 카드라 구분이 안 가던 문제 수정.
-     아주 옅게 브랜드 색조(250 hue)를 섞어서 차가운 무채색보다 은은하게. */
-  --background: oklch(0.975 0.004 250);
-  --foreground: oklch(0.145 0 0);
+  /* 밝은 중성색 면 + 파란색 행동 강조. 다크 모드 색은 .dark에서만 정의한다. */
+  --background: #fafafa;
+  --foreground: #191f28;
   --card-opaque: oklch(1 0 0);
-  --card: oklch(1 0 0 / 0.82);
-  --card-foreground: oklch(0.145 0 0);
-  --card-blur: blur(18px) saturate(1.5);
+  --card: #ffffff;
+  --card-foreground: #191f28;
+  --card-blur: none;
   /* 팝오버는 카드가 아니라 목록/드롭다운처럼 뒤 콘텐츠 위에 뜨는 것 — glass-strong과
      같은 안전 기준(거의 불투명)을 쓴다. 그래야 뒤 텍스트가 비쳐 겹쳐 보이는 문제가 없다. */
   --popover: oklch(1 0 0 / 0.92);
   --popover-foreground: oklch(0.145 0 0);
   --popover-blur: blur(28px) saturate(1.6);
-  --primary: oklch(0.6 0.18 250);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.96 0.004 250);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.96 0.004 250);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.96 0.004 250);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.918 0.004 250);
-  --input: oklch(0.918 0.004 250);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
+  --primary: #004fe8;
+  --primary-hover: #0045cf;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f3f3;
+  --secondary-foreground: #191f28;
+  --muted: #f3f3f3;
+  --muted-foreground: #565d66;
+  --accent: #f3f3f3;
+  --accent-foreground: #191f28;
+  --destructive: #b42332;
+  --border: #e4e4e7;
+  --input: #b0b8c1;
+  --ring: #004fe8;
+  --chart-1: #3182f6;
+  --chart-2: #f59e0b;
+  --chart-3: #6ba9ff;
+  --chart-4: #f2f4f6;
+  --chart-5: #004fe8;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #191f28;
+  --sidebar-primary: #004fe8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f3f3f3;
+  --sidebar-accent-foreground: #191f28;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #004fe8;
   --success: oklch(0.6 0.16 145);
   --success-foreground: oklch(0.985 0 0);
   /* 토스 스타일 모션 토큰: 탭 인디케이터/토스트 진입처럼 살짝 튀는 느낌이 필요한 곳엔 spring, 그 외엔 quick */
@@ -99,52 +99,53 @@
      콘텐츠 카드에는 쓰지 않는다(반투명이 대비를 떨어뜨림).
      불투명도는 일부러 높게 잡았다 — 뒤에 굵은 헤딩 텍스트가 있으면 블러만으론 못 가려서
      드롭다운 메뉴 글자와 겹쳐 보이는 문제가 실제로 있었음(다크 모드 8% 불투명도가 원인). */
-  --glass-bg: oklch(1 0 0 / 0.65);
-  --glass-bg-strong: oklch(1 0 0 / 0.9);
-  --glass-border: oklch(1 0 0 / 0.55);
+  --glass-bg: rgb(255 255 255 / 0.9);
+  --glass-bg-strong: rgb(255 255 255 / 0.97);
+  --glass-border: rgb(51 61 75 / 0.1);
   --glass-highlight: oklch(1 0 0 / 0.65);
   --glass-blur: blur(20px) saturate(1.7);
   --glass-blur-strong: blur(32px) saturate(1.6);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card-opaque: oklch(0.205 0 0);
-  --card: oklch(0.205 0 0 / 0.78);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0 / 0.92);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.6 0.18 250); 
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  --background: #17171c;
+  --foreground: #ececef;
+  --card-opaque: #202027;
+  --card: #202027;
+  --card-foreground: #ececef;
+  --popover: rgb(32 32 39 / 0.98);
+  --popover-foreground: #ececef;
+  --primary: #3b82f6;
+  --primary-hover: #4b8cfa;
+  --primary-foreground: #17171c;
+  --secondary: #2c2c35;
+  --secondary-foreground: #ececef;
+  --muted: #2c2c35;
+  --muted-foreground: #b0b8c1;
+  --accent: #2c2c35;
+  --accent-foreground: #f2f4f6;
+  --destructive: #ff9ba5;
   --border: oklch(1 0 0 / 15%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --ring: #3b82f6;
+  --chart-1: #3b82f6;
+  --chart-2: #f59e0b;
+  --chart-3: #3182f6;
+  --chart-4: #f2f4f6;
+  --chart-5: #b0b8c1;
+  --sidebar: #202027;
+  --sidebar-foreground: #ececef;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #17171c;
+  --sidebar-accent: #2c2c35;
+  --sidebar-accent-foreground: #ececef;
   --sidebar-border: oklch(1 0 0 / 15%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: #3b82f6;
   --success: oklch(0.65 0.16 145);
   --success-foreground: oklch(0.145 0 0);
 
-  --glass-bg: oklch(0.145 0 0 / 0.55);
-  --glass-bg-strong: oklch(0.205 0 0 / 0.92);
+  --glass-bg: rgb(23 23 28 / 0.95);
+  --glass-bg-strong: rgb(32 32 39 / 0.98);
   --glass-border: oklch(1 0 0 / 0.14);
   --glass-highlight: oklch(1 0 0 / 0.1);
 }
@@ -205,8 +206,7 @@
 }
 
 /* 네비/모달/토스트처럼 화면에 떠서 다른 텍스트 위에 겹칠 수 있는 컨트롤 레이어 전용.
-   콘텐츠 카드는 아래 [class*="bg-card"] 규칙으로 따로 처리한다 — 카드는 보통 빈 배경
-   위에 놓이지 뒤에 다른 글자가 있는 경우가 아니라서, 이 유틸보다 살짝 더 투명해도 안전하다.
+   콘텐츠 카드는 불투명하게 유지해 가독성과 스크롤 성능을 확보한다.
    위쪽에서 빛을 받는 느낌을 주는 대각선 하이라이트를 배경에 얹어서 입체감을 준다 —
    단, 하이라이트는 장식일 뿐이고 실제 대비는 위 --glass-bg 불투명도가 책임진다. */
 @utility glass {
@@ -227,14 +227,7 @@
   box-shadow: 0 16px 48px -16px oklch(0 0 0 / 0.24), inset 0 1px 0 0 var(--glass-highlight);
 }
 
-/* bg-card/bg-popover는 site 전체 30여개 파일에 흩어진 문자열 그대로라 각 파일을 고치는 대신,
-   그 색 토큰 자체를 반투명으로 바꾸고(위 --card/--popover) 여기서 블러만 얹는다 — 클래스
-   문자열에 "bg-card"/"bg-popover"가 들어간 요소는 전부 자동으로 유리 재질이 된다. */
-[class*="bg-card"] {
-  background-image: linear-gradient(165deg, var(--glass-highlight), transparent 55%);
-  backdrop-filter: var(--card-blur);
-  -webkit-backdrop-filter: var(--card-blur);
-}
+/* 떠 있는 팝오버에만 블러를 적용한다. */
 [class*="bg-popover"] {
   background-image: linear-gradient(165deg, var(--glass-highlight), transparent 45%);
   backdrop-filter: var(--popover-blur);
@@ -347,13 +340,7 @@ input[data-no-focus-ring]:focus-visible {
 
   body {
     @apply bg-background text-foreground antialiased;
-    /* 앰비언트 배경 — 유리 재질(navbar/card/popover)이 블러로 비칠 무언가가 있어야
-       "유리처럼" 보인다. 처음엔 라벤더/핑크/민트 세 가지 색을 흩뿌렸는데 흔한 "AI스러운
-       그라데이션 블롭" 느낌이라 별로였음 — 브랜드 색(--primary) 하나만, 위에서 은은하게
-       비추는 느낌으로 훨씬 절제해서 바꿈. 옅은 색이라 일반 텍스트 대비엔 영향이 없고,
-       카드/팝오버 자체의 불투명도가 이미 텍스트 대비를 책임진다. */
-    background-image: radial-gradient(ellipse 80% 50% at 50% -10%, oklch(0.6 0.18 250 / 0.12), transparent 70%);
-    background-repeat: no-repeat;
+    background-image: none;
   }
 
   .dark {
@@ -361,7 +348,7 @@ input[data-no-focus-ring]:focus-visible {
   }
 
   .dark body {
-    background-image: radial-gradient(ellipse 80% 50% at 50% -10%, oklch(0.6 0.18 250 / 0.2), transparent 70%);
+    background-image: none;
   }
 
   @media (prefers-reduced-transparency: reduce) {
@@ -370,15 +357,26 @@ input[data-no-focus-ring]:focus-visible {
     }
   }
 
-  /* 도허티 임계/터치 피드백: 모든 네이티브 버튼에 기본 3D 프레스 효과를 준다 — 화면을
-     누르는 느낌을 주려고 단순 scale이 아니라 perspective + rotateX를 함께 쓴다.
-     shadcn Button은 유틸리티 클래스(active:translate-y-px)가 specificity로 우선 적용된다. */
-  button:not(:disabled) {
-    transition: transform 120ms var(--ease-quick);
-    transform-style: preserve-3d;
+  :is(button, a, input, select, textarea) {
+    touch-action: manipulation;
   }
-  button:not(:disabled):active {
-    transform: perspective(600px) rotateX(8deg) scale(0.96) translateY(1px);
+}
+
+/* 작은 데스크톱 버튼의 모양은 유지하되 터치 기기에서는 실제 누르는 영역을 확보한다. */
+@media (pointer: coarse) {
+  [data-slot="button"] { min-height: 44px; }
+  [data-slot="button"][data-size^="icon"] { min-width: 44px; }
+  nav :is(a, button) { min-height: 44px; }
+  input, select, textarea { font-size: 1rem; }
+}
+
+@media (prefers-contrast: more) {
+  :root, .dark {
+    --glass-bg: var(--background);
+    --glass-bg-strong: var(--card-opaque);
+    --glass-border: var(--foreground);
+    --border: var(--muted-foreground);
+    --input: var(--muted-foreground);
   }
 }
 
@@ -406,12 +404,79 @@ input[data-no-focus-ring]:focus-visible {
   animation: tilt-in 320ms var(--ease-spring);
 }
 
+/* Motion moves feedback, never delays the action or captures pointer events. */
+:root { --ease-settle: cubic-bezier(.22, 1, .36, 1); }
+.tab-selection {
+  pointer-events: none;
+  position: absolute;
+  inset: 4px auto 4px 0;
+  width: var(--tab-width, 0px);
+  transform: translateX(var(--tab-left, 0px));
+  visibility: hidden;
+  transition: transform 280ms var(--ease-settle), width 280ms var(--ease-settle);
+}
+.segmented-tabs[data-motion-ready] .tab-selection { visibility: visible; }
+.segmented-tabs[data-motion-ready] button[aria-pressed="true"] {
+  background: transparent;
+  box-shadow: none;
+}
+@keyframes surface-enter {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes surface-exit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(12px) scale(.98); }
+}
+@keyframes content-arrive {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+[data-slot="dialog-content"][data-state="open"] {
+  animation: surface-enter 260ms var(--ease-settle);
+}
+[data-slot="dialog-content"][data-state="closed"] {
+  animation: surface-exit 160ms ease-in;
+}
+[data-slot="dialog-overlay"] { animation-duration: 180ms; }
+.home-arrival > :first-child,
+.scroll-reveal > section:first-child > * {
+  animation: content-arrive 480ms var(--ease-settle) both;
+}
+.scroll-reveal > section:first-child > :nth-child(2) { animation-delay: 50ms; }
+.scroll-reveal > section:first-child > :nth-child(3) { animation-delay: 100ms; }
+.home-arrival .motion-card { animation: content-arrive 420ms var(--ease-settle) backwards; }
+.home-arrival .motion-card:nth-child(2) { animation-delay: 40ms; }
+.home-arrival .motion-card:nth-child(3) { animation-delay: 80ms; }
+.home-arrival .motion-card:nth-child(4) { animation-delay: 120ms; }
+.motion-card,
+.scroll-reveal a.rounded-full {
+  transition: transform 220ms var(--ease-settle), border-color 180ms ease, background-color 180ms ease, box-shadow 220ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .motion-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgb(0 0 0 / .06); }
+  .scroll-reveal a.rounded-full:hover { transform: translateY(-2px); }
+}
+.motion-card:active,
+.scroll-reveal a.rounded-full:active { transform: scale(.98); transition-duration: 100ms; }
+.scroll-reveal > section:not(:first-child) > * {
+  transition: opacity 520ms var(--ease-settle), transform 520ms var(--ease-settle);
+}
+.scroll-reveal > section[data-reveal-pending] > * { opacity: 0; transform: translateY(28px); }
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal > section[data-reveal-pending] > * { opacity: 1; transform: none; }
+  .motion-card:hover, .motion-card:active,
+  .scroll-reveal a.rounded-full:hover, .scroll-reveal a.rounded-full:active { transform: none; }
+}
+
 /* tilt-3d hover/active — @utility 안의 중첩 pseudo가 일부 빌드에서 누락되어 별도 분리 */
 @layer utilities {
+  @media (hover: hover) and (pointer: fine) {
   .tilt-3d:hover {
     transform: perspective(800px) rotateX(3deg) rotateY(-2deg) translateY(-3px) scale(1.015);
   }
   .tilt-3d:active {
     transform: perspective(800px) rotateX(1deg) scale(0.99);
+  }
   }
 }

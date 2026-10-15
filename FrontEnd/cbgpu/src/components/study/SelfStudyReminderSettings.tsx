@@ -104,7 +104,7 @@ export default function SelfStudyReminderSettings() {
 
   return <>
     <Button variant="outline" size="sm" className="font-bold gap-1.5 rounded-full" onClick={() => setOpen(true)}>
-      <BellRing className="size-4" /><span className="hidden sm:inline">신청 알림</span>
+      <BellRing className="size-4" /><span>신청 알림</span>
     </Button>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] min-w-0 overflow-y-auto sm:max-w-md">
