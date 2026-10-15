@@ -2,10 +2,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/useAuth';
-import {
-  Cpu, CalendarDays, BookOpen, UtensilsCrossed, Vote,
-  NotebookPen, Users, Gamepad2, Wrench, Newspaper, Server, Printer, Music, FolderOpen,
-} from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { dailyServices } from '@/lib/serviceNavigation';
 import { isNativeApp, onNativeBridgeReady } from '@/lib/nativeBridge';
 import LaunchPage from '@/components/LaunchPage';
 import { LoadingSpinner } from '@/components/ui/spinner';
@@ -97,23 +95,7 @@ function weatherCategory(code: number): 'rain' | 'snow' | null {
   return null;
 }
 
-/** 차가운 톤으로 통일한 은은한 팔레트 — 채도 낮은 400 톤 + 배경 /10 으로 너무 알록달록하지 않게 */
-const FEATURES = [
-  { href: '/study', label: '자습신청', icon: BookOpen, color: 'text-blue-400 bg-blue-400/10' },
-  { href: '/timetable', label: '시간표', icon: CalendarDays, color: 'text-indigo-400 bg-indigo-400/10' },
-  { href: '/meal', label: '급식', icon: UtensilsCrossed, color: 'text-amber-400 bg-amber-400/10' },
-  { href: '/wakeup', label: '기상송', icon: Music, color: 'text-pink-400 bg-pink-400/10' },
-  { href: '/polls', label: '투표', icon: Vote, color: 'text-violet-400 bg-violet-400/10' },
-  { href: '/notes', label: '연구노트', icon: NotebookPen, color: 'text-teal-400 bg-teal-400/10' },
-  { href: '/materials', label: '자료 공유', icon: FolderOpen, color: 'text-blue-400 bg-blue-400/10' },
-  { href: '/match', label: '스터디 매칭', icon: Users, color: 'text-sky-400 bg-sky-400/10' },
-  { href: '/dashboard', label: 'GPU 대여', icon: Cpu, color: 'text-slate-400 bg-slate-400/10' },
-  { href: '/server',    label: '서버 배포', icon: Server, color: 'text-emerald-400 bg-emerald-400/10' },
-  { href: '/manufacturing', label: '제작', icon: Printer, color: 'text-orange-400 bg-orange-400/10' },
-  { href: '/tools', label: '도구', icon: Wrench, color: 'text-cyan-400 bg-cyan-400/10' },
-  { href: '/games', label: 'Arcade', icon: Gamepad2, color: 'text-violet-400 bg-violet-400/10' },
-  { href: '/feed', label: 'Feed', icon: Newspaper, color: 'text-blue-400 bg-blue-400/10' },
-];
+const FEATURES = dailyServices;
 
 export default function Home() {
   const { user, profile, isLoading } = useAuth();
@@ -158,41 +140,42 @@ export default function Home() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10">
-      <div className="flex items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 ease-[var(--ease-spring)]">
+    <div className="home-arrival max-w-4xl mx-auto space-y-10">
+      <div className="flex items-center gap-4 sm:gap-6">
         {profile?.avatar_url && (
           <>
-            <img src={profile.avatar_url} alt="" className="size-16 md:size-20 rounded-full object-cover ring-2 ring-background shadow-md shrink-0" />
-            <div className="w-px h-16 md:h-20 bg-border shrink-0" />
+            <img src={profile.avatar_url} alt="" className="size-14 sm:size-16 rounded-full object-cover shrink-0" />
           </>
         )}
-        <div className="space-y-0.5 min-w-0">
-          <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black tracking-tight break-keep">
+        <div className="space-y-2 min-w-0">
+          <p className="text-2xl sm:text-3xl lg:text-4xl font-semibold leading-[1.3] tracking-tight break-keep">
             {firstName ? `${firstName}님, ${greeting}` : `${greeting},`}
           </p>
-          <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-muted-foreground">
+          <p className="text-lg sm:text-xl md:text-2xl font-normal leading-relaxed tracking-tight text-muted-foreground">
             오늘은 뭘 도와드릴까요?
           </p>
         </div>
       </div>
 
-      {user && <DailyBriefing />}
-
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {FEATURES.map((f, i) => (
+      <section aria-label="자주 쓰는 학교생활 서비스" className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        {FEATURES.map((f) => (
           <Link
             key={f.href}
             href={f.href}
-            style={{ animationDelay: `${80 + i * 50}ms` }}
-            className="tilt-3d flex flex-col items-start gap-3 p-5 rounded-[28px] bg-card ring-1 ring-foreground/5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-500 ease-[var(--ease-spring)] fill-mode-backwards"
+            className="motion-card flex flex-col items-start gap-3 p-5 sm:p-6 rounded-2xl bg-card border border-border hover:border-primary focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
           >
-            <span className={`flex items-center justify-center size-11 rounded-2xl ${f.color}`}>
-              <f.icon className="size-5" strokeWidth={2} />
+            <span className="flex items-center justify-start h-9 text-primary">
+              <f.icon className="size-6" strokeWidth={1.75} />
             </span>
-            <span className="text-sm font-bold">{f.label}</span>
+            <span className="text-lg font-semibold tracking-tight">{f.label}</span>
+            <span className="text-sm leading-relaxed text-muted-foreground">{f.description}</span>
           </Link>
         ))}
       </section>
+
+      <Link href="/services" className="flex min-h-12 items-center justify-between gap-3 rounded-2xl border bg-card px-5 py-4 font-semibold hover:border-primary"><span>전체 서비스 <span className="ml-2 text-sm font-normal text-muted-foreground">GPU · 제작 · 자료 · 도구</span></span><ArrowRight aria-hidden="true" className="size-5 shrink-0" /></Link>
+
+      {user && <DailyBriefing />}
 
       {!user && (
         <Link
