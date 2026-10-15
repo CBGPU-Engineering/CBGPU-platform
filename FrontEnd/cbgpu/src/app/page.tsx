@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/useAuth';
 import { ArrowRight } from 'lucide-react';
-import { dailyServices } from '@/lib/serviceNavigation';
+import HomeServiceGrid, { HOME_SERVICES } from '@/components/HomeServiceGrid';
 import { isNativeApp, onNativeBridgeReady } from '@/lib/nativeBridge';
 import LaunchPage from '@/components/LaunchPage';
 import { LoadingSpinner } from '@/components/ui/spinner';
@@ -95,7 +95,6 @@ function weatherCategory(code: number): 'rain' | 'snow' | null {
   return null;
 }
 
-const FEATURES = dailyServices;
 
 export default function Home() {
   const { user, profile, isLoading } = useAuth();
@@ -157,23 +156,9 @@ export default function Home() {
         </div>
       </div>
 
-      <section aria-label="자주 쓰는 학교생활 서비스" className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        {FEATURES.map((f) => (
-          <Link
-            key={f.href}
-            href={f.href}
-            className="motion-card flex flex-col items-start gap-3 p-5 sm:p-6 rounded-2xl bg-card border border-border hover:border-primary focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
-          >
-            <span className="flex items-center justify-start h-9 text-primary">
-              <f.icon className="size-6" strokeWidth={1.75} />
-            </span>
-            <span className="text-lg font-semibold tracking-tight">{f.label}</span>
-            <span className="text-sm leading-relaxed text-muted-foreground">{f.description}</span>
-          </Link>
-        ))}
-      </section>
+      <HomeServiceGrid />
 
-      <Link href="/services" className="flex min-h-12 items-center justify-between gap-3 rounded-2xl border bg-card px-5 py-4 font-semibold hover:border-primary"><span>전체 서비스 <span className="ml-2 text-sm font-normal text-muted-foreground">GPU · 제작 · 자료 · 도구</span></span><ArrowRight aria-hidden="true" className="size-5 shrink-0" /></Link>
+      <Link href="/services" className="flex min-h-12 items-center justify-between gap-3 rounded-2xl border bg-card px-5 py-4 font-semibold hover:border-primary"><span>전체 서비스 <span className="ml-2 text-sm font-normal text-muted-foreground">설명과 함께 보기</span></span><ArrowRight aria-hidden="true" className="size-5 shrink-0" /></Link>
 
       {user && <DailyBriefing />}
 
@@ -181,7 +166,7 @@ export default function Home() {
         <Link
           href="/auth/signup"
           className="tilt-3d block rounded-[28px] bg-primary text-primary-foreground p-6 animate-in fade-in slide-in-from-bottom-2 duration-500 ease-[var(--ease-spring)] fill-mode-backwards"
-          style={{ animationDelay: `${80 + FEATURES.length * 50}ms` }}
+          style={{ animationDelay: `${80 + HOME_SERVICES.length * 50}ms` }}
         >
           <p className="font-black text-lg">아직 계정이 없으신가요?</p>
           <p className="text-sm opacity-80 mt-1">가입하고 학교생활에 필요한 모든 걸 한 곳에서 확인하세요 →</p>
