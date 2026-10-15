@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import SelfStudyReminderSettings from '@/components/study/SelfStudyReminderSettings';
-import TodaySupervisor from '@/components/study/TodaySupervisor';
+import SupervisorCard from '@/components/study/SupervisorCard';
 import {
   getRooms, getRoomComposition, getSeatOccupations, getStudent, getStudents,
   getSelfStudyPolicy, getPeriodCountForDate, localDateStr, searchSelfStudy,
@@ -471,7 +471,7 @@ export default function StudyPage() {
         </div>
       </div>
 
-      <TodaySupervisor />
+      <SupervisorCard />
 
       <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{loading ? (roomData.length ? '현황 업데이트 중 · 이전 결과를 표시합니다.' : '자습 현황을 불러오는 중…') : updatedAt ? `최근 조회 ${updatedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}${error ? ' · 업데이트 실패, 이전 결과입니다.' : ''}` : '아직 조회된 현황이 없습니다.'}</p>
 
