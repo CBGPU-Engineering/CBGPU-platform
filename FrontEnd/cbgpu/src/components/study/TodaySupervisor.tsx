@@ -40,19 +40,19 @@ export default function TodaySupervisor() {
   }, [date, retry]);
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-4 space-y-2" aria-label="오늘의 자습감독">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-black">오늘의 자습감독 선생님</h2>
+    <section className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-3" aria-label="오늘의 자습감독">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-medium text-muted-foreground">오늘의 자습감독 선생님</h2>
         <span className="text-xs text-muted-foreground">{date}</span>
       </div>
       <div aria-live="polite">
         {loading ? <p className="text-sm text-muted-foreground">담당 선생님 확인 중…</p>
-          : failed ? <p className="text-sm text-muted-foreground">감독 정보를 불러오지 못했습니다. <button className="underline" onClick={() => setRetry(n => n + 1)}>다시 시도</button></p>
-          : data?.date === date && <p className="font-bold text-primary">{data.teachers.map(name => `${name} 선생님`).join(' · ')}</p>}
+          : failed ? <p className="text-sm text-muted-foreground">감독 정보를 불러오지 못했습니다. <button className="inline-flex min-h-11 items-center px-2 underline underline-offset-4 rounded-md focus-visible:outline-2 focus-visible:outline-ring" onClick={() => setRetry(n => n + 1)}>다시 시도</button></p>
+          : data?.date === date && <p className="text-xl leading-relaxed font-semibold text-foreground">{data.teachers.map(name => `${name} 선생님`).join(' · ')}</p>}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>감독 일정은 학교 사정에 따라 변경될 수 있습니다.</span>
-        <a href={SUPERVISOR_SOURCE} target="_blank" rel="noopener noreferrer" className="underline">원본 확인</a>
+        <a href={SUPERVISOR_SOURCE} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-md underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring">원본 확인<span className="sr-only"> (새 탭)</span></a>
       </div>
     </section>
   );

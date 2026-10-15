@@ -69,11 +69,11 @@ async function requireApprovedUser(request: NextRequest) {
   });
   // 토큰 검증과 프로필 조회를 순차가 아니라 동시에 보낸다. 프로필 조회는 사용자 토큰으로 RLS를
   // 거치므로 위조된 토큰이면 어차피 거절되고, 아래에서 getUser 결과의 id와도 대조한다.
-  const [{ data: { user }, error }, { data: profile }] = await Promise.all([
+  const [{ data: { user }, error }, { data: profile, error: profileError }] = await Promise.all([
     client.auth.getUser(token),
     client.from('profiles').select('is_approved').eq('id', subject).maybeSingle(),
   ]);
-  if (error || !user || user.id !== subject) return false;
+  if (error || !user || user.id !== subject || profileError || !profile) return false;
 
   // null(기본값)/true는 정상 이용 가능, 관리자가 false로 내린 경우만 막는다
   const approved = profile?.is_approved !== false;

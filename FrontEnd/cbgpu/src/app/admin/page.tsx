@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAlert } from '@/lib/alert';
 import { useRouter } from 'next/navigation';
@@ -22,6 +23,15 @@ export default function AdminPage() {
   const { isAdmin, isLoading: authLoading } = useAuth();
   const { showError, showSuccess } = useAlert();
   const [tab, setTab] = useState<AdminTab>('gpu');
+  const [query, setQuery] = useState('');
+  const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
+  const [visibleLimit, setVisibleLimit] = useState(30);
+  const selectTab = (next: AdminTab, reviewOnly = false) => {
+    setTab(next);
+    setQuery('');
+    setNeedsReviewOnly(reviewOnly);
+    setVisibleLimit(30);
+  };
   const router = useRouter();
 
   // ── GPU 예약 ────────────────────────────────────────────────────────────────
@@ -321,16 +331,27 @@ export default function AdminPage() {
 
   const pendingCpuCount = cpuProjects.filter(p => p.status === 'pending').length;
   const unreviewedCount = profiles.filter(p => p.is_approved === null || p.is_approved === false).length;
+  const pendingGpuCount = reservations.filter(r => r.status === 'pending').length;
+  const matchesQuery = (...values: unknown[]) => values.some(value => String(value ?? '').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+  const filteredReservations = reservations.filter(r => (!needsReviewOnly || r.status === 'pending') && matchesQuery(r.profiles?.full_name, r.profiles?.student_id, r.gpu_id, r.purpose));
+  const filteredProjects = cpuProjects.filter(p => (!needsReviewOnly || p.status === 'pending') && matchesQuery(p.name, p.user_email, p.profiles?.full_name, p.profiles?.student_id));
+  const filteredProfiles = profiles.filter(p => (!needsReviewOnly || p.is_approved !== true) && matchesQuery(p.full_name, p.student_id, p.email));
+  const visibleReservations = filteredReservations.slice(0, visibleLimit);
+  const visibleProjects = filteredProjects.slice(0, visibleLimit);
+  const visibleProfiles = filteredProfiles.slice(0, visibleLimit);
+  const hasList = tab === 'gpu' || tab === 'server' || tab === 'accounts';
+  const resultCount = tab === 'gpu' ? filteredReservations.length : tab === 'server' ? filteredProjects.length : filteredProfiles.length;
+  const listLoading = tab === 'gpu' ? gpuLoading : tab === 'server' ? cpuLoading : profilesLoading;
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <section>
         <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-4xl font-black tracking-tighter italic uppercase">Admin Control</h1>
-            <p className="text-muted-foreground font-bold uppercase text-xs tracking-widest opacity-60">Review and manage requests</p>
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">관리자</h1>
+            <p className="pt-2 text-muted-foreground text-sm">신청을 검토하고 학교 서비스를 관리하세요.</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Link href="/admin/study">
               <Button variant="outline" className="font-black text-xs uppercase tracking-widest gap-1.5">
                 <KeyRound className="size-3.5" /> 자습신청 토큰 관리
@@ -344,76 +365,18 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* 기상송 담당자 지정 — 탭과 무관하게 항상 보임 */}
-        <div className="mb-8 border-2 rounded-3xl bg-card p-6 md:p-8 shadow-2xl transition-all space-y-4">
-          <div className="flex items-center gap-2">
-            <Music className="size-5 text-primary" />
-            <h2 className="font-black uppercase text-sm tracking-widest">기상송 담당자 지정</h2>
-          </div>
-          <div className="flex gap-2">
-            <PersonSearchSelect
-              candidates={allProfiles.filter(p => !wakeupManagers.some(m => m.id === p.id))}
-              value={addWakeupManagerSelect}
-              onChange={setAddWakeupManagerSelect}
-            />
-            <Button onClick={addWakeupManager}>추가</Button>
-          </div>
-          {wakeupManagers.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {wakeupManagers.map(m => (
-                <span key={m.id} className="flex items-center gap-1 bg-muted rounded-full pl-3 pr-1.5 py-1 text-xs font-bold">
-                  {m.full_name || 'Unknown'} <span className="text-muted-foreground opacity-60">({m.student_id || '-'})</span>
-                  <button onClick={() => toggleWakeupManager(m.id, true)} className="ml-1 flex items-center justify-center size-5 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors">
-                    <X className="size-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 전체 공지 배너 — 탭과 무관하게 항상 보임 */}
-        <div className="mb-8 border-2 rounded-3xl bg-card p-6 md:p-8 shadow-2xl transition-all space-y-4">
-          {bannerLoading ? (
-            <div className="flex items-center justify-center py-8"><LoadingSpinner size={40} label="배너 불러오는 중" /></div>
-          ) : (
-            <>
-              <div className="flex items-center gap-2">
-                <Megaphone className="size-5 text-primary" />
-                <h2 className="font-black uppercase text-sm tracking-widest">전체 공지 배너</h2>
-                {bannerActive && (
-                  <Badge variant="success" icon={<CheckCircle2 className="size-3" />}>표시 중</Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground font-medium">
-                켜두면 로그인 여부와 상관없이 모든 페이지 상단에 이 문구가 보입니다.
-              </p>
-              <textarea
-                value={bannerMessage}
-                onChange={(e) => setBannerMessage(e.target.value)}
-                placeholder="예: 7/10(금) 03:00~05:00 서버 점검이 있습니다."
-                rows={3}
-                className="w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 resize-y"
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest gap-1.5"
-                  disabled={bannerSaving || !bannerMessage.trim()}
-                  onClick={() => saveBanner(true)}
-                >
-                  <Megaphone className="size-3.5" /> 저장하고 켜기
-                </Button>
-                <Button
-                  variant="outline"
-                  className="font-black text-xs uppercase tracking-widest"
-                  disabled={bannerSaving || !bannerActive}
-                  onClick={() => saveBanner(false)}
-                >
-                  끄기
-                </Button>
-              </div>
-            </>
-          )}
+        <div className="mb-8 grid grid-cols-3 gap-2 sm:gap-3" aria-label="검토할 신청 바로가기">
+          {([
+            ['gpu', 'GPU 승인 대기', pendingGpuCount, gpuLoading],
+            ['server', '서버 승인 대기', pendingCpuCount, cpuLoading],
+            ['accounts', '미검토·제한 계정', unreviewedCount, profilesLoading],
+          ] as const).map(([target, label, count, loading]) => (
+            <button key={target} type="button" onClick={() => selectTab(target, true)} className="rounded-2xl border bg-card p-3 sm:p-5 text-left transition-colors hover:border-primary focus-visible:ring-2 focus-visible:ring-primary" aria-pressed={tab === target && needsReviewOnly}>
+              <span className="block text-sm text-muted-foreground">{label}</span>
+              <span className="mt-2 block text-2xl font-semibold tabular-nums">{loading ? '확인 중…' : `${count}건`}</span>
+              <span className="mt-2 block text-xs text-muted-foreground">목록 확인 →</span>
+            </button>
+          ))}
         </div>
 
         {/* 탭 전환 */}
@@ -427,21 +390,30 @@ export default function AdminPage() {
               { value: 'materials', label: '자료 공유' },
             ]}
             value={tab}
-            onChange={v => setTab(v as AdminTab)}
+            onChange={v => selectTab(v as AdminTab)}
           />
         </div>
 
+        {hasList && <div className="mb-5 space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Input type="search" aria-label="현재 관리 목록 검색" placeholder={tab === 'server' ? '프로젝트 이름 또는 이메일 검색' : '이름 또는 학번 검색'} value={query} onChange={e => { setQuery(e.target.value); setVisibleLimit(30); }} className="h-11 sm:max-w-md" />
+            <Button variant={needsReviewOnly ? 'secondary' : 'outline'} className="min-h-11" aria-pressed={needsReviewOnly} onClick={() => { setNeedsReviewOnly(v => !v); setVisibleLimit(30); }}>{tab === 'accounts' ? '미검토·제한 계정만' : '승인 대기만'}</Button>
+            {(query || needsReviewOnly) && <Button variant="ghost" className="min-h-11" onClick={() => { setQuery(''); setNeedsReviewOnly(false); setVisibleLimit(30); }}>필터 초기화</Button>}
+          </div>
+          <p role="status" className="text-sm text-muted-foreground">{listLoading ? '목록을 불러오는 중…' : `검색 결과 ${resultCount}건 · ${Math.min(resultCount, visibleLimit)}건 표시`}</p>
+        </div>}
+
         {/* ── GPU 예약 탭 ── */}
         {tab === 'gpu' && (
-          <div className="border-2 rounded-3xl bg-card overflow-hidden shadow-2xl transition-all">
+          <div className="border rounded-3xl bg-card overflow-hidden shadow-sm">
             {/* 모바일: 가로 스크롤 없이 바로 승인/거절 — 카드 목록 */}
             <div className="md:hidden divide-y">
               {gpuLoading || gpuJustFinished ? (
                 <div className="py-16 flex items-center justify-center"><LoadingSpinner done={gpuJustFinished} size={48} label="예약 내역 불러오는 중" /></div>
-              ) : reservations.length === 0 ? (
-                <div className="text-center py-20 font-bold text-muted-foreground opacity-50">No pending requests found.</div>
+              ) : visibleReservations.length === 0 ? (
+                <div className="text-center py-20 font-bold text-muted-foreground opacity-50">표시할 예약이 없습니다.</div>
               ) : (
-                reservations.map((res) => {
+                visibleReservations.map((res) => {
                   const start = new Date(res.start_time);
                   const end = new Date(res.end_time);
                   const isEnded = new Date() > end;
@@ -499,10 +471,10 @@ export default function AdminPage() {
                 <TableBody>
                   {gpuLoading || gpuJustFinished ? (
                     <TableRow><TableCell colSpan={5} className="py-16"><div className="flex items-center justify-center"><LoadingSpinner done={gpuJustFinished} size={48} label="예약 내역 불러오는 중" /></div></TableCell></TableRow>
-                  ) : reservations.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-20 font-bold text-muted-foreground opacity-50">No pending requests found.</TableCell></TableRow>
+                  ) : visibleReservations.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-20 font-bold text-muted-foreground opacity-50">표시할 예약이 없습니다.</TableCell></TableRow>
                   ) : (
-                    reservations.map((res) => {
+                    visibleReservations.map((res) => {
                       const start = new Date(res.start_time);
                       const end = new Date(res.end_time);
                       const isEnded = new Date() > end;
@@ -555,15 +527,15 @@ export default function AdminPage() {
 
         {/* ── 서버 배포 탭 ── */}
         {tab === 'server' && (
-          <div className="border-2 rounded-3xl bg-card overflow-hidden shadow-2xl transition-all">
+          <div className="border rounded-3xl bg-card overflow-hidden shadow-sm">
             {/* 모바일: 가로 스크롤 없이 바로 승인/거절 — 카드 목록 */}
             <div className="md:hidden divide-y">
               {cpuLoading || cpuJustFinished ? (
                 <div className="py-16 flex items-center justify-center"><LoadingSpinner done={cpuJustFinished} size={48} label="프로젝트 불러오는 중" /></div>
-              ) : cpuProjects.length === 0 ? (
-                <div className="text-center py-20 font-bold text-muted-foreground opacity-50">No server projects found.</div>
+              ) : visibleProjects.length === 0 ? (
+                <div className="text-center py-20 font-bold text-muted-foreground opacity-50">표시할 프로젝트가 없습니다.</div>
               ) : (
-                cpuProjects.map((proj) => (
+                visibleProjects.map((proj) => (
                   <div key={proj.id} className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex flex-col min-w-0">
@@ -631,10 +603,10 @@ export default function AdminPage() {
                 <TableBody>
                   {cpuLoading || cpuJustFinished ? (
                     <TableRow><TableCell colSpan={5} className="py-16"><div className="flex items-center justify-center"><LoadingSpinner done={cpuJustFinished} size={48} label="프로젝트 불러오는 중" /></div></TableCell></TableRow>
-                  ) : cpuProjects.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-20 font-bold text-muted-foreground opacity-50">No server projects found.</TableCell></TableRow>
+                  ) : visibleProjects.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-20 font-bold text-muted-foreground opacity-50">표시할 프로젝트가 없습니다.</TableCell></TableRow>
                   ) : (
-                    cpuProjects.map((proj) => (
+                    visibleProjects.map((proj) => (
                       <TableRow key={proj.id} className="hover:bg-muted/20 transition-colors border-b last:border-0">
                         <TableCell className="py-5 px-6">
                           <div className="flex flex-col">
@@ -707,15 +679,15 @@ export default function AdminPage() {
 
         {/* ── 계정 탭 ── */}
         {tab === 'accounts' && (
-          <div className="border-2 rounded-3xl bg-card overflow-hidden shadow-2xl transition-all">
+          <div className="border rounded-3xl bg-card overflow-hidden shadow-sm">
             {/* 모바일: 가로 스크롤 없이 바로 승인 — 카드 목록 */}
             <div className="md:hidden divide-y">
               {profilesLoading || profilesJustFinished ? (
                 <div className="py-16 flex items-center justify-center"><LoadingSpinner done={profilesJustFinished} size={48} label="계정 목록 불러오는 중" /></div>
-              ) : profiles.length === 0 ? (
-                <div className="text-center py-20 font-bold text-muted-foreground opacity-50">No accounts found.</div>
+              ) : visibleProfiles.length === 0 ? (
+                <div className="text-center py-20 font-bold text-muted-foreground opacity-50">표시할 계정이 없습니다.</div>
               ) : (
-                profiles.map((p) => (
+                visibleProfiles.map((p) => (
                   <div key={p.id} className="p-4 space-y-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -765,10 +737,10 @@ export default function AdminPage() {
                 <TableBody>
                   {profilesLoading || profilesJustFinished ? (
                     <TableRow><TableCell colSpan={4} className="py-16"><div className="flex items-center justify-center"><LoadingSpinner done={profilesJustFinished} size={48} label="계정 목록 불러오는 중" /></div></TableCell></TableRow>
-                  ) : profiles.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-20 font-bold text-muted-foreground opacity-50">No accounts found.</TableCell></TableRow>
+                  ) : visibleProfiles.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-20 font-bold text-muted-foreground opacity-50">표시할 계정이 없습니다.</TableCell></TableRow>
                   ) : (
-                    profiles.map((p) => (
+                    visibleProfiles.map((p) => (
                       <TableRow key={p.id} className="hover:bg-muted/20 transition-colors border-b last:border-0">
                         <TableCell className="py-5 px-6">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -894,6 +866,85 @@ export default function AdminPage() {
             )}
           </div>
         )}
+        {hasList && !listLoading && resultCount > visibleLimit && <div className="mt-6 flex justify-center"><Button variant="outline" className="min-h-11" onClick={() => setVisibleLimit(v => v + 30)}>30건 더 보기 ({resultCount - visibleLimit}건 남음)</Button></div>}
+        <div className="mt-10 border-t pt-8"><h2 className="mb-4 text-lg font-semibold">서비스 설정</h2>
+        {/* 자주 사용하지 않는 설정은 필요할 때 펼친다. */}
+        <details className="mb-4 rounded-2xl border bg-card p-5 space-y-4">
+          <summary className="min-h-11 cursor-pointer font-semibold list-inside">
+            기상송 담당자 지정
+          </summary>
+          <div className="flex items-center gap-2 sr-only">
+            <Music className="size-5 text-primary" />
+            <h2 className="font-black uppercase text-sm tracking-widest">기상송 담당자 지정</h2>
+          </div>
+          <div className="flex gap-2">
+            <PersonSearchSelect
+              candidates={allProfiles.filter(p => !wakeupManagers.some(m => m.id === p.id))}
+              value={addWakeupManagerSelect}
+              onChange={setAddWakeupManagerSelect}
+            />
+            <Button onClick={addWakeupManager}>추가</Button>
+          </div>
+          {wakeupManagers.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {wakeupManagers.map(m => (
+                <span key={m.id} className="flex items-center gap-1 bg-muted rounded-full pl-3 pr-1.5 py-1 text-xs font-bold">
+                  {m.full_name || 'Unknown'} <span className="text-muted-foreground opacity-60">({m.student_id || '-'})</span>
+                  <button aria-label={`${m.full_name || '사용자'} 담당자 해제`} onClick={() => toggleWakeupManager(m.id, true)} className="ml-1 flex items-center justify-center size-11 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors">
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </details>
+
+        <details className="mb-8 rounded-2xl border bg-card p-5 space-y-4">
+          <summary className="min-h-11 cursor-pointer font-semibold list-inside">전체 공지 배너 <span className="ml-2 text-sm font-normal text-muted-foreground">{bannerLoading ? '확인 중' : bannerActive ? '표시 중' : '꺼짐'}</span></summary>
+          {bannerLoading ? (
+            <div className="flex items-center justify-center py-8"><LoadingSpinner size={40} label="배너 불러오는 중" /></div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <Megaphone className="size-5 text-primary" />
+                <h2 className="font-black uppercase text-sm tracking-widest">전체 공지 배너</h2>
+                {bannerActive && (
+                  <Badge variant="success" icon={<CheckCircle2 className="size-3" />}>표시 중</Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground font-medium">
+                켜두면 로그인 여부와 상관없이 모든 페이지 상단에 이 문구가 보입니다.
+              </p>
+              <textarea
+                aria-label="전체 공지 내용"
+                value={bannerMessage}
+                onChange={(e) => setBannerMessage(e.target.value)}
+                placeholder="예: 7/10(금) 03:00~05:00 서버 점검이 있습니다."
+                rows={3}
+                className="w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 resize-y"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest gap-1.5"
+                  disabled={bannerSaving || !bannerMessage.trim()}
+                  onClick={() => saveBanner(true)}
+                >
+                  <Megaphone className="size-3.5" /> 저장하고 켜기
+                </Button>
+                <Button
+                  variant="outline"
+                  className="font-black text-xs uppercase tracking-widest"
+                  disabled={bannerSaving || !bannerActive}
+                  onClick={() => saveBanner(false)}
+                >
+                  끄기
+                </Button>
+              </div>
+            </>
+          )}
+        </details>
+
+        </div>
       </section>
 
       <ConfirmDialog
