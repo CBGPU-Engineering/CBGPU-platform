@@ -7,6 +7,8 @@ import { supabase } from '@/lib/supabase';
 type Duty = { type: string; teacher: string };
 type Supervisors = { date: string | null; duties: Duty[] | null };
 
+const SOURCE_URL = 'https://script.google.com/macros/s/AKfycbzQJ6tHq5yhgnfN_TjL96zSUD8ug28famlojcv9J-6kDTMqfVkezZgcikD7JOyywePu/exec';
+
 const todayKst = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date());
 
 /**
@@ -31,7 +33,7 @@ export default function SupervisorCard() {
   if (!data?.duties) return null;
 
   return (
-    <section aria-label="오늘의 자습 감독" className="flex items-start gap-3 rounded-2xl border border-border/60 bg-card p-4">
+    <section aria-label="오늘의 자습 감독" className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 sm:p-5">
       <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><UserCheck className="size-5" aria-hidden /></div>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">오늘의 자습 감독{data.date ? ` · ${data.date}` : ''}</p>
@@ -47,6 +49,10 @@ export default function SupervisorCard() {
         ) : (
           <p className="mt-1 text-sm font-bold text-muted-foreground">오늘은 자습 감독이 없어요.</p>
         )}
+        <p className="mt-2 flex flex-wrap items-center justify-between gap-x-3 text-xs text-muted-foreground">
+          <span>감독 일정은 학교 사정에 따라 변경될 수 있습니다.</span>
+          <a href={SOURCE_URL} target="_blank" rel="noopener noreferrer" className="rounded-md underline underline-offset-4">원본 확인<span className="sr-only"> (새 탭)</span></a>
+        </p>
       </div>
     </section>
   );
