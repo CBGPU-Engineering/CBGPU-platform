@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import SelfStudyReminderSettings from '@/components/study/SelfStudyReminderSettings';
+import SupervisorCard from '@/components/study/SupervisorCard';
 import {
   getRooms, getRoomComposition, getSeatOccupations, getStudent, getStudents,
   getSelfStudyPolicy, getPeriodCountForDate, localDateStr, searchSelfStudy,
@@ -436,6 +437,8 @@ export default function StudyPage() {
           </Button>
         </div>
       </div>
+
+      <SupervisorCard />
 
       {/* 교시 — 가장 자주 바뀌는 축이라 검색 모드와 무관하게 항상 맨 위에 고정 */}
       {periods.length > 0 && (
