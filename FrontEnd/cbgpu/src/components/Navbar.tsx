@@ -24,6 +24,7 @@ const PRIMARY_LINKS: NavLink[] = [
   { href: '/timetable', label: '시간표' },
   { href: '/meal', label: '급식' },
   { href: '/wakeup', label: '기상송' },
+  { href: '/dashboard', label: 'GPU' },
 ];
 
 const GROUPS: NavGroup[] = [
