@@ -18,6 +18,8 @@ import os
 import shlex
 import secrets
 import string
+import base64
+import struct
 from datetime import datetime, timezone
 
 import yaml
@@ -59,6 +61,11 @@ def cpu_headers() -> dict:
     """CPU deployment writes require a server-only credential, never the public key."""
     key = os.environ.get("CBGPU_SUPABASE_SERVICE_ROLE_KEY")
     if not key:
+        key_file = os.environ.get("CBGPU_SUPABASE_SERVICE_ROLE_KEY_FILE", "/home/cbgpu/.config/cbgpu/service_role_key")
+        if os.path.exists(key_file):
+            with open(key_file, encoding="utf-8") as secret_file:
+                key = secret_file.read().strip()
+    if not key:
         raise RuntimeError("CBGPU_SUPABASE_SERVICE_ROLE_KEY is not configured")
     return {"apikey": key, "Authorization": f"Bearer {key}"}
 
@@ -71,14 +78,68 @@ def fetch_gpus(cfg: dict) -> list[dict]:
 
 
 def fetch_active_reservations(cfg: dict) -> list[dict]:
-    """Fetch reservations with status=approveds"""
+    """Fetch approved reservations, including the owner for SSH key lookup."""
     url = (
         cfg["supabase_url"].rstrip("/")
-        + "/rest/v1/reservations?select=id,gpu_id,start_time,end_time,status&status=eq.approved"
+        + "/rest/v1/reservations?select=id,gpu_id,user_id,start_time,end_time,status&status=eq.approved"
     )
-    resp = requests.get(url, headers=supabase_headers(cfg), timeout=10)
+    resp = requests.get(url, headers=cpu_headers(), timeout=10)
     resp.raise_for_status()
     return resp.json()
+
+
+def validate_public_key(value: str) -> str:
+    """Accept only a plain Ed25519 key, never authorized_keys options or commands."""
+    fields = value.strip().split()
+    if len(fields) < 2 or fields[0] != "ssh-ed25519":
+        raise ValueError("Only ssh-ed25519 public keys are supported")
+    raw = base64.b64decode(fields[1], validate=True)
+    def read_part(offset: int):
+        if offset + 4 > len(raw):
+            raise ValueError("Invalid public key")
+        size = struct.unpack(">I", raw[offset:offset + 4])[0]
+        end = offset + 4 + size
+        if end > len(raw):
+            raise ValueError("Invalid public key")
+        return raw[offset + 4:end], end
+    algorithm, position = read_part(0)
+    public_bytes, position = read_part(position)
+    if algorithm != b"ssh-ed25519" or len(public_bytes) != 32 or position != len(raw):
+        raise ValueError("Invalid Ed25519 public key")
+    return "ssh-ed25519 " + fields[1]
+
+
+def fetch_ssh_keys(cfg: dict, user_ids: set[str]) -> dict[str, str]:
+    if not user_ids:
+        return {}
+    url = cfg["supabase_url"].rstrip("/") + "/rest/v1/gpu_ssh_keys"
+    resp = requests.get(url, headers=cpu_headers(), params={
+        "select": "user_id,public_key", "user_id": "in.(" + ",".join(sorted(user_ids)) + ")",
+    }, timeout=10)
+    resp.raise_for_status()
+    keys = {}
+    for row in resp.json():
+        try:
+            keys[row["user_id"]] = validate_public_key(row["public_key"])
+        except (ValueError, KeyError) as exc:
+            log.warning("Ignoring malformed SSH key for user %s: %s", row.get("user_id"), exc)
+    return keys
+
+
+def write_ssh_keys(container: str, keys: list[str]):
+    """Provision keys inside the isolated GPU container, never on the host."""
+    script = (
+        "import os,sys\n"
+        "os.makedirs('/root/.ssh', mode=0o700, exist_ok=True)\n"
+        "os.chmod('/root/.ssh', 0o700)\n"
+        "fd=os.open('/root/.ssh/authorized_keys', os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0o600)\n"
+        "with os.fdopen(fd, 'w') as f: f.write(sys.stdin.read())\n"
+        "os.chmod('/root/.ssh/authorized_keys', 0o600)\n"
+    )
+    proc = subprocess.run(["docker", "exec", "-i", container, "python3", "-c", script],
+                          input="\n".join(keys) + ("\n" if keys else ""), capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip())
 
 
 def random_password(length: int = 20) -> str:
@@ -148,16 +209,38 @@ def apply_password(container: str, password: str):
         raise RuntimeError(f"Failed to restart container: {restart_proc.stderr.strip()}")
 
 
+def has_jupyter_password_config(container: str) -> bool:
+    proc = subprocess.run(["docker", "exec", container, "test", "-s", "/root/.jupyter/jupyter_server_config.py"],
+                          capture_output=True)
+    return proc.returncode == 0
+
+
 def reset_container(cfg: dict, gpu_id: int):
     """Remove and recreate the container (wipe traces)"""
     gpu_cfg = cfg["gpus"][gpu_id]
     container = gpu_cfg["container"]
     device = gpu_cfg["device"]
     host_port = gpu_cfg["host_port"]
+    ssh_port = gpu_cfg.get("ssh_port")
     container_port = cfg["docker"]["container_port"]
     image = cfg["docker"]["image"]
+    host_keys_dir = os.path.join(cfg["docker"].get("ssh_host_keys_dir", "/home/cbgpu/.local/share/cbgpu/gpu-ssh"), str(gpu_id))
+
+    if ssh_port:
+        os.makedirs(host_keys_dir, mode=0o700, exist_ok=True)
+        private_key = os.path.join(host_keys_dir, "ssh_host_ed25519_key")
+        if not os.path.exists(private_key):
+            keygen = subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", private_key],
+                                    capture_output=True, text=True)
+            if keygen.returncode != 0:
+                raise RuntimeError(f"SSH host key generation failed: {keygen.stderr.strip()}")
+            os.chmod(private_key, 0o600)
 
     log.info("GPU #%d: starting reset of container '%s'", gpu_id, container)
+
+    image_check = subprocess.run(["docker", "image", "inspect", image], capture_output=True, text=True)
+    if image_check.returncode != 0:
+        raise RuntimeError(f"GPU image is unavailable: {image}")
 
     # Remove the existing container
     subprocess.run(
@@ -167,8 +250,7 @@ def reset_container(cfg: dict, gpu_id: int):
     )
 
     # Create a new container (shared memory bumped to 32GB)
-    proc = subprocess.run(
-        [
+    run_args = [
             "docker","run", "-d",
             "--name", container,
             "--gpus", f"device={device}",
@@ -176,8 +258,13 @@ def reset_container(cfg: dict, gpu_id: int):
             "-e", "JUPYTER_SKIP_TRASH=yes",
             "-p", f"{host_port}:{container_port}",
             "--restart", "always",
-            image,
-        ],
+    ]
+    if ssh_port:
+        run_args.extend(["-p", f"{private_bind_address()}:{ssh_port}:22"])
+        run_args.extend(["-v", f"{host_keys_dir}:/etc/ssh/hostkeys:ro"])
+    run_args.append(image)
+    proc = subprocess.run(
+        run_args,
         capture_output=True,
         text=True,
     )
@@ -404,7 +491,11 @@ def main():
 
     # In-memory state for change detection
     applied_session_pass: dict[int, str] = {}   # gpu_id -> last password applied in the current reservation session
-    reset_done: set[str] = set()                # reservation ids already reset
+    reset_done: set[str] | None = None          # initialized from history on first successful fetch
+    active_sessions: dict[int, tuple[set[str], datetime]] = {}
+    applied_ssh_keys: dict[int, tuple[str, ...]] = {}
+    initialized_idle_containers = False
+    seeded_running_passwords = False
     cpu_cleaned: set[str] = set()               # deleted project ids whose container was already removed
 
     while True:
@@ -416,13 +507,87 @@ def main():
             gpus_data = {g["id"]: g for g in fetch_gpus(cfg)}
             reservations = fetch_active_reservations(cfg)
         except Exception as e:
-            # [Important] Never reset or touch passwords on a network error.
-            log.warning("Supabase connection failed (possible network outage): %s. Keeping current state and retrying.", e)
+            # A known reservation end is enforced locally even during a network outage.
+            for gpu_id, (session_ids, deadline) in list(active_sessions.items()):
+                if now >= deadline:
+                    try:
+                        reset_container(cfg, gpu_id)
+                        del active_sessions[gpu_id]
+                        if reset_done is not None:
+                            reset_done.update(session_ids)
+                        applied_session_pass.pop(gpu_id, None)
+                        applied_ssh_keys.pop(gpu_id, None)
+                    except Exception as reset_error:
+                        log.error("GPU #%d: failed to enforce local expiry: %s", gpu_id, reset_error)
+            log.warning("Supabase connection failed: %s. Retrying.", e)
             continue
 
-        # 2. Safeguard for empty data
-        # Reset logic only runs when the fetch succeeds but the reservation list is genuinely empty (i.e. deleted).
-        # (Proceeds below only when no exception was raised and an empty list [] was returned.)
+        if reset_done is None:
+            # Past reservations must not reset containers merely because the daemon restarted.
+            reset_done = {r["id"] for r in reservations
+                          if datetime.fromisoformat(r["end_time"].replace("Z", "+00:00")) < now}
+
+        current_sessions: dict[int, list[dict]] = {}
+        for reservation in reservations:
+            start = datetime.fromisoformat(reservation["start_time"].replace("Z", "+00:00"))
+            end = datetime.fromisoformat(reservation["end_time"].replace("Z", "+00:00"))
+            if start <= now < end:
+                current_sessions.setdefault(reservation["gpu_id"], []).append(reservation)
+
+        if not seeded_running_passwords:
+            # The previous daemon already configured these running notebooks. Avoid
+            # restarting active training jobs merely because this daemon restarts.
+            for gpu_id in current_sessions:
+                gpu_cfg = cfg["gpus"].get(gpu_id)
+                password = gpus_data.get(gpu_id, {}).get("password")
+                if gpu_cfg and password and has_jupyter_password_config(gpu_cfg["container"]):
+                    applied_session_pass[gpu_id] = password
+            seeded_running_passwords = True
+
+        if not initialized_idle_containers:
+            for gpu_id in cfg["gpus"]:
+                if gpu_id not in current_sessions:
+                    try:
+                        reset_container(cfg, gpu_id)
+                    except Exception as reset_error:
+                        log.error("GPU #%d: failed to initialize idle container: %s", gpu_id, reset_error)
+                        continue
+            initialized_idle_containers = True
+
+        for gpu_id, (old_ids, _) in list(active_sessions.items()):
+            new_ids = {r["id"] for r in current_sessions.get(gpu_id, [])}
+            if new_ids != old_ids:
+                try:
+                    reset_container(cfg, gpu_id)
+                    reset_done.update(old_ids)
+                    del active_sessions[gpu_id]
+                    applied_session_pass.pop(gpu_id, None)
+                    applied_ssh_keys.pop(gpu_id, None)
+                except Exception as reset_error:
+                    log.error("GPU #%d: failed to close previous session: %s", gpu_id, reset_error)
+                    current_sessions.pop(gpu_id, None)
+
+        try:
+            ssh_keys = fetch_ssh_keys(cfg, {r["user_id"] for group in current_sessions.values() for r in group})
+        except Exception as e:
+            log.warning("GPU SSH key lookup failed: %s", e)
+            ssh_keys = {}
+
+        for gpu_id, group in current_sessions.items():
+            active_sessions[gpu_id] = ({r["id"] for r in group},
+                                       max(datetime.fromisoformat(r["end_time"].replace("Z", "+00:00")) for r in group))
+            owners = {r["user_id"] for r in group}
+            if len(owners) > 1:
+                log.error("GPU #%d: overlapping reservations have different owners; disabling SSH", gpu_id)
+                desired = ()
+            else:
+                desired = tuple(sorted({ssh_keys[user_id] for user_id in owners if user_id in ssh_keys}))
+            if applied_ssh_keys.get(gpu_id) != desired:
+                try:
+                    write_ssh_keys(cfg["gpus"][gpu_id]["container"], list(desired))
+                    applied_ssh_keys[gpu_id] = desired
+                except Exception as key_error:
+                    log.error("GPU #%d: SSH key provisioning failed: %s", gpu_id, key_error)
 
         # Find reservations that are currently active (start_time <= now <= end_time)
         active_gpu_ids = set()
@@ -457,7 +622,7 @@ def main():
                             log.error("GPU #%d: failed to apply password: %s", gpu_id, e)
 
             # Case B: reservation ended -> reset
-            elif now > et and res_id not in reset_done:
+            elif now > et and res_id not in reset_done and gpu_id not in current_sessions:
                 gpu_cfg = cfg["gpus"].get(gpu_id)
                 if gpu_cfg:
                     log.info("GPU #%d: reservation end detected (Session: %s) -> starting reset", gpu_id, res_id)
@@ -465,6 +630,7 @@ def main():
                         reset_container(cfg, gpu_id)
                         reset_done.add(res_id)
                         applied_session_pass.pop(gpu_id, None) # Clear session state for this GPU
+                        applied_ssh_keys.pop(gpu_id, None)
                     except Exception as e:
                         log.error("GPU #%d: reset failed: %s", gpu_id, e)
 

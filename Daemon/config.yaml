@@ -6,7 +6,8 @@ poll_interval_seconds: 30
 
 # Docker 설정 (컨테이너 리셋 시 사용)
 docker:
-  image: "tensorflow/tensorflow:latest-gpu-jupyter"
+  image: "cbgpu/gpu-ssh:latest"
+  ssh_host_keys_dir: "/home/cbgpu/.local/share/cbgpu/gpu-ssh"
   container_port: 8888  # 컨테이너 내부 포트 (보통 8888 고정)
 
 # GPU ID → 컨테이너 설정 매핑
@@ -16,18 +17,22 @@ gpus:
     container: "jupiterhub_gpu1"
     device: "0"
     host_port: 8001
+    ssh_port: 2201
   2:
     username: "gpu2"
     container: "jupiterhub_gpu2"
     device: "1"
     host_port: 8002
+    ssh_port: 2202
   3:
     username: "gpu3"
     container: "jupiterhub_gpu3"
     device: "2"
     host_port: 8003
+    ssh_port: 2203
   4:
     username: "gpu4"
     container: "jupiterhub_gpu4"
     device: "3"
     host_port: 8004
+    ssh_port: 2204

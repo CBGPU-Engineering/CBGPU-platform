@@ -649,6 +649,12 @@ export default function Dashboard() {
                             </a>
                           </Button>
                         )}
+                        <div className="rounded-xl border bg-background p-4 space-y-2">
+                          <p className="text-xs font-bold">GPU 컨테이너 SSH</p>
+                          <code className="block break-all text-xs">ssh -p {2200 + res.gpu_id} root@100.100.136.37</code>
+                          <p className="text-xs text-muted-foreground">프로필에서 SSH 공개키를 등록하면 예약 시간 동안 접속할 수 있습니다. Tailscale 연결이 필요합니다. 기존 예약의 GPU는 컨테이너가 새 버전으로 전환된 뒤 SSH를 사용할 수 있습니다.</p>
+                          <a href="/profile" className="text-xs text-primary underline">공개키 등록하기</a>
+                        </div>
                         <Button
                           className="w-full font-black text-[10px] uppercase tracking-widest h-11 gap-2"
                           variant="destructive"

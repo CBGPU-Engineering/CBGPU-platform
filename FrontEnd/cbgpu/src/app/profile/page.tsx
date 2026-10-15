@@ -62,6 +62,9 @@ export default function Profile() {
     notify_admin_gpu_request: true,
   });
   const [savingNotifKey, setSavingNotifKey] = useState<NotifPrefKey | null>(null);
+  const [sshPublicKey, setSshPublicKey] = useState('');
+  const [savedSshKey, setSavedSshKey] = useState('');
+  const [savingSshKey, setSavingSshKey] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -79,6 +82,37 @@ export default function Profile() {
       });
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (!user) return;
+    void supabase.from('gpu_ssh_keys').select('public_key').eq('user_id', user.id).maybeSingle()
+      .then(({ data }) => {
+        setSshPublicKey(data?.public_key ?? '');
+        setSavedSshKey(data?.public_key ?? '');
+      });
+  }, [user]);
+
+  async function saveSshKey() {
+    if (!user) return;
+    const key = sshPublicKey.trim();
+    if (key && !/^ssh-ed25519 [A-Za-z0-9+/]+={0,2}( [^\r\n]*)?$/.test(key)) {
+      showError('ssh-ed25519 형식의 공개키를 입력해 주세요.');
+      return;
+    }
+    setSavingSshKey(true);
+    try {
+      const { error } = key
+        ? await supabase.from('gpu_ssh_keys').upsert({ user_id: user.id, public_key: key })
+        : await supabase.from('gpu_ssh_keys').delete().eq('user_id', user.id);
+      if (error) throw error;
+      setSavedSshKey(key);
+      showSuccess(key ? 'SSH 공개키를 저장했습니다.' : 'SSH 공개키를 삭제했습니다.');
+    } catch (error: any) {
+      showError(error.message || 'SSH 공개키 저장 실패');
+    } finally {
+      setSavingSshKey(false);
+    }
+  }
 
   async function toggleNotifPref(key: NotifPrefKey) {
     if (!user) return;
@@ -370,6 +404,25 @@ export default function Profile() {
           {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
         </Button>
       </form>
+
+      <div className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-6">
+        <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+          <KeyRound className="size-5 text-primary" /> GPU SSH 공개키
+        </h2>
+        <p className="text-sm text-muted-foreground">예약한 GPU 컨테이너에 SSH로 접속할 때 사용할 공개키를 등록하세요. 개인키와 서버 비밀번호는 입력하지 마세요.</p>
+        <p className="text-xs text-muted-foreground"><code>ssh-keygen -t ed25519</code>로 키를 만든 뒤 <code>~/.ssh/id_ed25519.pub</code> 파일 내용을 붙여 넣으세요.</p>
+        <textarea
+          aria-label="SSH 공개키"
+          value={sshPublicKey}
+          onChange={(event) => setSshPublicKey(event.target.value)}
+          placeholder="ssh-ed25519 AAAA..."
+          rows={3}
+          className="w-full rounded-xl border bg-background px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+        <Button type="button" onClick={saveSshKey} disabled={savingSshKey || sshPublicKey.trim() === savedSshKey}>
+          {savingSshKey ? '저장 중...' : sshPublicKey.trim() ? '공개키 저장' : '등록된 키 삭제'}
+        </Button>
+      </div>
 
       <div className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-6">
         <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
