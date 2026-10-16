@@ -665,7 +665,7 @@ export default function Dashboard() {
                               </div>
                             </div>
                             <p className="text-xs text-muted-foreground font-medium">
-                              Tailscale 연결 · 새 컨테이너 전환 후 이용 · <a href="/dashboard/ssh-guide" className="text-primary underline underline-offset-2">사용법</a>
+                              Tailscale 연결 · 예약 시간에 이용 · <a href="/dashboard/ssh-guide" className="text-primary underline underline-offset-2">사용법</a>
                             </p>
                             <Button asChild variant="outline" className="mt-auto w-full h-11 border-2 text-xs font-black uppercase tracking-wide">
                               <a href="/profile#gpu-ssh-key">SSH 공개키 등록</a>

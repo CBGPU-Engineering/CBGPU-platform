@@ -114,7 +114,7 @@ export default function GpuSshGuidePage() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">접속 권한은 승인된 예약 시간에만 적용됩니다. 기존 컨테이너는 새 버전으로 전환된 뒤 SSH를 사용할 수 있습니다.</p>
+        <p className="text-xs text-muted-foreground">접속 권한은 승인된 예약 시간에만 적용됩니다. 공개키 저장 후 반영까지 약 30초 걸릴 수 있습니다.</p>
       </section>
 
       <div className="flex gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm">
