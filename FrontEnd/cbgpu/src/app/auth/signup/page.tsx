@@ -45,7 +45,7 @@ export default function Signup() {
       });
 
       if (error) {
-        showError("회원가입 실패: " + error.message);
+        showError('회원가입에 실패했습니다. 이미 가입한 학번이라면 기존 계정으로 로그인하거나 비밀번호를 재설정해주세요. (' + error.message + ')');
         return;
       }
 
@@ -101,6 +101,7 @@ export default function Signup() {
             required
           />
           <p className="text-[10px] text-muted-foreground font-medium ml-1">{STUDENT_ID_HINT}</p>
+          <p className="text-xs text-muted-foreground font-medium ml-1">같은 학년도에는 한 학번으로 한 계정만 사용할 수 있습니다.</p>
         </div>
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Email</label>
@@ -132,6 +133,7 @@ export default function Signup() {
       <p className="mt-6 text-center text-sm text-muted-foreground font-medium">
         Already have an account? <Link href="/auth/login" className="text-primary font-bold hover:underline ml-1">Log In</Link>
       </p>
+      <p className="mt-2 text-center text-sm"><Link href="/auth/forgot-password" className="text-primary font-bold hover:underline">비밀번호 재설정</Link></p>
     </div>
     );
 }
