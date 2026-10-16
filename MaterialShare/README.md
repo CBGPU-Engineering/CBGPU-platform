@@ -10,7 +10,11 @@
 - 공개 HTTPS: `https://cbshoj.taild105d1.ts.net:8443`
 - Tailscale Funnel 443번 포트의 기존 서비스는 별도로 유지합니다.
 
-`FrontEnd/cbgpu_app/supabase/materials_migration.sql`을 Supabase 프로젝트에 적용해야 합니다. 웹의 `NEXT_PUBLIC_MATERIALS_API_URL` 환경 변수로 공개 API 주소를 바꿀 수 있습니다. 현재 기본값은 위 HTTPS 주소입니다.
+운영 Supabase 프로젝트에는 `FrontEnd/cbgpu_app/supabase/materials_migration.sql`이 적용돼 있습니다. 새 프로젝트에서는 이 SQL을 실행해야 합니다. 웹의 `NEXT_PUBLIC_MATERIALS_API_URL` 환경 변수로 공개 API 주소를 바꿀 수 있습니다. 현재 기본값은 위 HTTPS 주소입니다.
+
+2026-10-17 운영 DB에서 `shared_materials` 테이블을 확인했습니다. 임시 로그인
+계정으로 메타데이터 생성(201), HTTPS 파일 업로드(200), 다운로드(200,
+원본 바이트와 일치), 삭제(200)를 확인한 뒤 테스트 계정과 자료를 제거했습니다.
 
 서버의 `/home/cbgpu/cbgpu-materials-api/service.env`에는 Supabase URL, 공개 anon 키, 허용할 웹 Origin, 저장 디렉터리를 둡니다. 이 파일은 Git에 넣지 않습니다. 키가 변경되면 이 파일을 갱신하고 컨테이너를 다시 만들어야 합니다.
 
