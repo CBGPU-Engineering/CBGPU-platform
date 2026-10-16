@@ -147,7 +147,9 @@ export default function Profile() {
       await refreshProfile();
       showSuccess('프로필이 업데이트됐습니다!');
     } catch (error: any) {
-      showError(error.message || '업데이트 실패');
+      showError(error.code === '23505' || error.message?.includes('STUDENT_ID_ALREADY_REGISTERED')
+        ? '이 학번은 같은 학년도에 이미 등록되어 있습니다. 기존 계정을 확인해주세요.'
+        : error.message || '업데이트 실패');
     } finally {
       setIsUpdating(false);
     }
