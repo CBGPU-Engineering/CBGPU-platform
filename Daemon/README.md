@@ -46,6 +46,11 @@ Supabase에는 `Migrations/cpu_projects_deployment_fix.sql`을 적용해 소유�
 배포 환경에 설정할 수 있습니다. Private 프로젝트는 Tailscale 주소에만 바인딩하고,
 School/Public 프로젝트는 UFW가 활성화되어 있어야 배포합니다.
 
+2026-10-17 운영 서버에서 임시 Private CPU 프로젝트로 배포, 재배포, 삭제를
+검증했습니다. 두 번의 배포에서 새 컨테이너의 `/health`가 HTTP 200을 반환했고,
+삭제 후 임시 컨테이너와 프로젝트 레코드가 남지 않았습니다. 검증에는
+`cbgpu-materials:latest` 이미지와 Tailscale에만 바인딩한 임시 포트를 사용했습니다.
+
 ```bash
 # 상태 확인
 sudo systemctl status cbgpu-daemon
