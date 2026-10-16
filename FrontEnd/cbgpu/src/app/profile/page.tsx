@@ -92,6 +92,14 @@ export default function Profile() {
       });
   }, [user]);
 
+  useEffect(() => {
+    if (authLoading || !user || window.location.hash !== '#gpu-ssh-key') return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById('gpu-ssh-key')?.scrollIntoView({ block: 'start' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [authLoading, user]);
+
   async function saveSshKey() {
     if (!user) return;
     const key = sshPublicKey.trim();
@@ -407,10 +415,13 @@ export default function Profile() {
         </Button>
       </form>
 
-      <div className="tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-6">
-        <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
-          <KeyRound className="size-5 text-primary" /> GPU SSH 공개키
-        </h2>
+      <div id="gpu-ssh-key" className="scroll-mt-24 tilt-3d bg-card ring-1 ring-foreground/5 p-10 rounded-[2.5rem] shadow-lg space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+            <KeyRound className="size-5 text-primary" /> GPU SSH 공개키
+          </h2>
+          <Button asChild variant="outline" size="sm"><a href="/dashboard/ssh-guide">SSH 사용법</a></Button>
+        </div>
         <p className="text-sm text-muted-foreground">예약한 GPU 컨테이너에 SSH로 접속할 때 사용할 공개키를 등록하세요. 개인키와 서버 비밀번호는 입력하지 마세요.</p>
         <p className="text-xs text-muted-foreground"><code>ssh-keygen -t ed25519</code>로 키를 만든 뒤 <code>~/.ssh/id_ed25519.pub</code> 파일 내용을 붙여 넣으세요.</p>
         <textarea
