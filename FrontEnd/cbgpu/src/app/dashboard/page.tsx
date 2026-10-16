@@ -618,45 +618,62 @@ export default function Dashboard() {
                   {/* Credentials & Guide Panel */}
                   {selectedRes?.id === res.id && canStart && (
                     <div className="mt-6 p-6 bg-muted/30 border-2 border-dashed border-primary/20 rounded-2xl animate-in slide-in-from-top-4 duration-500">
-                      <div className="space-y-4 max-w-sm">
+                      <div className="space-y-4">
                         <h3 className="flex items-center gap-2 font-black uppercase tracking-tighter italic text-primary">
                           <Key className="size-4" /> Access Credentials
                         </h3>
-                        <div className="flex flex-col gap-1.5 p-4 bg-background border rounded-xl shadow-inner">
-                          <span className="text-[10px] font-black uppercase opacity-50 tracking-widest">Password</span>
-                          <div className="flex items-center justify-between">
-                            <code className={password ? "text-lg font-black text-blue-500 tracking-wider" : "text-sm font-bold text-muted-foreground animate-pulse"}>
-                              {password || "비밀번호 준비 중..."}
-                            </code>
-                            {password && (
-                              <Button variant="ghost" size="icon" onClick={() => copyToClipboard(password)} className="h-8 w-8 hover:bg-primary/10">
-                                <Copy className="size-3.5" />
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="flex flex-col gap-4 rounded-xl border bg-background p-4">
+                            <div>
+                              <span className="text-[11px] font-black uppercase opacity-50 tracking-wide">Password</span>
+                              <div className="flex items-center justify-between gap-2 mt-1">
+                                <code className={password ? "min-w-0 truncate text-lg font-black text-blue-500 tracking-wider" : "text-sm font-bold text-muted-foreground animate-pulse"}>
+                                  {password || "비밀번호 준비 중..."}
+                                </code>
+                                {password && (
+                                  <Button variant="ghost" size="icon" aria-label="비밀번호 복사" onClick={() => copyToClipboard(password)} className="h-8 w-8 shrink-0 hover:bg-primary/10">
+                                    <Copy className="size-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground font-medium">
+                              예약 시간에만 유효합니다.
+                            </p>
+                            {gpuInfo?.jupyterhubUrl && (
+                              <Button
+                                asChild
+                                className="mt-auto w-full font-black text-xs uppercase tracking-wide h-11 border-2 hover:bg-foreground hover:text-background transition-all"
+                                variant="outline"
+                              >
+                                <a href={gpuInfo.jupyterhubUrl} target="_blank" rel="noopener noreferrer">
+                                  Open Jupyter Notebook
+                                </a>
                               </Button>
                             )}
                           </div>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground font-bold leading-tight px-1 italic">
-                          ※ 이 비밀번호는 예약된 시간에만 유효하며, 세션 종료 후 자동 무효화됩니다.
-                        </p>
-                        {gpuInfo?.jupyterhubUrl && (
-                          <Button
-                            asChild
-                            className="w-full font-black text-[10px] uppercase tracking-widest h-11 border-2 hover:bg-foreground hover:text-background transition-all"
-                            variant="outline"
-                          >
-                            <a href={gpuInfo.jupyterhubUrl} target="_blank" rel="noopener noreferrer">
-                              Open Jupyter Notebook
-                            </a>
-                          </Button>
-                        )}
-                        <div className="rounded-xl border bg-background p-4 space-y-2">
-                          <p className="text-xs font-bold">GPU 컨테이너 SSH</p>
-                          <code className="block break-all text-xs">ssh -p {2200 + res.gpu_id} root@100.100.136.37</code>
-                          <p className="text-xs text-muted-foreground">프로필에서 SSH 공개키를 등록하면 예약 시간 동안 접속할 수 있습니다. Tailscale 연결이 필요합니다. 기존 예약의 GPU는 컨테이너가 새 버전으로 전환된 뒤 SSH를 사용할 수 있습니다.</p>
-                          <a href="/profile" className="text-xs text-primary underline">공개키 등록하기</a>
+                          <div className="flex flex-col gap-4 rounded-xl border bg-background p-4">
+                            <div>
+                              <span className="text-[11px] font-black uppercase opacity-50 tracking-wide">SSH</span>
+                              <div className="flex items-center gap-2 mt-1 rounded-lg border bg-muted/30 pl-3 pr-1 min-h-11">
+                                <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-sm font-bold" title={`ssh -p ${2200 + res.gpu_id} root@100.100.136.37`}>
+                                  ssh -p {2200 + res.gpu_id} root@100.100.136.37
+                                </code>
+                                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(`ssh -p ${2200 + res.gpu_id} root@100.100.136.37`)} className="h-9 shrink-0 gap-1.5 px-2 text-xs font-bold" aria-label="SSH 명령어 복사">
+                                  <Copy className="size-3.5" /> 복사
+                                </Button>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground font-medium">
+                              Tailscale 연결 · 새 컨테이너 전환 후 이용 · <a href="/dashboard/ssh-guide" className="text-primary underline underline-offset-2">사용법</a>
+                            </p>
+                            <Button asChild variant="outline" className="mt-auto w-full h-11 border-2 text-xs font-black uppercase tracking-wide">
+                              <a href="/profile#gpu-ssh-key">SSH 공개키 등록</a>
+                            </Button>
+                          </div>
                         </div>
                         <Button
-                          className="w-full font-black text-[10px] uppercase tracking-widest h-11 gap-2"
+                          className="w-full font-black text-xs uppercase tracking-wide h-11 gap-2"
                           variant="destructive"
                           onClick={() => setEndTarget(res.id)}
                         >

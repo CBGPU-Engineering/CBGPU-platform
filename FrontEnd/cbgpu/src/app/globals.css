@@ -473,7 +473,7 @@ input[data-no-focus-ring]:focus-visible {
 @layer utilities {
   @media (hover: hover) and (pointer: fine) {
   .tilt-3d:hover {
-    transform: perspective(800px) rotateX(3deg) rotateY(-2deg) translateY(-3px) scale(1.015);
+    transform: perspective(800px) rotateX(1.5deg) rotateY(-1deg) translateY(-1.5px) scale(1.0075);
   }
   .tilt-3d:active {
     transform: perspective(800px) rotateX(1deg) scale(0.99);
