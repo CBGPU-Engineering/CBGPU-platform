@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -124,8 +125,13 @@ func TestSSHForwardsOnlyBookedGPU(t *testing.T) {
 		t.Fatal(err)
 	}
 	keyText := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key)))
+	var revoked atomic.Bool
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/rest/v1/reservations" {
+			if revoked.Load() {
+				fmt.Fprint(w, "[]")
+				return
+			}
 			fmt.Fprintf(w, `[{"user_id":"user-a","gpu_id":4,"start_time":"%s","end_time":"%s"}]`,
 				time.Now().Add(-time.Minute).UTC().Format(time.RFC3339), time.Now().Add(time.Minute).UTC().Format(time.RFC3339))
 			return
@@ -190,5 +196,19 @@ func TestSSHForwardsOnlyBookedGPU(t *testing.T) {
 	buf := make([]byte, len("gpu-ready"))
 	if _, err := io.ReadFull(conn, buf); err != nil || string(buf) != "gpu-ready" {
 		t.Fatalf("forwarded data = %q, %v", buf, err)
+	}
+	revoked.Store(true)
+	closed := make(chan error, 1)
+	go func() {
+		_, err := conn.Read(make([]byte, 1))
+		closed <- err
+	}()
+	select {
+	case err := <-closed:
+		if err == nil {
+			t.Fatal("revoked connection returned data instead of closing")
+		}
+	case <-time.After(22 * time.Second):
+		t.Fatal("revoked connection was not closed within one poll interval")
 	}
 }
