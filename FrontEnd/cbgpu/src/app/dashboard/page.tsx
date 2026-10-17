@@ -656,16 +656,16 @@ export default function Dashboard() {
                             <div>
                               <span className="text-[11px] font-black uppercase opacity-50 tracking-wide">SSH</span>
                               <div className="flex items-center gap-2 mt-1 rounded-lg border bg-muted/30 pl-3 pr-1 min-h-11">
-                                <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-sm font-bold" title={`ssh -p ${2200 + res.gpu_id} root@100.100.136.37`}>
-                                  ssh -p {2200 + res.gpu_id} root@100.100.136.37
+                                <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-sm font-bold" title={`ssh cbgpu-gpu${res.gpu_id}`}>
+                                  ssh cbgpu-gpu{res.gpu_id}
                                 </code>
-                                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(`ssh -p ${2200 + res.gpu_id} root@100.100.136.37`)} className="h-9 shrink-0 gap-1.5 px-2 text-xs font-bold" aria-label="SSH 명령어 복사">
+                                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(`ssh cbgpu-gpu${res.gpu_id}`)} className="h-9 shrink-0 gap-1.5 px-2 text-xs font-bold" aria-label="SSH 명령어 복사">
                                   <Copy className="size-3.5" /> 복사
                                 </Button>
                               </div>
                             </div>
                             <p className="text-xs text-muted-foreground font-medium">
-                              Tailscale 연결 · 예약 시간에 이용 · <a href="/dashboard/ssh-guide" className="text-primary underline underline-offset-2">사용법</a>
+                              최초 1회 SSH 설정 · 예약 시간에 이용 · <a href="/dashboard/ssh-guide" className="text-primary underline underline-offset-2">사용법</a>
                             </p>
                             <Button asChild variant="outline" className="mt-auto w-full h-11 border-2 text-xs font-black uppercase tracking-wide">
                               <a href="/profile#gpu-ssh-key">SSH 공개키 등록</a>

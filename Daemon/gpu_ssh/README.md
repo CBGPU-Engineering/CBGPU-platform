@@ -9,8 +9,9 @@
 설정이 들어 있으므로 접근을 제한하고, 이용자 확인 전에는 삭제하지 않습니다.
 
 `ssh cbgpu@100.100.136.37`은 서버 호스트의 22번 포트에 접속합니다. 예약 GPU에는
-`ssh -p 2201 root@100.100.136.37`처럼 GPU 번호별 2201~2204번으로 접속합니다.
-Tailscale 네트워크에 연결된 기기에서만 해당 포트에 접근할 수 있습니다.
+`ssh -p 2201 root@100.100.136.37`처럼 GPU 번호별 2201~2204번으로 직접
+접속하려면 Tailscale 연결이 필요합니다. 외부 예약자는 아래 공개 게이트웨이를
+경유하며, Tailscale 네트워크 초대가 필요하지 않습니다.
 
 프로필 페이지에는 사용자의 `ssh-ed25519` **공개키**만 저장합니다. 데몬은 승인된
 예약의 시작·종료 시각을 확인해 현재 예약자의 공개키만 해당 GPU 컨테이너의
@@ -36,6 +37,36 @@ Tailscale 네트워크에 연결된 기기에서만 해당 포트에 접근할 �
 SSH 호스트 키는 GPU별로 서버의
 `/home/cbgpu/.local/share/cbgpu/gpu-ssh/<GPU 번호>`에 유지합니다. 개인키가
 아닌 서버 호스트 키이며, 해당 GPU 컨테이너에 읽기 전용으로 연결됩니다.
+
+## 초대 없는 외부 SSH 게이트웨이
+
+`gateway/`는 서버의 `127.0.0.1:22220`에서만 대기하는 별도 SSH 서비스입니다.
+Tailscale Funnel의 TLS 종료 TCP 10000번 포트만 이 서비스로 연결합니다.
+서비스는 매 SSH 인증 및 포트 전달 요청마다 운영 Supabase의 승인된 현재 예약과
+등록 공개키를 조회합니다. 데이터베이스 오류, 다른 예약자와 겹친 GPU,
+미예약 GPU 포트, 셸 요청은 거부합니다. 연결 중에는 15초마다 권한을 다시
+확인하고 예약 종료 또는 취소 시 연결을 닫습니다. 전달 대상은 서버 자신의
+Tailscale 주소의 GPU 2201~2204번 포트로 고정됩니다. 호스트 22번 포트와
+Jupyter 포트는 이 게이트웨이를 통해 전달하지 않습니다.
+
+서버에는 Go 바이너리를 `/home/cbgpu/.local/bin/cbgpu-ssh-gateway`에 놓고
+`gateway/cbgpu-ssh-gateway.service`를 사용자 systemd에 등록합니다. 서비스 롤 키는
+기존 `/home/cbgpu/.config/cbgpu/service_role_key` 파일을 읽으며 응답이나 로그에
+출력하지 않습니다. SSH 호스트 키는
+`/home/cbgpu/.local/share/cbgpu/ssh-gateway/host_ed25519_key`에 0600 권한으로
+보관합니다. 최초 운영 키 지문은
+`SHA256:f0MfUHiEtvydl+erJ8c79MkiuUDvqdamm1X9jVB+n8k`입니다.
+
+```bash
+systemctl --user status cbgpu-ssh-gateway.service
+tailscale funnel status
+```
+
+외부 사용자는 SSH 설정의 `ProxyCommand`로 OpenSSL TLS를 연결한 뒤
+`ProxyJump cbgpu-gateway`를 사용합니다. 웹의 `/dashboard/ssh-guide`에서
+설정 예시를 복사할 수 있습니다. 공개 경로는 TLS와 SSH 공개키 인증을 모두
+거칩니다. `tailscale funnel --tls-terminated-tcp=10000 off`로 이 공개 경로만
+중지할 수 있으며 기존 HTTPS 443·8443 Funnel에는 영향을 주지 않습니다.
 
 ## 호스트 SSH 인증 정책
 
