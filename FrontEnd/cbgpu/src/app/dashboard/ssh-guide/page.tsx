@@ -45,6 +45,18 @@ const STEPS = [
 ];
 
 const SKILL_PATH = '/skills/cbgpu-gpu-ssh/SKILL.md';
+const GATEWAY_HOST = 'cbshoj.taild105d1.ts.net';
+const SSH_CONFIG = `Host cbgpu-gateway
+  HostName ${GATEWAY_HOST}
+  User gateway
+  Port 10000
+  ProxyCommand openssl s_client -quiet -verify_return_error -verify_hostname ${GATEWAY_HOST} -connect ${GATEWAY_HOST}:10000 -servername ${GATEWAY_HOST}
+
+${[1, 2, 3, 4].map((gpu) => `Host cbgpu-gpu${gpu}
+  HostName 100.100.136.37
+  Port ${2200 + gpu}
+  User root
+  ProxyJump cbgpu-gateway`).join('\n\n')}`;
 
 export default function GpuSshGuidePage() {
   const { showError, showSuccess } = useAlert();
@@ -60,6 +72,15 @@ export default function GpuSshGuidePage() {
     }
   }
 
+  async function copyConfig() {
+    try {
+      await navigator.clipboard.writeText(SSH_CONFIG);
+      showSuccess('SSH 설정을 복사했습니다.');
+    } catch {
+      showError('복사하지 못했습니다. 설정을 직접 선택해 주세요.');
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground">
@@ -72,7 +93,7 @@ export default function GpuSshGuidePage() {
           <span className="text-xs font-black uppercase tracking-widest">GPU SSH</span>
         </div>
         <h1 className="text-3xl font-black italic tracking-tight sm:text-4xl">SSH 접속 방법</h1>
-        <p className="text-sm text-muted-foreground">키를 한 번 등록하면 예약한 GPU 컨테이너에 서버 비밀번호 없이 접속할 수 있습니다.</p>
+        <p className="text-sm text-muted-foreground">키와 접속 설정을 한 번 등록하면 예약한 GPU 컨테이너에 서버 비밀번호 없이 접속할 수 있습니다.</p>
       </header>
 
       {STEPS.map((step) => (
@@ -104,17 +125,29 @@ export default function GpuSshGuidePage() {
       </section>
 
       <section className="space-y-4 rounded-2xl border bg-card p-5 sm:p-6">
-        <h2 className="text-lg font-black">4. 예약한 GPU에 접속하기</h2>
-        <p className="text-sm text-muted-foreground">관리자에게 Tailscale 네트워크 초대를 받아 연결한 뒤, 예약 시간에 해당 GPU의 명령어를 실행하세요.</p>
+        <h2 className="text-lg font-black">4. SSH 접속 설정하기</h2>
+        <p className="text-sm text-muted-foreground">OpenSSL을 사용할 수 있는 터미널에서 아래 내용을 <code>~/.ssh/config</code>에 추가하세요. Windows에서는 Git Bash의 <code>~/.ssh/config</code>를 사용합니다. 기존 설정이 있다면 끝에 추가하고 덮어쓰지 마세요.</p>
+        <div className="overflow-hidden rounded-xl border bg-muted/30">
+          <div className="flex justify-end border-b px-2 py-1">
+            <Button type="button" size="sm" variant="ghost" onClick={copyConfig} className="gap-1.5"><Copy className="size-3.5" /> 설정 복사</Button>
+          </div>
+          <pre className="overflow-x-auto p-4 text-xs leading-relaxed"><code>{SSH_CONFIG}</code></pre>
+        </div>
+        <p className="text-xs text-muted-foreground">설정 전 <code>openssl version</code>으로 설치 여부를 확인하세요. 처음 연결할 때 게이트웨이 키 지문은 <code>SHA256:f0MfUHiEtvydl+erJ8c79MkiuUDvqdamm1X9jVB+n8k</code>입니다.</p>
+      </section>
+
+      <section className="space-y-4 rounded-2xl border bg-card p-5 sm:p-6">
+        <h2 className="text-lg font-black">5. 예약한 GPU에 접속하기</h2>
+        <p className="text-sm text-muted-foreground">승인된 예약 시간에 해당 GPU의 명령어를 실행하세요. Tailscale 초대는 필요하지 않습니다.</p>
         <div className="space-y-3">
           {[1, 2, 3, 4].map((gpu) => (
             <div key={gpu} className="space-y-1.5">
               <p className="text-xs font-bold text-muted-foreground">GPU #{gpu}</p>
-              <Command value={`ssh -p ${2200 + gpu} root@100.100.136.37`} />
+              <Command value={`ssh cbgpu-gpu${gpu}`} />
             </div>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">접속 권한은 승인된 예약 시간에만 적용됩니다. 공개키 저장 후 반영까지 약 30초 걸릴 수 있습니다.</p>
+        <p className="text-xs text-muted-foreground">접속 권한은 승인된 예약 시간에만 적용됩니다. 공개키 저장 후 반영까지 약 30초 걸릴 수 있습니다. 이미 연결된 Tailscale 기기에서는 기존 <code>ssh -p 2201 root@100.100.136.37</code> 방식도 이용할 수 있습니다.</p>
       </section>
 
       <div className="flex gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm">
