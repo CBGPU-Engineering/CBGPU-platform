@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Search, ArrowRight } from 'lucide-react';
 
 const PAGES = [
-  { title: '대회 제출', description: '대회 개설과 제출물 접수', href: '/contests', keywords: '대회 공모전 참가 제출 파일 링크 텍스트 호스트' },
+  { title: '교내 대회', description: '행사 개설, 참가 신청, 운영과 작품 제출', href: '/contests', keywords: '교내 대회 행사 공모전 참가 신청 체크인 제출 파일 링크 호스트' },
   { title: '전체 서비스', description: '학교생활·연구·도구 한눈에 보기', href: '/services', keywords: '전체 메뉴 기능' },
   { title: '기상송', description: '듣고 싶은 노래 신청과 플레이리스트', href: '/wakeup', keywords: '음악 노래 스포티파이' },
   { title: '자습신청', description: '신청 현황과 자리 확인', href: '/study', keywords: '자습 edu-set' },

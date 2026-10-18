@@ -16,7 +16,7 @@ export const serviceGroups = [
     { href: '/materials', label: '자료 공유', description: '학습·연구 자료 찾기', icon: FolderOpen },
   ] },
   { title: '커뮤니티·도구', services: [
-    { href: '/contests', label: '대회 제출', description: '대회 개설과 파일·링크·텍스트 제출', icon: Trophy },
+    { href: '/contests', label: '교내 대회', description: '행사 개설부터 참가·운영·작품 제출까지', icon: Trophy },
     { href: '/match', label: '스터디 매칭', description: '함께 공부할 친구 찾기', icon: Users },
     { href: '/polls', label: '투표', description: '진행 중인 투표 참여', icon: Vote },
     { href: '/feed', label: '소식', description: '학교와 과학 소식 확인', icon: Newspaper },
