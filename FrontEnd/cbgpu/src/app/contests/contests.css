@@ -1,0 +1,93 @@
+.contest-page {
+  --contest-green: #17634d;
+  --contest-soft: #edf4ef;
+  --contest-ink: #183a2d;
+  --primary: #17634d;
+  --primary-hover: #114c3b;
+  --primary-foreground: #fff;
+  --ring: #17634d;
+  animation: content-arrive 400ms var(--ease-settle) both;
+}
+.dark .contest-page {
+  --contest-green: #8cd9b7;
+  --contest-soft: #243a31;
+  --contest-ink: #c4eed9;
+  --primary: #8cd9b7;
+  --primary-hover: #a8e6ca;
+  --primary-foreground: #142b22;
+  --ring: #8cd9b7;
+}
+.contest-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 32px;
+  background: #173d30;
+  color: #f2f7f0;
+  padding: clamp(24px, 5vw, 52px);
+}
+.contest-hero::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  right: -55px;
+  top: -110px;
+  width: 380px;
+  height: 380px;
+  border: 1px solid rgb(182 224 178 / .15);
+  border-radius: 50%;
+  box-shadow: 0 0 0 48px rgb(182 224 178 / .05), 0 0 0 96px rgb(182 224 178 / .04);
+  pointer-events: none;
+}
+.contest-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
+.contest-hero .contest-eyebrow { color: #b7d7b5; }
+.contest-hero-button { background: #d8ecc9 !important; color: #173d30 !important; border-radius: 14px; }
+.contest-panel { border: 1px solid var(--border); background: var(--card); border-radius: 24px; padding: clamp(20px, 3vw, 28px); }
+.contest-panel-heading { display: flex; align-items: center; gap: 12px; padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+.contest-step { display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; border-radius: 10px; background: var(--contest-soft); color: var(--contest-green); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.contest-logo { display: flex; flex-shrink: 0; width: 64px; height: 64px; align-items: center; justify-content: center; overflow: hidden; border-radius: 20px; background: var(--contest-soft); color: var(--contest-green); border: 1px solid rgb(23 99 77 / .1); }
+.contest-logo img { width: 100%; height: 100%; object-fit: contain; padding: 8px; background: #fff; }
+.contest-logo svg { width: 28px; height: 28px; }
+.contest-logo-large { width: 88px; height: 88px; border-radius: 24px; }
+.contest-logo-large svg { width: 38px; height: 38px; }
+.contest-logo-picker { display: flex; align-items: center; gap: 20px; padding: 20px; border: 1px dashed var(--border); border-radius: 20px; background: color-mix(in srgb, var(--contest-soft) 40%, var(--card)); }
+.contest-logo-preview { width: 88px; height: 88px; }
+.contest-card { display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--card); border-radius: 26px; padding: 26px; transition: transform 220ms var(--ease-settle), box-shadow 220ms ease, border-color 220ms ease; }
+.contest-card:focus-visible { outline-color: var(--contest-green); }
+.contest-status { display: inline-flex; align-items: center; gap: 6px; border-radius: 30px; padding: 6px 10px; font-size: 11px; font-weight: 700; background: var(--contest-soft); color: var(--contest-green); white-space: nowrap; }
+.contest-status[data-closed='true'] { color: var(--muted-foreground); background: var(--muted); }
+.contest-status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.contest-tabs { display: inline-flex; padding: 4px; border-radius: 14px; background: var(--muted); gap: 4px; }
+.contest-tabs button { min-height: 40px; padding: 8px 16px; border-radius: 11px; font-size: 13px; font-weight: 600; color: var(--muted-foreground); }
+.contest-tabs button[aria-pressed='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 4px rgb(0 0 0 / .06); }
+.contest-countdown { padding: clamp(20px, 3vw, 28px); border: 1px solid color-mix(in srgb, var(--contest-green) 20%, var(--border)); border-radius: 24px; background: var(--contest-soft); color: var(--contest-ink); }
+.contest-countdown[data-closed='true'] { background: var(--muted); color: var(--muted-foreground); border-color: var(--border); }
+.contest-time-unit { min-width: 0; flex: 1; padding: 14px 4px 10px; border-radius: 14px; text-align: center; background: color-mix(in srgb, var(--card) 65%, transparent); }
+.contest-time-unit strong { display: block; font-size: clamp(26px, 4vw, 38px); line-height: 1.1; font-weight: 650; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.contest-time-unit span { display: block; margin-top: 7px; font-size: 11px; opacity: .65; }
+.contest-field-card { border: 1px solid var(--border); border-radius: 24px; background: var(--card); padding: clamp(20px, 3vw, 28px); }
+.contest-page input:not([type='checkbox']):not([type='file']), .contest-page textarea { border-color: var(--border); background: var(--background); border-radius: 12px; }
+.contest-page input:not([type='checkbox']):not([type='file']) { min-height: 46px; }
+.contest-page input[type='checkbox'] { accent-color: var(--contest-green); width: 16px; height: 16px; }
+.contest-file-zone { position: relative; display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 28px 16px; border: 1px dashed color-mix(in srgb, var(--contest-green) 35%, var(--border)); border-radius: 16px; background: color-mix(in srgb, var(--contest-soft) 35%, var(--card)); text-align: center; }
+.contest-file-zone input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.contest-file-zone:focus-within { outline: 2px solid var(--ring); outline-offset: 3px; }
+.contest-file-zone:has(input:disabled) { opacity: .6; }
+.contest-detail-layout { display: grid; gap: 28px; align-items: start; }
+.contest-summary { min-width: 0; }
+@media (max-width: 1023px) {
+  .contest-summary > .contest-panel { display: none; }
+}
+@media (min-width: 1024px) {
+  .contest-detail-layout { grid-template-columns: minmax(0, 1fr) 310px; }
+  .contest-summary { position: sticky; top: 100px; grid-column: 2; grid-row: 1; }
+  .contest-detail-main { grid-column: 1; grid-row: 1; min-width: 0; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .contest-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--contest-green) 45%, var(--border)); box-shadow: 0 12px 32px rgb(0 0 0 / .05); }
+  .contest-file-zone:hover { border-color: var(--contest-green); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .contest-page { animation: none; }
+  .contest-card:hover { transform: none; }
+}

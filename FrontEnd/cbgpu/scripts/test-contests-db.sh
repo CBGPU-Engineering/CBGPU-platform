@@ -11,5 +11,8 @@ for attempt in {1..30}; do
   sleep 1
 done
 "$runtime" exec -i "$container" psql -U postgres -v ON_ERROR_STOP=1 -q < tests/contests/bootstrap.sql
-"$runtime" exec -i "$container" psql -U postgres -v ON_ERROR_STOP=1 -q < supabase/migrations/20261018051657_contest_submissions.sql
+for migration in supabase/migrations/*.sql; do
+  "$runtime" exec -i "$container" psql -U postgres -v ON_ERROR_STOP=1 -q < "$migration"
+done
 "$runtime" exec -i "$container" psql -U postgres -v ON_ERROR_STOP=1 -q < tests/contests/database.sql
+"$runtime" exec -i "$container" psql -U postgres -v ON_ERROR_STOP=1 -q < tests/contests/logos.sql

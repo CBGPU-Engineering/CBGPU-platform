@@ -8,7 +8,7 @@ create function auth.uid() returns uuid language sql stable as
 grant usage on schema auth to authenticated;
 grant execute on function auth.uid() to authenticated;
 create schema storage;
-create table storage.buckets(id text primary key, name text, public boolean, file_size_limit bigint);
+create table storage.buckets(id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
 create table storage.objects(id uuid default gen_random_uuid() primary key, bucket_id text references storage.buckets(id), name text, metadata jsonb);
 alter table storage.objects enable row level security;
 grant usage on schema storage to authenticated;
