@@ -150,8 +150,8 @@ function SubmissionForm({ contest, submission, closed, clockReady, onSaved }: {
   );
 }
 
-function HostPanel({ contest, submissions, onUpdated, refresh, now }: {
-  contest: Contest; submissions: ContestSubmission[]; onUpdated: (contest: Contest) => void; refresh: () => Promise<void>; now: number | null;
+function HostPanel({ contest, submissions, onUpdated, refresh, now, canEditIdentity }: {
+  contest: Contest; submissions: ContestSubmission[]; onUpdated: (contest: Contest) => void; refresh: () => Promise<void>; now: number | null; canEditIdentity: boolean;
 }) {
   const [deadline, setDeadline] = useState(deadlineToInput(contest.ends_at));
   const [busy, setBusy] = useState(false);
@@ -173,7 +173,7 @@ function HostPanel({ contest, submissions, onUpdated, refresh, now }: {
 
   return <div className="space-y-6">
     <section className="contest-panel space-y-4"><div><p className="contest-eyebrow mb-2 text-primary">INVITE PARTICIPANTS</p><h2 className="text-lg font-bold">참가 링크 공유</h2></div><p className="text-sm text-muted-foreground">이 링크 하나로 참가 신청, 행사 안내와 작품 제출을 받아보세요.</p><div className="flex flex-wrap gap-2"><Input aria-label="참가 링크" className="min-w-0 flex-1" readOnly value={shareUrl} onFocus={e => e.target.select()} /><Button onClick={async () => { try { await navigator.clipboard.writeText(shareUrl); showSuccess('참가 링크를 복사했어요.'); } catch { showError('링크를 선택한 뒤 직접 복사해 주세요.'); } }}><Copy />복사</Button></div></section>
-    <ContestLogoEditor contest={contest} onUpdated={onUpdated} />
+    {canEditIdentity && <ContestLogoEditor contest={contest} onUpdated={onUpdated} />}
     <section className="contest-panel space-y-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="contest-eyebrow mb-2 text-primary">RECEPTION</p><h2 className="text-lg font-bold">접수 관리</h2></div><Button variant="outline" disabled={busy} onClick={() => void update({ is_open: !contest.is_open })}>{contest.is_open ? '접수 중지하기' : '접수 재개하기'}</Button></div>
       <form onSubmit={event => {
         event.preventDefault();
@@ -197,6 +197,7 @@ export default function ContestDetailPage() {
   const { user } = useAuth();
   const [contest, setContest] = useState<Contest | null>(null);
   const [submissions, setSubmissions] = useState<ContestSubmission[]>([]);
+  const [eventOperatorRole, setEventOperatorRole] = useState<'owner' | 'manager' | 'checkin' | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { now, syncError } = useContestClock();
@@ -207,11 +208,19 @@ export default function ContestDetailPage() {
       const { data, error } = await supabase.from('contests').select('*').eq('id', id).maybeSingle();
       if (error) throw error;
       if (!data) throw new Error('대회를 찾을 수 없어요. 공유받은 링크를 확인해 주세요.');
+      const owner = data.host_id === user.id;
+      let operatorRole: 'owner' | 'manager' | 'checkin' | null = owner ? 'owner' : null;
+      if (!owner && data.event_start_at) {
+        const { data: hostEntry } = await supabase.from('event_hosts').select('role').eq('contest_id', id).eq('user_id', user.id).maybeSingle();
+        operatorRole = hostEntry?.role || null;
+      }
+      const operator = !!operatorRole;
       let query = supabase.from('contest_submissions').select('*').eq('contest_id', id).order('submitted_at', { ascending: false });
-      if (data.host_id !== user.id) query = query.eq('user_id', user.id);
+      if (!operator) query = query.eq('user_id', user.id);
       const { data: entries, error: entriesError } = await query;
       if (entriesError) throw entriesError;
       setContest(data);
+      setEventOperatorRole(operatorRole);
       setSubmissions(entries || []);
     } catch (error) { setError(contestError(error)); }
     finally { setLoading(false); }
@@ -231,14 +240,16 @@ export default function ContestDetailPage() {
   }, [id, user]);
   if (loading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
   if (error || !contest) return <div className="mx-auto max-w-2xl space-y-4 rounded-3xl border p-8"><p role="alert">{error || '대회를 찾을 수 없어요.'}</p><Button variant="outline" onClick={() => void load()}>다시 불러오기</Button><Button asChild variant="ghost"><Link href="/contests">대회 목록</Link></Button></div>;
-  const isHost = contest.host_id === user?.id;
+  const isOwner = contest.host_id === user?.id;
+  const isHost = isOwner || !!eventOperatorRole;
+  const canManage = isOwner || eventOperatorRole === 'manager';
   const ownSubmission = submissions.find(entry => entry.user_id === user?.id) || null;
   return <div className="contest-page mx-auto max-w-6xl space-y-7">
     <Link href="/contests" className="inline-flex items-center gap-2 text-sm text-muted-foreground"><ArrowLeft className="size-4" />대회 목록</Link>
     <header className="contest-hero"><div className="flex flex-col gap-6 sm:flex-row sm:items-center"><ContestLogo path={contest.logo_path} title={contest.title} className="contest-logo-large" /><div className="min-w-0 flex-1"><p className="contest-eyebrow mb-3">{isHost ? '호스트 · 대회 관리' : '참가자 · 제출하기'}</p><h1 className="break-words text-3xl font-bold tracking-tight sm:text-4xl">{contest.title}</h1><div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-white/60"><span className="flex items-center gap-1.5"><Layers3 className="size-3.5" />제출 항목 {contest.fields.length}개</span><span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5" />본인과 호스트에게만 공개</span></div></div></div>{contest.description && <p className="mt-7 max-w-2xl whitespace-pre-wrap break-words border-t border-white/10 pt-6 text-sm leading-relaxed text-white/70">{contest.description}</p>}</header>
     <div className="contest-detail-layout">
       <aside className="contest-summary space-y-4"><ContestClock endsAt={contest.ends_at} isOpen={contest.is_open} now={now} syncError={syncError} /><section className="contest-panel"><h2 className="mb-4 text-sm font-bold">제출 항목 안내</h2><ul className="space-y-4">{contest.fields.map(field => { const Icon = field.type === 'file' ? FileUp : field.type === 'link' ? Link2 : FileText; return <li key={field.id} className="flex items-start gap-3"><Icon className="mt-0.5 size-4 shrink-0 text-primary" /><div className="min-w-0"><p className="break-words text-xs font-semibold">{field.label}<span className="ml-2 text-[10px] font-normal text-muted-foreground">{field.required ? '필수' : '선택'}</span></p><p className="mt-1 break-words text-[11px] text-muted-foreground">{FIELD_LABELS[field.type]}{field.type === 'file' ? ` · ${field.extensions || '모든 형식'} · ${field.max_size_mb}MB` : ''}</p></div></li>; })}</ul></section></aside>
-      <div className="contest-detail-main space-y-7"><EventHub contest={contest} isHost={isHost} onContestUpdated={setContest} />{isHost ? <HostPanel contest={contest} submissions={submissions} onUpdated={setContest} refresh={load} now={now} /> : <SubmissionForm key={`${contest.id}-${ownSubmission?.submitted_at || 'new'}`} contest={contest} submission={ownSubmission} closed={now !== null && contestClosed(contest, now)} clockReady={now !== null} onSaved={entry => setSubmissions([entry])} />}</div>
+      <div className="contest-detail-main space-y-7"><EventHub contest={contest} isHost={isHost} isOwner={isOwner} canManage={canManage} onContestUpdated={setContest} />{canManage ? <HostPanel contest={contest} submissions={submissions} onUpdated={setContest} refresh={load} now={now} canEditIdentity={isOwner} /> : !isHost ? <SubmissionForm key={`${contest.id}-${ownSubmission?.submitted_at || 'new'}`} contest={contest} submission={ownSubmission} closed={now !== null && contestClosed(contest, now)} clockReady={now !== null} onSaved={entry => setSubmissions([entry])} /> : null}</div>
     </div>
   </div>;
 }

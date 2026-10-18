@@ -29,7 +29,7 @@ export default function ContestsPage() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  const visible = mine ? contests.filter(c => c.host_id === user?.id) : contests.filter(c => c.visibility !== 'unlisted' || c.host_id === user?.id);
+  const visible = mine ? contests.filter(c => c.host_id === user?.id) : contests.filter(c => c.lifecycle_status !== 'archived' && (c.visibility !== 'unlisted' || c.host_id === user?.id));
 
   return (
     <div className="contest-page mx-auto max-w-6xl space-y-9">

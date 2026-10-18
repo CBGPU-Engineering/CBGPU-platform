@@ -29,6 +29,7 @@ export default function NewContestPage() {
   const [deadline, setDeadline] = useState('');
   const [eventStart, setEventStart] = useState('');
   const [eventEnd, setEventEnd] = useState('');
+  const [registrationCloses, setRegistrationCloses] = useState('');
   const [locationType, setLocationType] = useState<'offline' | 'online' | 'hybrid'>('offline');
   const [locationName, setLocationName] = useState('');
   const [address, setAddress] = useState('');
@@ -60,9 +61,11 @@ export default function NewContestPage() {
     const endsAt = deadlineToISO(deadline);
     const eventStartsAt = deadlineToISO(eventStart)!;
     const eventEndsAt = deadlineToISO(eventEnd);
+    const registrationClosesAt = deadlineToISO(registrationCloses);
     if (endsAt && new Date(endsAt).getTime() <= now) return showError('마감은 현재 서버 시각 이후로 지정해 주세요.');
     if (new Date(eventStartsAt).getTime() <= now) return showError('행사 시작은 현재 서버 시각 이후로 지정해 주세요.');
     if (eventEndsAt && new Date(eventEndsAt).getTime() <= new Date(eventStartsAt).getTime()) return showError('행사 종료는 시작 이후로 지정해 주세요.');
+    if (registrationClosesAt && new Date(registrationClosesAt).getTime() > new Date(eventStartsAt).getTime()) return showError('참가 신청 마감은 행사 시작 이전으로 지정해 주세요.');
     if ((locationType === 'online' || locationType === 'hybrid') && meetingUrl && !/^https?:\/\//i.test(meetingUrl)) return showError('온라인 접속 링크는 http:// 또는 https://로 시작해야 해요.');
     const cleanFields = fields.map(field => ({ ...field, label: field.label.trim(), description: field.description.trim(), extensions: field.extensions.toLowerCase().split(',').map(ext => ext.trim()).filter(Boolean).join(',') }));
     if (cleanFields.some(field => field.type === 'file' && (field.max_size_mb < 1 || field.max_size_mb > 50 || !Number.isInteger(field.max_size_mb) || (field.extensions && !/^\.[a-z0-9]+(?:\.[a-z0-9]+)*(,\.[a-z0-9]+(?:\.[a-z0-9]+)*)*$/.test(field.extensions))))) return showError('파일 크기는 1~50MB, 확장자는 .ppt,.pptx처럼 입력해 주세요.');
@@ -75,7 +78,7 @@ export default function NewContestPage() {
         host_id: user.id, title: title.trim(), description: description.trim(), ends_at: endsAt, fields: cleanFields, logo_path: logoPath,
         event_start_at: eventStartsAt, event_end_at: eventEndsAt, location_type: locationType, location_name: locationName.trim(), address: address.trim(),
         visibility, capacity: capacity ? Number(capacity) : null, waitlist_enabled: waitlistEnabled, approval_required: approvalRequired,
-        registration_questions: cleanQuestions,
+        registration_questions: cleanQuestions, registration_closes_at: registrationClosesAt,
       }).select('id').single();
       if (error) throw error;
       if (meetingUrl.trim()) {
@@ -111,6 +114,7 @@ export default function NewContestPage() {
           <section className="contest-panel space-y-5">
             <div className="contest-panel-heading"><span className="contest-step"><Users className="size-4" /></span><div><h2 className="font-bold">참가 신청 설정</h2><p className="mt-1 text-xs text-muted-foreground">정원, 승인 방식과 참가자 질문을 구성하세요.</p></div></div>
             <div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2 text-sm font-bold"><span>정원 (선택)</span><Input type="number" min="1" max="10000" step="1" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder="제한 없음" /></label><label className="space-y-2 text-sm font-bold"><span>공개 범위</span><select className={textareaClass} value={visibility} onChange={e => setVisibility(e.target.value as typeof visibility)}><option value="public">목록에 공개</option><option value="unlisted">링크가 있는 사람만</option></select></label></div>
+            <label className="block space-y-2 text-sm font-bold"><span>참가 신청 마감 (선택, 한국 시간)</span><Input type="datetime-local" step="1" value={registrationCloses} onChange={e => setRegistrationCloses(e.target.value)} /><span className="block text-xs font-normal text-muted-foreground">비워두면 행사 시작 전까지 신청을 받아요.</span></label>
             <div className="flex flex-wrap gap-5"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={approvalRequired} onChange={e => setApprovalRequired(e.target.checked)} />호스트 승인 후 확정</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={waitlistEnabled} onChange={e => setWaitlistEnabled(e.target.checked)} />정원 초과 시 대기 명단</label></div>
             <div className="space-y-3"><div className="flex items-center justify-between"><h3 className="text-sm font-bold">신청 질문 <span className="font-normal text-muted-foreground">{questions.length}/20</span></h3></div>{questions.map((question, index) => <div key={question.id} className="rounded-2xl border p-4 space-y-3"><div className="flex items-center justify-between"><span className="text-xs font-bold text-primary">{index + 1}. {questionLabels[question.type]}</span><Button type="button" size="icon" variant="ghost" onClick={() => setQuestions(prev => prev.filter(item => item.id !== question.id))}><Trash2 /></Button></div><Input required maxLength={200} value={question.label} onChange={e => updateQuestion(question.id, { label: e.target.value })} placeholder={question.type === 'terms' ? '예: 개인정보 수집 및 행사 촬영에 동의합니다.' : '참가자에게 물어볼 내용'} />{(question.type === 'choice' || question.type === 'checkbox') && <div className="space-y-2">{question.options.map((option, optionIndex) => <div key={optionIndex} className="flex gap-2"><Input required value={option} maxLength={100} placeholder={`선택지 ${optionIndex + 1}`} onChange={e => updateQuestion(question.id, { options: question.options.map((item, i) => i === optionIndex ? e.target.value : item) })} />{question.options.length > 1 && <Button type="button" size="icon" variant="ghost" onClick={() => updateQuestion(question.id, { options: question.options.filter((_, i) => i !== optionIndex) })}><Trash2 /></Button>}</div>)}<Button type="button" variant="ghost" size="sm" disabled={question.options.length >= 20} onClick={() => updateQuestion(question.id, { options: [...question.options, ''] })}><Plus />선택지 추가</Button></div>}<label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={question.required} onChange={e => updateQuestion(question.id, { required: e.target.checked })} />필수 질문</label></div>)}</div>
             <div className="flex flex-wrap gap-2">{(Object.keys(questionLabels) as RegistrationQuestionType[]).map(type => <Button type="button" key={type} variant="outline" size="sm" disabled={questions.length >= 20} onClick={() => setQuestions(prev => [...prev, newQuestion(type)])}><Plus />{questionLabels[type]}</Button>)}</div>
