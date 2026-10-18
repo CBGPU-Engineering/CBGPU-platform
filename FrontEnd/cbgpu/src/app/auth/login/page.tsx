@@ -28,7 +28,8 @@ export default function Login() {
         showError("로그인 실패: " + error.message);
       } else {
         showSuccess("로그인됐습니다!");
-        router.push('/');
+        const next = new URLSearchParams(window.location.search).get('next');
+        router.push(next && /^\/contests(?:\/[a-zA-Z0-9-]+)?$/.test(next) ? next : '/');
       }
     } catch (err: any) {
       showError("오류가 발생했습니다.");

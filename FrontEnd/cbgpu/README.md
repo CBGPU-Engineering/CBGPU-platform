@@ -8,6 +8,27 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 요청은 로그인한 사용자만 보낼 수 있으며 입력은 최대 4,000자입니다. 서버 인스턴스별로 분당 8회 제한을 적용하지만, 여러 인스턴스에 걸친 사용량·비용 상한은 보장하지 않습니다. 공개 배포 전에 영속적 제한과 NVIDIA 사용량 알림을 설정하세요. 연구노트의 태그 추천은 편집기를 벗어날 때 노트 내용을 NVIDIA API로 전송합니다. 스터디 모집글 태그 추천은 제목과 설명을 전송합니다. 투표 결과에서는 개인별 답변이 아닌 집계 수치만 전송합니다. AI 응답 자체는 DB에 저장하지 않으며, 사용자가 선택한 추천 태그만 노트나 모집글에 저장됩니다.
 
+## 대회 제출
+
+`/contests`에서 로그인한 사용자가 대회를 만들고 제출 링크를 공유할 수 있습니다. 제출 항목은 파일·링크·텍스트로 구성하며 필수 여부, 안내, 순서를 정합니다. 파일 항목마다 `.ppt,.pptx` 또는 `.pdf,.hwp,.hwpx`처럼 원하는 확장자를 직접 입력할 수 있고, 최대 용량은 1~50MB로 지정합니다. 확장자를 비워두면 모든 확장자를 허용합니다. 확장자 제한은 파일명 기준이며 파일 내용의 형식을 분석하는 기능은 아닙니다.
+
+마감은 한국 시간으로 초 단위까지 설정합니다. 호스트와 참가자 화면은 DB의 `contest_server_time()`과 30초마다 동기화하며, 기기 시계가 바뀌어도 남은 시간을 유지합니다. DB 트리거와 RLS가 실제 마감 시각·접수 상태·필수 항목·파일 확장자·실제 저장 용량을 검증합니다. 호스트는 접수를 중지·재개하거나 마감을 변경할 수 있습니다. 계정당 한 건을 제출하며 마감 전 재제출로 수정합니다. 생성한 제출 항목은 고정됩니다.
+
+테이블·RLS·비공개 버킷·RPC는 `supabase/migrations/20261018051657_contest_submissions.sql`에 있습니다. 새 Supabase 환경에는 프런트엔드 사용 전에 이 SQL을 적용해야 합니다. 파일과 응답은 본인과 해당 대회 호스트만 읽을 수 있습니다.
+
+검증 명령:
+
+```bash
+node --test tests/contests/helpers.test.mjs
+bash scripts/test-contests-db.sh # Podman 필요; CONTEST_TEST_RUNTIME=docker도 지원
+npm run build
+npx next start --port 3147
+# 다른 터미널에서 실행. Supabase 요청을 모두 모의 처리하므로 실제 데이터는 만들지 않습니다.
+node tests/contests/browser.mjs
+```
+
+SQL 테스트의 `bootstrap.sql`은 비어 있는 일회용 PostgreSQL 전용입니다. 실제 Supabase에 실행하지 마세요.
+
 ## Getting Started
 
 First, run the development server:

@@ -7,6 +7,7 @@ export const HOME_SERVICES = serviceGroups.flatMap(group => group.services);
 /** 차가운 톤으로 통일한 은은한 팔레트 — 채도 낮은 400 톤 + 배경 /10 으로 너무 알록달록하지 않게.
  *  서비스마다 색이 달라야 14개가 한눈에 구분된다. 새 서비스를 추가하면 여기에도 색을 넣는다. */
 const SERVICE_COLORS: Record<string, string> = {
+  '/contests': 'text-amber-400 bg-amber-400/10',
   '/study': 'text-blue-400 bg-blue-400/10',
   '/timetable': 'text-indigo-400 bg-indigo-400/10',
   '/meal': 'text-amber-400 bg-amber-400/10',

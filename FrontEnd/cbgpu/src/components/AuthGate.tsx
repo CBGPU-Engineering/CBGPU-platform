@@ -43,7 +43,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex flex-col gap-2">
           <Link
-            href="/auth/login"
+            href={pathname.startsWith('/contests') ? `/auth/login?next=${encodeURIComponent(pathname)}` : '/auth/login'}
             className="rounded-2xl bg-primary text-primary-foreground py-3.5 font-black text-sm uppercase tracking-widest active:scale-[0.98] transition-transform"
           >
             로그인
