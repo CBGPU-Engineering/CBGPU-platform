@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, Copy, Download, RefreshCw, Send, Users } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Copy, Download, RefreshCw, Send, Users, FileUp, ShieldCheck, Layers3, FileText, Link2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { useAlert } from '@/lib/alert';
@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import ContestClock, { useContestClock } from '@/components/contests/ContestClock';
+import { ContestLogo } from '@/components/contests/ContestLogo';
+import ContestLogoEditor from '@/components/contests/ContestLogoEditor';
 import {
   Contest, ContestAnswers, ContestSubmission, SubmittedFile, CONTEST_BUCKET, FIELD_LABELS,
   contestClosed, contestError, deadlineToISO, deadlineToInput, fileError,
@@ -106,26 +108,29 @@ function SubmissionForm({ contest, submission, closed, clockReady, onSaved }: {
     <form onSubmit={submit} className="space-y-5">
       {submission && <div role="status" className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4"><p className="flex items-center gap-2 font-bold text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="size-5" />제출 완료</p><p className="mt-1 text-xs text-muted-foreground">마지막 제출: {formatContestDate(submission.submitted_at)}</p><p className="mt-2 text-sm">마감 전까지 내용을 수정할 수 있어요. 수정한 내용은 다시 제출해야 저장돼요.</p></div>}
       <fieldset disabled={closed || busy || !clockReady} className="space-y-5">
-        <section className="grid gap-4 rounded-3xl border bg-card p-6 sm:grid-cols-2">
+        <section className="contest-panel">
+          <div className="contest-panel-heading"><span className="contest-step"><Users className="size-4" /></span><div><h2 className="font-bold">참가자 정보</h2><p className="mt-1 text-xs text-muted-foreground">제출물을 확인할 수 있도록 알려주세요.</p></div></div>
+          <div className="grid gap-4 sm:grid-cols-2">
           <label className="space-y-2 text-sm font-bold"><span>제출자 이름 / 팀명 <span className="text-destructive">*</span></span><Input required maxLength={100} value={name} onChange={e => setName(e.target.value)} /></label>
           <label className="space-y-2 text-sm font-bold"><span>학번 (선택)</span><Input maxLength={30} value={studentId} onChange={e => setStudentId(e.target.value)} /></label>
+          </div>
         </section>
         {contest.fields.map((field, index) => {
           const value = answers[field.id];
-          return <section key={field.id} className="space-y-3 rounded-3xl border bg-card p-6">
-            <label htmlFor={`answer-${field.id}`} className="block font-bold">{index + 1}. {field.label} {field.required ? <span className="text-destructive">*</span> : <span className="text-xs font-normal text-muted-foreground">선택</span>}</label>
+          return <section key={field.id} className="contest-field-card space-y-4">
+            <div className="flex items-center gap-3"><span className="contest-step">{String(index + 1).padStart(2, '0')}</span><label htmlFor={`answer-${field.id}`} className="block font-bold">{field.label} {field.required ? <span className="ml-1 rounded-md bg-primary/5 px-2 py-1 text-[10px] font-semibold text-primary">필수</span> : <span className="ml-1 text-xs font-normal text-muted-foreground">선택</span>}</label></div>
             <p className="text-xs text-muted-foreground">{FIELD_LABELS[field.type]}{field.type === 'file' ? ` · 파일 1개, 최대 ${field.max_size_mb}MB · ${field.extensions || '모든 확장자'}` : ''}</p>
             {field.description && <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{field.description}</p>}
             {field.type === 'text' ? <textarea id={`answer-${field.id}`} required={field.required} maxLength={10000} rows={5} value={typeof value === 'string' ? value : ''} onChange={e => update(field.id, e.target.value)} className="w-full rounded-xl border bg-background p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="내용을 입력해 주세요." /> : field.type === 'link' ? <Input id={`answer-${field.id}`} type="url" required={field.required} maxLength={2000} placeholder="https://" value={typeof value === 'string' ? value : ''} onChange={e => update(field.id, e.target.value)} /> : <div className="space-y-3">
               {typeof value === 'object' && <p className="break-words text-sm">현재 파일: {value.name}</p>}
-              <Input id={`answer-${field.id}`} type="file" accept={field.extensions || undefined} required={field.required && !value} onChange={e => {
+              <div className="contest-file-zone"><FileUp className="mb-1 size-7 text-primary" strokeWidth={1.5} /><span className="max-w-full break-all text-sm font-semibold">{files[field.id]?.name || '클릭하거나 파일을 끌어 놓으세요'}</span><span className="text-xs text-muted-foreground">{field.extensions || '모든 파일 형식'} · 최대 {field.max_size_mb}MB</span><Input id={`answer-${field.id}`} aria-label={`${field.label} 파일 선택`} type="file" accept={field.extensions || undefined} required={field.required && !value} onChange={e => {
                 const file = e.target.files?.[0];
                 if (file) {
                   const error = fileError(file, field);
                   if (error) { showError(error); e.target.value = ''; setFiles(prev => { const next = { ...prev }; delete next[field.id]; return next; }); return; }
                 }
                 setFiles(prev => { const next = { ...prev }; if (file) next[field.id] = file; else delete next[field.id]; return next; });
-              }} />
+              }} /></div>
               {files[field.id] && <p className="text-xs text-primary">새 파일: {files[field.id].name} · 다시 제출하면 교체돼요.</p>}
               {!field.required && (value || files[field.id]) && <Button type="button" variant="ghost" onClick={() => {
                 setAnswers(prev => { const next = { ...prev }; delete next[field.id]; return next; });
@@ -166,8 +171,9 @@ function HostPanel({ contest, submissions, onUpdated, refresh, now }: {
   }
 
   return <div className="space-y-6">
-    <section className="space-y-4 rounded-3xl border bg-card p-6"><h2 className="text-lg font-bold">제출 링크 공유</h2><p className="text-sm text-muted-foreground">참가자가 로그인한 뒤 아래 링크에서 제출할 수 있어요.</p><div className="flex flex-wrap gap-2"><Input aria-label="제출 링크" className="min-w-0 flex-1" readOnly value={shareUrl} onFocus={e => e.target.select()} /><Button onClick={async () => { try { await navigator.clipboard.writeText(shareUrl); showSuccess('제출 링크를 복사했어요.'); } catch { showError('링크를 선택한 뒤 직접 복사해 주세요.'); } }}><Copy />복사</Button></div></section>
-    <section className="space-y-4 rounded-3xl border bg-card p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">접수 관리</h2><Button variant="outline" disabled={busy} onClick={() => void update({ is_open: !contest.is_open })}>{contest.is_open ? '접수 중지하기' : '접수 재개하기'}</Button></div>
+    <section className="contest-panel space-y-4"><div><p className="contest-eyebrow mb-2 text-primary">INVITE PARTICIPANTS</p><h2 className="text-lg font-bold">제출 링크 공유</h2></div><p className="text-sm text-muted-foreground">하나의 링크로 참가자를 초대하세요.</p><div className="flex flex-wrap gap-2"><Input aria-label="제출 링크" className="min-w-0 flex-1" readOnly value={shareUrl} onFocus={e => e.target.select()} /><Button onClick={async () => { try { await navigator.clipboard.writeText(shareUrl); showSuccess('제출 링크를 복사했어요.'); } catch { showError('링크를 선택한 뒤 직접 복사해 주세요.'); } }}><Copy />복사</Button></div></section>
+    <ContestLogoEditor contest={contest} onUpdated={onUpdated} />
+    <section className="contest-panel space-y-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="contest-eyebrow mb-2 text-primary">RECEPTION</p><h2 className="text-lg font-bold">접수 관리</h2></div><Button variant="outline" disabled={busy} onClick={() => void update({ is_open: !contest.is_open })}>{contest.is_open ? '접수 중지하기' : '접수 재개하기'}</Button></div>
       <form onSubmit={event => {
         event.preventDefault();
         const endsAt = deadlineToISO(deadline);
@@ -226,10 +232,12 @@ export default function ContestDetailPage() {
   if (error || !contest) return <div className="mx-auto max-w-2xl space-y-4 rounded-3xl border p-8"><p role="alert">{error || '대회를 찾을 수 없어요.'}</p><Button variant="outline" onClick={() => void load()}>다시 불러오기</Button><Button asChild variant="ghost"><Link href="/contests">대회 목록</Link></Button></div>;
   const isHost = contest.host_id === user?.id;
   const ownSubmission = submissions.find(entry => entry.user_id === user?.id) || null;
-  return <div className="mx-auto max-w-3xl space-y-6">
+  return <div className="contest-page mx-auto max-w-6xl space-y-7">
     <Link href="/contests" className="inline-flex items-center gap-2 text-sm text-muted-foreground"><ArrowLeft className="size-4" />대회 목록</Link>
-    <header><p className="mb-2 text-xs font-bold text-primary">{isHost ? '호스트 · 대회 관리' : '참가자 · 제출하기'}</p><h1 className="break-words text-3xl font-black">{contest.title}</h1>{contest.description && <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">{contest.description}</p>}</header>
-    <ContestClock endsAt={contest.ends_at} isOpen={contest.is_open} now={now} syncError={syncError} />
-    {isHost ? <HostPanel contest={contest} submissions={submissions} onUpdated={setContest} refresh={load} now={now} /> : <SubmissionForm key={`${contest.id}-${ownSubmission?.submitted_at || 'new'}`} contest={contest} submission={ownSubmission} closed={now !== null && contestClosed(contest, now)} clockReady={now !== null} onSaved={entry => setSubmissions([entry])} />}
+    <header className="contest-hero"><div className="flex flex-col gap-6 sm:flex-row sm:items-center"><ContestLogo path={contest.logo_path} title={contest.title} className="contest-logo-large" /><div className="min-w-0 flex-1"><p className="contest-eyebrow mb-3">{isHost ? '호스트 · 대회 관리' : '참가자 · 제출하기'}</p><h1 className="break-words text-3xl font-bold tracking-tight sm:text-4xl">{contest.title}</h1><div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-white/60"><span className="flex items-center gap-1.5"><Layers3 className="size-3.5" />제출 항목 {contest.fields.length}개</span><span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5" />본인과 호스트에게만 공개</span></div></div></div>{contest.description && <p className="mt-7 max-w-2xl whitespace-pre-wrap break-words border-t border-white/10 pt-6 text-sm leading-relaxed text-white/70">{contest.description}</p>}</header>
+    <div className="contest-detail-layout">
+      <aside className="contest-summary space-y-4"><ContestClock endsAt={contest.ends_at} isOpen={contest.is_open} now={now} syncError={syncError} /><section className="contest-panel"><h2 className="mb-4 text-sm font-bold">제출 항목 안내</h2><ul className="space-y-4">{contest.fields.map(field => { const Icon = field.type === 'file' ? FileUp : field.type === 'link' ? Link2 : FileText; return <li key={field.id} className="flex items-start gap-3"><Icon className="mt-0.5 size-4 shrink-0 text-primary" /><div className="min-w-0"><p className="break-words text-xs font-semibold">{field.label}<span className="ml-2 text-[10px] font-normal text-muted-foreground">{field.required ? '필수' : '선택'}</span></p><p className="mt-1 break-words text-[11px] text-muted-foreground">{FIELD_LABELS[field.type]}{field.type === 'file' ? ` · ${field.extensions || '모든 형식'} · ${field.max_size_mb}MB` : ''}</p></div></li>; })}</ul></section></aside>
+      <div className="contest-detail-main">{isHost ? <HostPanel contest={contest} submissions={submissions} onUpdated={setContest} refresh={load} now={now} /> : <SubmissionForm key={`${contest.id}-${ownSubmission?.submitted_at || 'new'}`} contest={contest} submission={ownSubmission} closed={now !== null && contestClosed(contest, now)} clockReady={now !== null} onSaved={entry => setSubmissions([entry])} />}</div>
+    </div>
   </div>;
 }
