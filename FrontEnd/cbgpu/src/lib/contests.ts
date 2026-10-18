@@ -28,7 +28,10 @@ export type Contest = {
   waitlist_enabled: boolean;
   approval_required: boolean;
   registration_open: boolean;
+  registration_closes_at: string | null;
   registration_questions: RegistrationQuestion[];
+  lifecycle_status: 'published' | 'cancelled' | 'archived';
+  cancellation_message: string;
   updated_at: string;
 };
 
@@ -57,6 +60,7 @@ export type EventRegistration = {
 export type EventSession = { id: string; contest_id: string; title: string; description: string; starts_at: string; ends_at: string; location: string; order_num: number };
 export type EventAnnouncement = { id: string; contest_id: string; author_id: string; title: string; content: string; audience: 'all' | 'confirmed' | 'pending' | 'waitlisted'; published_at: string };
 export type EventAccessDetails = { contest_id: string; meeting_url: string | null; access_note: string; updated_at: string };
+export type EventHost = { contest_id: string; user_id: string; role: 'manager' | 'checkin'; show_public: boolean; created_at: string };
 export type SubmittedFile = { path: string; name: string; size: number };
 export type ContestAnswers = Record<string, string | SubmittedFile>;
 export type ContestSubmission = {
