@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, UtensilsCrossed, Music, Cpu, Server, Printer, NotebookPen, FolderOpen, Users, Vote, Newspaper, Wrench, Gamepad2 } from 'lucide-react';
+import { BookOpen, CalendarDays, UtensilsCrossed, Music, Cpu, Server, Printer, NotebookPen, FolderOpen, Users, Vote, Newspaper, Wrench, Gamepad2, Trophy } from 'lucide-react';
 
 // 홈, 하단 탐색, 전체 서비스가 같은 이름과 순서를 사용한다.
 export const serviceGroups = [
@@ -16,6 +16,7 @@ export const serviceGroups = [
     { href: '/materials', label: '자료 공유', description: '학습·연구 자료 찾기', icon: FolderOpen },
   ] },
   { title: '커뮤니티·도구', services: [
+    { href: '/contests', label: '대회 제출', description: '대회 개설과 파일·링크·텍스트 제출', icon: Trophy },
     { href: '/match', label: '스터디 매칭', description: '함께 공부할 친구 찾기', icon: Users },
     { href: '/polls', label: '투표', description: '진행 중인 투표 참여', icon: Vote },
     { href: '/feed', label: '소식', description: '학교와 과학 소식 확인', icon: Newspaper },
