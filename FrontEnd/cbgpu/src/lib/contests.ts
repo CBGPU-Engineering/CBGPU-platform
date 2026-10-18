@@ -18,7 +18,45 @@ export type Contest = {
   is_open: boolean;
   fields: ContestField[];
   created_at: string;
+  event_start_at: string | null;
+  event_end_at: string | null;
+  location_type: 'offline' | 'online' | 'hybrid';
+  location_name: string;
+  address: string;
+  visibility: 'public' | 'unlisted';
+  capacity: number | null;
+  waitlist_enabled: boolean;
+  approval_required: boolean;
+  registration_open: boolean;
+  registration_questions: RegistrationQuestion[];
+  updated_at: string;
 };
+
+export type RegistrationQuestionType = 'text' | 'paragraph' | 'choice' | 'checkbox' | 'terms';
+export type RegistrationQuestion = {
+  id: string;
+  type: RegistrationQuestionType;
+  label: string;
+  required: boolean;
+  options: string[];
+};
+export type RegistrationAnswer = string | string[] | boolean;
+export type EventRegistrationStatus = 'confirmed' | 'pending' | 'waitlisted' | 'declined' | 'cancelled';
+export type EventRegistration = {
+  id: string;
+  contest_id: string;
+  user_id: string;
+  attendee_name: string;
+  answers: Record<string, RegistrationAnswer>;
+  status: EventRegistrationStatus;
+  ticket_code: string;
+  checked_in_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+export type EventSession = { id: string; contest_id: string; title: string; description: string; starts_at: string; ends_at: string; location: string; order_num: number };
+export type EventAnnouncement = { id: string; contest_id: string; author_id: string; title: string; content: string; audience: 'all' | 'confirmed' | 'pending' | 'waitlisted'; published_at: string };
+export type EventAccessDetails = { contest_id: string; meeting_url: string | null; access_note: string; updated_at: string };
 export type SubmittedFile = { path: string; name: string; size: number };
 export type ContestAnswers = Record<string, string | SubmittedFile>;
 export type ContestSubmission = {
@@ -34,6 +72,9 @@ export const FIELD_LABELS: Record<ContestFieldType, string> = { file: '파일', 
 export const CONTEST_BUCKET = 'contest-submissions';
 export const MAX_FILE_MB = 50;
 export const MAX_FIELDS = 30;
+export const REGISTRATION_STATUS_LABELS: Record<EventRegistrationStatus, string> = {
+  confirmed: '참가 확정', pending: '승인 대기', waitlisted: '대기 명단', declined: '승인 거절', cancelled: '신청 취소',
+};
 export function remainingTime(endsAt: string, now: number) {
   const seconds = Math.max(0, Math.ceil((new Date(endsAt).getTime() - now) / 1000));
   if (!seconds) return '마감되었어요';
@@ -60,6 +101,28 @@ export function deadlineToISO(value: string) {
 export function deadlineToInput(value: string | null) {
   if (!value) return '';
   return new Date(new Date(value).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 19);
+}
+
+export function eventError(error: unknown) {
+  const message = error instanceof Error ? error.message : (error as { message?: string })?.message;
+  if (message?.includes('EVENT_REGISTRATION_CLOSED')) return '참가 신청이 마감되었어요.';
+  if (message?.includes('EVENT_FULL')) return '참가 정원이 모두 찼어요.';
+  return contestError(error);
+}
+
+const icsEscape = (value: string) => value.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+const icsDate = (value: string) => new Date(value).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+export function downloadEventCalendar(contest: Contest) {
+  if (!contest.event_start_at) return;
+  const end = contest.event_end_at || new Date(new Date(contest.event_start_at).getTime() + 60 * 60 * 1000).toISOString();
+  const location = [contest.location_name, contest.address].filter(Boolean).join(', ');
+  const text = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CBGPU//Campus Events//KO', 'BEGIN:VEVENT',
+    `UID:${contest.id}@cbgpu`, `DTSTAMP:${icsDate(new Date().toISOString())}`, `DTSTART:${icsDate(contest.event_start_at)}`,
+    `DTEND:${icsDate(end)}`, `SUMMARY:${icsEscape(contest.title)}`, `DESCRIPTION:${icsEscape(contest.description || '')}`,
+    `LOCATION:${icsEscape(location)}`, `URL:${icsEscape(window.location.href)}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' }));
+  const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${contest.title.replace(/[^가-힣a-zA-Z0-9_-]/g, '_')}.ics`; anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export function isHttpUrl(value: string) {

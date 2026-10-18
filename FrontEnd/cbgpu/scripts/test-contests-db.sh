@@ -16,3 +16,4 @@ for migration in supabase/migrations/*.sql; do
 done
 "$runtime" exec -i "$container" psql -U postgres -v ON_ERROR_STOP=1 -q < tests/contests/database.sql
 "$runtime" exec -i "$container" psql -U postgres -v ON_ERROR_STOP=1 -q < tests/contests/logos.sql
+"$runtime" exec -i "$container" psql -U postgres -v ON_ERROR_STOP=1 -q < tests/contests/events.sql
