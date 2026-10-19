@@ -20,6 +20,7 @@ import secrets
 import string
 import base64
 import struct
+import ipaddress
 from datetime import datetime, timezone
 
 import yaml
@@ -216,7 +217,7 @@ def has_jupyter_password_config(container: str) -> bool:
 
 
 def reset_container(cfg: dict, gpu_id: int):
-    """Remove and recreate the container (wipe traces)"""
+    """Prepare the replacement before stopping the old container; restore it on failure."""
     gpu_cfg = cfg["gpus"][gpu_id]
     container = gpu_cfg["container"]
     device = gpu_cfg["device"]
@@ -242,17 +243,15 @@ def reset_container(cfg: dict, gpu_id: int):
     if image_check.returncode != 0:
         raise RuntimeError(f"GPU image is unavailable: {image}")
 
-    # Remove the existing container
-    subprocess.run(
-        ["docker","rm", "-f", container],
-        capture_output=True,
-        text=True,
-    )
+    suffix = secrets.token_hex(4)
+    candidate = f"{container}_next_{suffix}"
+    backup = f"{container}_previous_{suffix}"
 
-    # Create a new container (shared memory bumped to 32GB)
+    # Create without starting: this checks the image/configuration before
+    # touching the running container. Ports are allocated only on start.
     run_args = [
-            "docker","run", "-d",
-            "--name", container,
+            "docker","create",
+            "--name", candidate,
             "--gpus", f"device={device}",
             "--shm-size", "32g",
             "-e", "JUPYTER_SKIP_TRASH=yes",
@@ -269,8 +268,65 @@ def reset_container(cfg: dict, gpu_id: int):
         text=True,
     )
     if proc.returncode != 0:
-        raise RuntimeError(f"docker run failed: {proc.stderr.strip()}")
+        raise RuntimeError(f"docker create failed: {proc.stderr.strip()}")
 
+    old_renamed = False
+    candidate_renamed = False
+    old_running = False
+    old_stopped = False
+    try:
+        inspect = subprocess.run(
+            ["docker", "inspect", "--format", "{{.State.Running}}", container],
+            capture_output=True, text=True,
+        )
+        if inspect.returncode == 0:
+            old_running = inspect.stdout.strip() == "true"
+        elif "No such object" not in inspect.stderr and "No such container" not in inspect.stderr:
+            raise RuntimeError(f"Cannot inspect existing container: {inspect.stderr.strip()}")
+
+        if inspect.returncode == 0:
+            if old_running:
+                stopped = subprocess.run(["docker", "stop", container], capture_output=True, text=True)
+                if stopped.returncode != 0:
+                    raise RuntimeError(f"Cannot stop existing container: {stopped.stderr.strip()}")
+                old_stopped = True
+            renamed = subprocess.run(["docker", "rename", container, backup], capture_output=True, text=True)
+            if renamed.returncode != 0:
+                raise RuntimeError(f"Cannot preserve existing container: {renamed.stderr.strip()}")
+            old_renamed = True
+
+        renamed = subprocess.run(["docker", "rename", candidate, container], capture_output=True, text=True)
+        if renamed.returncode != 0:
+            raise RuntimeError(f"Cannot activate replacement: {renamed.stderr.strip()}")
+        candidate_renamed = True
+        started = subprocess.run(["docker", "start", container], capture_output=True, text=True)
+        if started.returncode != 0:
+            raise RuntimeError(f"Cannot start replacement: {started.stderr.strip()}")
+        # A successful 'docker start' can still be followed by an immediate exit.
+        time.sleep(2)
+        running = subprocess.run(["docker", "inspect", "--format", "{{.State.Running}}", container],
+                                 capture_output=True, text=True)
+        if running.returncode != 0 or running.stdout.strip() != "true":
+            raise RuntimeError(f"Replacement exited after start: {running.stderr.strip()}")
+    except Exception as exc:
+        failed_name = container if candidate_renamed else candidate
+        removed = subprocess.run(["docker", "rm", "-f", failed_name], capture_output=True, text=True)
+        if removed.returncode != 0:
+            log.error("GPU #%d: failed to remove replacement %s: %s", gpu_id, failed_name, removed.stderr.strip())
+        if old_renamed:
+            restored = subprocess.run(["docker", "rename", backup, container], capture_output=True, text=True)
+            if restored.returncode != 0:
+                raise RuntimeError(f"{exc}; restore existing container failed: {restored.stderr.strip()}") from exc
+        if old_stopped:
+            restarted = subprocess.run(["docker", "start", container], capture_output=True, text=True)
+            if restarted.returncode != 0:
+                raise RuntimeError(f"{exc}; restart existing container failed: {restarted.stderr.strip()}") from exc
+        raise
+
+    if old_renamed:
+        removed = subprocess.run(["docker", "rm", backup], capture_output=True, text=True)
+        if removed.returncode != 0:
+            log.warning("GPU #%d: old container preserved as %s: %s", gpu_id, backup, removed.stderr.strip())
     log.info("GPU #%d: container reset complete", gpu_id)
 
 
@@ -315,6 +371,14 @@ def cpu_container_name(project_id: str) -> str:
 
 def cpu_volume_name(project_id: str) -> str:
     return f"cbcpu_{project_id[:8]}_data"
+
+
+def cpu_collision_prefixes(projects: list[dict]) -> set[str]:
+    """A deleted project must never resolve to another project's container."""
+    owners: dict[str, set[str]] = {}
+    for project in projects:
+        owners.setdefault(project["id"][:8], set()).add(project["id"])
+    return {prefix for prefix, ids in owners.items() if len(ids) > 1}
 
 
 def cpu_container_running(project_id: str) -> bool:
@@ -387,12 +451,33 @@ def private_bind_address() -> str:
     return proc.stdout.strip().splitlines()[0] if proc.returncode == 0 and proc.stdout.strip() else "127.0.0.1"
 
 
-def start_cpu_container(project: dict):
+def school_bind_address(cfg: dict) -> str:
+    """Bind school projects to the server's school NIC, never every interface."""
+    address = cfg["docker"].get("school_bind_address", "")
+    try:
+        parsed = ipaddress.IPv4Address(address)
+    except ipaddress.AddressValueError as exc:
+        raise ValueError("docker.school_bind_address must be a private IPv4 address") from exc
+    if not parsed.is_private or parsed.is_loopback or parsed.is_unspecified:
+        raise ValueError("docker.school_bind_address must be a private IPv4 address")
+    return address
+
+
+def start_cpu_container(project: dict, cfg: dict):
     """Start a CPU project container (removing any existing container first)"""
     project_id = project["id"]
     container  = cpu_container_name(project_id)
     host_port  = project["host_port"]
     ctr_port   = project["container_port"]
+    scope = project.get("access_scope", "private")
+    if scope == "private":
+        bind_address = private_bind_address()
+    elif scope == "school":
+        bind_address = school_bind_address(cfg)
+    elif scope == "public":
+        bind_address = "0.0.0.0"
+    else:
+        raise ValueError(f"Unknown access scope: {scope}")
 
     # Remove the existing container
     subprocess.run(["docker", "rm", "-f", container], capture_output=True, text=True)
@@ -402,7 +487,7 @@ def start_cpu_container(project: dict):
         "--name", container,
         "--cpus", str(project["cpu_limit"]),
         "-m", str(project["memory_limit"]),
-        "-p", f"{private_bind_address() if project.get('access_scope', 'private') == 'private' else '0.0.0.0'}:{host_port}:{ctr_port}",
+        "-p", f"{bind_address}:{host_port}:{ctr_port}",
         "--restart", "unless-stopped",
     ]
 
@@ -641,8 +726,14 @@ def main():
             log.warning("Failed to fetch CPU projects: %s. Keeping current state.", e)
             cpu_projects = []
 
+        collided_prefixes = cpu_collision_prefixes(cpu_projects)
+        for prefix in collided_prefixes:
+            log.error("CPU project ID prefix %s belongs to multiple projects; refusing all container actions for that prefix", prefix)
+
         for proj in cpu_projects:
             proj_id = proj["id"]
+            if proj_id[:8] in collided_prefixes:
+                continue
 
             # Deleted project -> remove container
             if proj["status"] == "deleted":
@@ -668,7 +759,7 @@ def main():
                 log.info("CPU project '%s' starting %s", proj.get("name"), "redeploy" if deployed else "initial deploy")
                 try:
                     apply_firewall(proj["host_port"], proj.get("access_scope", "private"), "allow")
-                    start_cpu_container(proj)
+                    start_cpu_container(proj, cfg)
                     update_cpu_deployed_at(cfg, proj_id)
                     cpu_cleaned.discard(proj_id)
                 except Exception as e:

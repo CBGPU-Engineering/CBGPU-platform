@@ -8,6 +8,7 @@ poll_interval_seconds: 30
 docker:
   image: "cbgpu/gpu-ssh:latest"
   ssh_host_keys_dir: "/home/cbgpu/.local/share/cbgpu/gpu-ssh"
+  school_bind_address: "10.138.23.12" # 교내 전용 CPU 프로젝트가 사용할 서버 NIC 주소
   container_port: 8888  # 컨테이너 내부 포트 (보통 8888 고정)
 
 # GPU ID → 컨테이너 설정 매핑

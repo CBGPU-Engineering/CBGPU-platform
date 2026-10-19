@@ -30,6 +30,7 @@ nano config.yaml
 | `gpus.N.host_port` | 호스트 포트 (8001~8004) |
 | `docker.image` | Docker 이미지 이름 |
 | `docker.container_port` | 컨테이너 내부 포트 |
+| `docker.school_bind_address` | 교내 전용 CPU 프로젝트를 게시할 서버의 교내망 IPv4 주소 |
 
 ## 서비스 관리
 
@@ -41,6 +42,13 @@ CPU 서버 배포 기능은 Supabase 서비스 롤 키가 필요합니다. 서�
 저장소 설치가 끝난 뒤에만 `deployed_at`을 기록합니다.
 Supabase에는 `Migrations/cpu_projects_deployment_fix.sql`을 적용해 소유자
 조회/신청 정책과 승인 상태 보호 트리거를 설치해야 합니다.
+교내 전용 CPU 프로젝트는 `docker.school_bind_address`에만 바인딩합니다.
+Docker가 게시한 포트는 UFW 규칙을 우회할 수 있으므로, 실제 접근 범위는
+서버의 Docker 방화벽 체인과 학교 라우팅 정책도 함께 확인해야 합니다.
+서버에 설정된 학교 허용 대역 `10.138.26.0/24`는 다른 교내 대역
+`10.138.25.0/24`를 포함하지 않습니다. 실제 허용 대역은 네트워크 담당자의
+확인을 거쳐 수정해야 합니다.
+
 웹에서 접속 주소를 표시하려면 `NEXT_PUBLIC_CPU_SERVER_TAILSCALE_HOST`,
 `NEXT_PUBLIC_CPU_SERVER_SCHOOL_HOST`, `NEXT_PUBLIC_CPU_SERVER_PUBLIC_HOST`를
 배포 환경에 설정할 수 있습니다. Private 프로젝트는 Tailscale 주소에만 바인딩하고,
@@ -76,28 +84,16 @@ ping은 되는데 curl이 안 되면 `/etc/resolv.conf`를 확인하세요.
 cat /etc/resolv.conf
 ```
 
-파일이 비어있으면 DNS 서버가 없는 상태입니다. 아래와 같이 복구하세요:
+DNS를 관리하는 서비스와 적용된 서버를 먼저 확인하세요:
 
 ```bash
-# DNS 설정
-echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
-
-# 재부팅 후에도 유지되도록 immutable 설정
-sudo chattr +i /etc/resolv.conf
+resolvectl status
+resolvectl query fclbzjlcepoaifvcoxdw.supabase.co
 ```
 
-나중에 DNS를 변경해야 할 경우:
-
-```bash
-# immutable 해제
-sudo chattr -i /etc/resolv.conf
-
-# DNS 변경
-echo "nameserver <새 DNS IP>" | sudo tee /etc/resolv.conf
-
-# 다시 고정
-sudo chattr +i /etc/resolv.conf
-```
+`/etc/resolv.conf`를 `chattr +i`로 고정하면 NetworkManager·systemd-resolved가
+네트워크 변경을 반영하지 못할 수 있습니다. DNS는 해당 네트워크 관리 서비스에서
+수정하고, 변경 뒤 Supabase 조회와 데몬 로그를 확인하세요.
 
 ---
 

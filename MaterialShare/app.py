@@ -170,6 +170,8 @@ async def upload(material_id: UUID, request: Request, authorization: str | None 
         if path.exists():
             raise HTTPException(409, 'File already exists')
         async with _quota_lock:
+            if material_id in _inflight:
+                raise HTTPException(409, 'Upload already in progress')
             usage = await _usage()
             if material['size_bytes'] > usage['remaining_bytes']:
                 raise HTTPException(507, 'Materials storage is full')

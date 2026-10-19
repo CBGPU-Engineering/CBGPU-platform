@@ -18,9 +18,9 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * 쓰는 조회성 엔드포인트만 통과시킨다 — 좌석 점유/해제 같은 쓰기 작업은 현재 어떤 화면에서도
  * 쓰지 않으므로 전부 막는다.
  */
-// id는 숫자가 아니라 UUID인 리소스도 있어서(예: 학생 id) 자리표시자는
-// 슬래시만 아니면 다 허용한다 — 경로 형태 자체는 여전히 고정돼 있어 안전하다.
-const ID = '[^/]+';
+// EduSet IDs are numeric or UUID-like. Reject encoded separators and dot
+// segments before constructing a URL with the shared administrator token.
+const ID = '[A-Za-z0-9_-]+';
 const ALLOWED_ROUTES: { method: string; pattern: RegExp }[] = [
   { method: 'GET', pattern: /^\/rooms$/ },
   { method: 'GET', pattern: new RegExp(`^/rooms/${ID}/composition$`) },
