@@ -7,6 +7,7 @@ file bytes, under UUID names, on the server disk. Never expose it without HTTPS.
 import asyncio
 import os
 import shutil
+import tempfile
 from pathlib import Path
 from uuid import UUID
 
@@ -124,6 +125,26 @@ def _file_path(material_id: UUID) -> Path:
 
 @app.get('/health')
 async def health():
+    _require_config()
+    try:
+        def check_storage() -> None:
+            if not STORAGE_ROOT.is_dir() or shutil.disk_usage(STORAGE_ROOT).free == 0:
+                raise OSError('storage unavailable')
+            with tempfile.TemporaryFile(dir=STORAGE_ROOT) as probe:
+                probe.write(b'cbgpu-ready')
+                probe.flush()
+
+        await run_in_threadpool(check_storage)
+        async with httpx.AsyncClient(timeout=5) as client:
+            response = await client.get(
+                f'{SUPABASE_URL}/rest/v1/shared_materials',
+                params={'select': 'id', 'limit': '0'},
+                headers={'apikey': SUPABASE_ANON_KEY, 'Authorization': f'Bearer {SUPABASE_ANON_KEY}'},
+            )
+        if response.status_code != 200:
+            raise HTTPException(503, 'Materials database is unavailable')
+    except (OSError, httpx.HTTPError) as exc:
+        raise HTTPException(503, 'Materials service is unavailable') from exc
     return {'ok': True}
 
 
