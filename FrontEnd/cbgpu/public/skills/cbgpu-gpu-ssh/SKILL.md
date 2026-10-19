@@ -58,6 +58,33 @@ description: 충북과학고 CBGPU GPU 예약자가 개인 SSH 키로 예약 GPU
 
 6. GPU 예약이 **승인**되고 현재 시간이 예약 구간 안인지 확인한 뒤 `ssh cbgpu-gpu1`처럼 예약 GPU 번호의 별칭으로 접속한다. Tailscale 초대는 필요하지 않다. 다른 경로의 키를 사용했다면 게이트웨이와 GPU 설정에 `IdentityFile`을 추가한다. 개인키 내용은 출력하지 않는다.
 
+### 교내망에서 공개 주소가 막힐 때
+
+학교 Wi-Fi·유선망에 연결된 기기에서 아래 설정을 기존 `~/.ssh/config`에 **추가**한다. 공개 경로 설정은 지우지 않는다. `10.138.23.12`는 교내망 주소이므로 학교 밖에서는 사용할 수 없다. 처음 연결할 때 게이트웨이 키 지문 `SHA256:f0MfUHiEtvydl+erJ8c79MkiuUDvqdamm1X9jVB+n8k`를 확인한다.
+
+```sshconfig
+Host cbgpu-gateway-school
+  HostName 10.138.23.12
+  Port 22220
+  User gateway
+
+Host cbgpu-gpu*-school
+  HostName 100.100.136.37
+  User root
+  ProxyJump cbgpu-gateway-school
+
+Host cbgpu-gpu1-school
+  Port 2201
+Host cbgpu-gpu2-school
+  Port 2202
+Host cbgpu-gpu3-school
+  Port 2203
+Host cbgpu-gpu4-school
+  Port 2204
+```
+
+예약한 GPU가 4번이면 `ssh cbgpu-gpu4-school`로 접속한다. 연결 시간 초과가 나면 교내 PC에서 `10.138.23.12:22220`에 TCP 연결이 되는지 확인하고, 차단되면 학교 네트워크 담당자에게 확인한다.
+
 ## 접속되지 않을 때
 
 - 연결 시간 초과: OpenSSL 실행 여부, 공개 경유지 `cbshoj.taild105d1.ts.net:10000` 접속, 예약 시간, 해당 GPU의 SSH 포트 응답을 확인한다.

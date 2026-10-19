@@ -99,6 +99,42 @@ func TestAllowedFailsClosedOnOverlappingOwnersAndDatabaseError(t *testing.T) {
 	}
 }
 
+func TestAllowedRetriesTransientLookupButNotAuthorizationFailure(t *testing.T) {
+	now := time.Now().UTC()
+	key := testKey(t)
+	keyText := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key)))
+	var calls atomic.Int32
+	var deny atomic.Bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if deny.Load() {
+			calls.Add(1)
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if r.URL.Path == "/rest/v1/reservations" {
+			if calls.Add(1) == 1 {
+				http.Error(w, "temporary outage", http.StatusServiceUnavailable)
+				return
+			}
+			fmt.Fprintf(w, `[{"user_id":"user-a","gpu_id":4,"start_time":"%s","end_time":"%s"}]`,
+				now.Add(-time.Minute).Format(time.RFC3339), now.Add(time.Minute).Format(time.RFC3339))
+			return
+		}
+		fmt.Fprintf(w, `[{"user_id":"user-a","public_key":%q}]`, keyText)
+	}))
+	defer server.Close()
+	a := &authorizer{baseURL: server.URL, key: "test-secret", client: server.Client()}
+	allowed, err := a.allowed(context.Background(), key, now)
+	if err != nil || allowed[4].IsZero() || calls.Load() != 2 {
+		t.Fatalf("transient lookup did not recover: allowed=%v error=%v calls=%d", allowed, err, calls.Load())
+	}
+	calls.Store(0)
+	deny.Store(true)
+	if _, err := a.allowed(context.Background(), key, now); err == nil || calls.Load() != 1 {
+		t.Fatalf("authorization failure was retried or allowed: error=%v calls=%d", err, calls.Load())
+	}
+}
+
 func TestSSHForwardsOnlyBookedGPU(t *testing.T) {
 	pub, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -114,10 +150,16 @@ func TestSSHForwardsOnlyBookedGPU(t *testing.T) {
 	}
 	defer backend.Close()
 	go func() {
-		conn, err := backend.Accept()
-		if err == nil {
-			defer conn.Close()
-			io.Copy(conn, conn)
+		for {
+			conn, err := backend.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				io.Copy(conn, conn)
+				conn.Write([]byte("after-eof"))
+			}()
 		}
 	}()
 	key, err := ssh.NewPublicKey(pub)
@@ -196,6 +238,29 @@ func TestSSHForwardsOnlyBookedGPU(t *testing.T) {
 	buf := make([]byte, len("gpu-ready"))
 	if _, err := io.ReadFull(conn, buf); err != nil || string(buf) != "gpu-ready" {
 		t.Fatalf("forwarded data = %q, %v", buf, err)
+	}
+	half, err := client.Dial("tcp", "100.100.136.37:2204")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer half.Close()
+	if _, err := half.Write([]byte("half-close")); err != nil {
+		t.Fatal(err)
+	}
+	buf = make([]byte, len("half-close"))
+	if _, err := io.ReadFull(half, buf); err != nil || string(buf) != "half-close" {
+		t.Fatalf("half-close echo = %q, %v", buf, err)
+	}
+	writer, ok := half.(interface{ CloseWrite() error })
+	if !ok {
+		t.Fatal("forwarded channel does not support CloseWrite")
+	}
+	if err := writer.CloseWrite(); err != nil {
+		t.Fatal(err)
+	}
+	buf = make([]byte, len("after-eof"))
+	if _, err := io.ReadFull(half, buf); err != nil || string(buf) != "after-eof" {
+		t.Fatalf("response after client half-close = %q, %v", buf, err)
 	}
 	revoked.Store(true)
 	closed := make(chan error, 1)

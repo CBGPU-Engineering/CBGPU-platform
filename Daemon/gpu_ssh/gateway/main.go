@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	listenAddress = "127.0.0.1:22220"
-	gpuAddress    = "100.100.136.37"
+	defaultListenAddress = "127.0.0.1:22220"
+	gpuAddress           = "100.100.136.37"
+	authorizationTimeout = 22 * time.Second
 )
 
 type reservation struct {
@@ -44,26 +45,49 @@ type authorizer struct {
 }
 
 func (a *authorizer) fetch(ctx context.Context, path string, query url.Values, output any) error {
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		requestCtx, cancel := context.WithTimeout(ctx, 6*time.Second)
+		retry, err := a.fetchOnce(requestCtx, path, query, output)
+		cancel()
+		if err == nil || !retry || ctx.Err() != nil {
+			return err
+		}
+		lastErr = err
+		if attempt == 3 {
+			break
+		}
+		log.Printf("%s lookup attempt %d failed; retrying: %v", path, attempt, err)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(attempt) * 200 * time.Millisecond):
+		}
+	}
+	return lastErr
+}
+
+func (a *authorizer) fetchOnce(ctx context.Context, path string, query url.Values, output any) (bool, error) {
 	u, err := url.Parse(a.baseURL + "/rest/v1/" + path)
 	if err != nil {
-		return err
+		return false, err
 	}
 	u.RawQuery = query.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return err
+		return false, err
 	}
 	req.Header.Set("apikey", a.key)
 	req.Header.Set("Authorization", "Bearer "+a.key)
 	res, err := a.client.Do(req)
 	if err != nil {
-		return err
+		return true, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s returned %d", path, res.StatusCode)
+		return res.StatusCode == http.StatusTooManyRequests || res.StatusCode >= 500, fmt.Errorf("%s returned %d", path, res.StatusCode)
 	}
-	return json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(output)
+	return false, json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(output)
 }
 
 // allowed checks the live reservation and registered key on every connection.
@@ -127,49 +151,80 @@ type forwardRequest struct {
 func handleForward(ch ssh.NewChannel, pub ssh.PublicKey, auth *authorizer, backendAddress func(int) string) {
 	var target forwardRequest
 	if err := ssh.Unmarshal(ch.ExtraData(), &target); err != nil || target.Destination != gpuAddress || target.Port < 2201 || target.Port > 2204 {
+		log.Printf("forward rejected: invalid GPU destination %q:%d", target.Destination, target.Port)
 		ch.Reject(ssh.Prohibited, "GPU destination only")
 		return
 	}
 	gpu := int(target.Port - 2200)
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), authorizationTimeout)
 	allowed, err := auth.allowed(ctx, pub, time.Now())
 	cancel()
 	end, ok := allowed[gpu]
 	if err != nil || !ok {
+		if err != nil {
+			log.Printf("GPU #%d forward denied: reservation lookup: %v", gpu, err)
+		} else {
+			log.Printf("GPU #%d forward denied: no active reservation for SSH key", gpu)
+		}
 		ch.Reject(ssh.Prohibited, "No active reservation")
 		return
 	}
 	backend, err := net.DialTimeout("tcp", backendAddress(gpu), 5*time.Second)
 	if err != nil {
+		log.Printf("GPU #%d forward failed: backend connection: %v", gpu, err)
 		ch.Reject(ssh.ConnectionFailed, "GPU unavailable")
 		return
 	}
 	client, requests, err := ch.Accept()
 	if err != nil {
+		log.Printf("GPU #%d forward failed: channel accept: %v", gpu, err)
 		backend.Close()
 		return
 	}
+	log.Printf("GPU #%d forward opened", gpu)
 	go ssh.DiscardRequests(requests)
 	var once sync.Once
 	done := make(chan struct{})
 	closeBoth := func() { once.Do(func() { client.Close(); backend.Close(); close(done) }) }
-	defer closeBoth()
-	go func() { io.Copy(backend, client); closeBoth() }()
-	go func() { io.Copy(client, backend); closeBoth() }()
+	defer func() { closeBoth(); log.Printf("GPU #%d forward closed", gpu) }()
+	copyDone := make(chan struct{}, 2)
+	go func() {
+		n, copyErr := io.Copy(backend, client)
+		log.Printf("GPU #%d client-to-backend finished: bytes=%d error=%v", gpu, n, copyErr)
+		if tcp, ok := backend.(*net.TCPConn); ok {
+			tcp.CloseWrite()
+		}
+		if copyErr != nil {
+			closeBoth()
+		}
+		copyDone <- struct{}{}
+	}()
+	go func() {
+		n, copyErr := io.Copy(client, backend)
+		log.Printf("GPU #%d backend-to-client finished: bytes=%d error=%v", gpu, n, copyErr)
+		client.CloseWrite()
+		if copyErr != nil {
+			closeBoth()
+		}
+		copyDone <- struct{}{}
+	}()
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 	deadline := time.NewTimer(time.Until(end))
 	defer deadline.Stop()
+	completed := 0
 	for {
 		select {
 		case <-deadline.C:
+			log.Printf("GPU #%d forward closed: reservation deadline reached", gpu)
 			return
 		case <-ticker.C:
-			ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), authorizationTimeout)
 			allowed, err := auth.allowed(ctx, pub, time.Now())
 			cancel()
 			newEnd := allowed[gpu]
 			if err != nil || newEnd.IsZero() || !time.Now().Before(newEnd) {
+				log.Printf("GPU #%d forward closed: reservation no longer valid, lookup error=%v", gpu, err)
 				return
 			}
 			if newEnd.Before(end) {
@@ -184,17 +239,24 @@ func handleForward(ch ssh.NewChannel, pub ssh.PublicKey, auth *authorizer, backe
 			}
 		case <-done:
 			return
+		case <-copyDone:
+			completed++
+			if completed == 2 {
+				return
+			}
 		}
 	}
 }
 
 func serveConnection(conn net.Conn, config *ssh.ServerConfig, auth *authorizer, backendAddress func(int) string) {
 	defer conn.Close()
-	conn.SetDeadline(time.Now().Add(12 * time.Second))
+	conn.SetDeadline(time.Now().Add(30 * time.Second))
 	server, channels, requests, err := ssh.NewServerConn(conn, config)
 	if err != nil {
+		log.Printf("gateway SSH handshake failed: %v", err)
 		return
 	}
+	log.Print("gateway SSH authenticated")
 	conn.SetDeadline(time.Time{})
 	defer server.Close()
 	go ssh.DiscardRequests(requests)
@@ -204,6 +266,7 @@ func serveConnection(conn net.Conn, config *ssh.ServerConfig, auth *authorizer, 
 	}
 	for channel := range channels {
 		if channel.ChannelType() != "direct-tcpip" {
+			log.Printf("gateway channel rejected: %s", channel.ChannelType())
 			channel.Reject(ssh.Prohibited, "Forwarding only")
 			continue
 		}
@@ -212,6 +275,10 @@ func serveConnection(conn net.Conn, config *ssh.ServerConfig, auth *authorizer, 
 }
 
 func main() {
+	listenAddress := os.Getenv("CBGPU_GATEWAY_LISTEN_ADDRESS")
+	if listenAddress == "" {
+		listenAddress = defaultListenAddress
+	}
 	secretPath := os.Getenv("CBGPU_SERVICE_ROLE_KEY_FILE")
 	hostKeyPath := os.Getenv("CBGPU_GATEWAY_HOST_KEY")
 	baseURL := strings.TrimRight(os.Getenv("CBGPU_SUPABASE_URL"), "/")
@@ -230,15 +297,21 @@ func main() {
 	if err != nil {
 		log.Fatal("Invalid SSH host key: ", err)
 	}
-	auth := &authorizer{baseURL: baseURL, key: strings.TrimSpace(string(secret)), client: &http.Client{Timeout: 8 * time.Second}}
+	auth := &authorizer{baseURL: baseURL, key: strings.TrimSpace(string(secret)), client: &http.Client{Timeout: 6 * time.Second}}
 	config := &ssh.ServerConfig{MaxAuthTries: 3, PublicKeyCallback: func(conn ssh.ConnMetadata, pub ssh.PublicKey) (*ssh.Permissions, error) {
 		if conn.User() != "gateway" || pub.Type() != ssh.KeyAlgoED25519 {
+			log.Print("gateway authentication denied: unsupported user or key type")
 			return nil, errors.New("denied")
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), authorizationTimeout)
 		defer cancel()
 		allowed, err := auth.allowed(ctx, pub, time.Now())
-		if err != nil || len(allowed) == 0 {
+		if err != nil {
+			log.Printf("gateway authentication denied: reservation lookup: %v", err)
+			return nil, errors.New("denied")
+		}
+		if len(allowed) == 0 {
+			log.Print("gateway authentication denied: no active reservation for SSH key")
 			return nil, errors.New("denied")
 		}
 		return &ssh.Permissions{Extensions: map[string]string{"public_key": string(ssh.MarshalAuthorizedKey(pub))}}, nil
