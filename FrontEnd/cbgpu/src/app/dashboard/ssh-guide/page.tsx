@@ -57,6 +57,16 @@ ${[1, 2, 3, 4].map((gpu) => `Host cbgpu-gpu${gpu}
   Port ${2200 + gpu}
   User root
   ProxyJump cbgpu-gateway`).join('\n\n')}`;
+const SCHOOL_SSH_CONFIG = `Host cbgpu-gateway-school
+  HostName 10.138.23.12
+  Port 22220
+  User gateway
+
+${[1, 2, 3, 4].map((gpu) => `Host cbgpu-gpu${gpu}-school
+  HostName 100.100.136.37
+  Port ${2200 + gpu}
+  User root
+  ProxyJump cbgpu-gateway-school`).join('\n\n')}`;
 
 export default function GpuSshGuidePage() {
   const { showError, showSuccess } = useAlert();
@@ -72,9 +82,9 @@ export default function GpuSshGuidePage() {
     }
   }
 
-  async function copyConfig() {
+  async function copyConfig(value: string) {
     try {
-      await navigator.clipboard.writeText(SSH_CONFIG);
+      await navigator.clipboard.writeText(value);
       showSuccess('SSH 설정을 복사했습니다.');
     } catch {
       showError('복사하지 못했습니다. 설정을 직접 선택해 주세요.');
@@ -129,11 +139,23 @@ export default function GpuSshGuidePage() {
         <p className="text-sm text-muted-foreground">OpenSSL을 사용할 수 있는 터미널에서 아래 내용을 <code>~/.ssh/config</code>에 추가하세요. Windows에서는 Git Bash의 <code>~/.ssh/config</code>를 사용합니다. 기존 설정이 있다면 끝에 추가하고 덮어쓰지 마세요.</p>
         <div className="overflow-hidden rounded-xl border bg-muted/30">
           <div className="flex justify-end border-b px-2 py-1">
-            <Button type="button" size="sm" variant="ghost" onClick={copyConfig} className="gap-1.5"><Copy className="size-3.5" /> 설정 복사</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => copyConfig(SSH_CONFIG)} className="gap-1.5"><Copy className="size-3.5" /> 설정 복사</Button>
           </div>
           <pre className="overflow-x-auto p-4 text-xs leading-relaxed"><code>{SSH_CONFIG}</code></pre>
         </div>
         <p className="text-xs text-muted-foreground">설정 전 <code>openssl version</code>으로 설치 여부를 확인하세요. 처음 연결할 때 게이트웨이 키 지문은 <code>SHA256:f0MfUHiEtvydl+erJ8c79MkiuUDvqdamm1X9jVB+n8k</code>입니다.</p>
+      </section>
+
+      <section className="space-y-4 rounded-2xl border bg-card p-5 sm:p-6">
+        <h2 className="text-lg font-black">교내망에서 접속할 때</h2>
+        <p className="text-sm text-muted-foreground">학교 Wi-Fi·유선망에서 공개 주소가 연결되지 않으면 아래 설정을 추가하세요. 이 경로는 Tailscale 설정을 요구하지 않습니다. 교내 방화벽이 포트를 막으면 학교 네트워크 담당자의 확인이 필요합니다.</p>
+        <div className="overflow-hidden rounded-xl border bg-muted/30">
+          <div className="flex justify-end border-b px-2 py-1">
+            <Button type="button" size="sm" variant="ghost" onClick={() => copyConfig(SCHOOL_SSH_CONFIG)} className="gap-1.5"><Copy className="size-3.5" /> 교내망 설정 복사</Button>
+          </div>
+          <pre className="overflow-x-auto p-4 text-xs leading-relaxed"><code>{SCHOOL_SSH_CONFIG}</code></pre>
+        </div>
+        <p className="text-xs text-muted-foreground">예약한 GPU 번호로 <code>ssh cbgpu-gpu4-school</code>처럼 접속하세요. 처음 표시되는 게이트웨이 키 지문은 <code>SHA256:f0MfUHiEtvydl+erJ8c79MkiuUDvqdamm1X9jVB+n8k</code>입니다.</p>
       </section>
 
       <section className="space-y-4 rounded-2xl border bg-card p-5 sm:p-6">

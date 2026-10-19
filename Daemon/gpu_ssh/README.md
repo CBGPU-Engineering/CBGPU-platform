@@ -74,6 +74,40 @@ GPU #3의 포트 전달은 거부됐습니다. 시험 후 임시 공개키를 DB
 게이트웨이와 GPU #1 컨테이너 모두 그 키의 재접속을 거부했습니다.
 GPU 컨테이너를 재시작하거나 사용자 파일을 수정하지 않았습니다.
 
+## 학교 LAN 게이트웨이
+
+교내 DNS가 Funnel 주소를 `127.0.0.1`로 응답하거나 교내망에서 공개
+`10000`번 포트 연결이 끊기는 경우를 위한 별도 경로입니다. 2026-10-19에
+운영 서버에 설치했습니다. 기존 공개 게이트웨이와 별개로
+`10.138.23.12:22220`에만 바인딩하며, 동일한 SSH 호스트 키와 Supabase 예약·공개키
+검사를 사용합니다. 호스트 셸이나 비밀번호 인증은 제공하지 않습니다.
+
+서버 적용 파일은 `gateway/cbgpu-ssh-gateway-lan.service`입니다. 적용 후에는
+`systemctl --user is-active cbgpu-ssh-gateway-lan.service`와
+`ss -lnt | grep 10.138.23.12:22220`을 확인했습니다. 서버에서 SSH 호스트 키
+지문이 기존 키와 일치하고 미등록 공개키가 거절되는 것도 확인했습니다.
+**실제 교내 PC**에서 아래 설정으로 연결은 아직 검증해야 합니다. 교내 방화벽의 22220번 포트 허용 여부는
+서버에서 확인할 관리 권한이 없어 아직 검증되지 않았습니다.
+
+```sshconfig
+Host cbgpu-gateway-school
+  HostName 10.138.23.12
+  Port 22220
+  User gateway
+
+Host cbgpu-gpu4-school
+  HostName 100.100.136.37
+  Port 2204
+  User root
+  ProxyJump cbgpu-gateway-school
+```
+
+교내 PC에는 이 경로를 쓸 때 Tailscale이나 OpenSSL이 필요하지 않습니다.
+기존 공개 경로의 설정과 키는 그대로 두고 별칭을 추가합니다. 사용자가
+등록한 개인키가 기본 경로 밖에 있다면 두 Host에 `IdentityFile`을 지정합니다.
+서비스를 되돌릴 때는 `systemctl --user disable --now
+cbgpu-ssh-gateway-lan.service`를 실행합니다. 기존 공개 서비스에는 영향이 없습니다.
+
 ## 호스트 SSH 인증 정책
 
 2026-10-15부터 호스트의 22번 포트는 기본적으로 공개키 인증만 허용합니다.

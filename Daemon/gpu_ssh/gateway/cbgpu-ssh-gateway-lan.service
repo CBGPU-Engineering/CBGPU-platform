@@ -1,0 +1,19 @@
+[Unit]
+Description=CBGPU school LAN reservation-scoped SSH gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/cbgpu/.local/bin/cbgpu-ssh-gateway-lan
+Environment=CBGPU_GATEWAY_LISTEN_ADDRESS=10.138.23.12:22220
+Environment=CBGPU_SUPABASE_URL=https://fclbzjlcepoaifvcoxdw.supabase.co
+Environment=CBGPU_SERVICE_ROLE_KEY_FILE=/home/cbgpu/.config/cbgpu/service_role_key
+Environment=CBGPU_GATEWAY_HOST_KEY=/home/cbgpu/.local/share/cbgpu/ssh-gateway/host_ed25519_key
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
