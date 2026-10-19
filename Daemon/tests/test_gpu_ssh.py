@@ -29,7 +29,8 @@ class GpuSshTest(unittest.TestCase):
             host_key_dir.mkdir()
             (host_key_dir / "ssh_host_ed25519_key").write_text("test key")
             cfg = {
-                "docker": {"image": "cbgpu/gpu-ssh:latest", "container_port": 8888, "ssh_host_keys_dir": directory},
+                "docker": {"image": "cbgpu/gpu-ssh:latest", "container_port": 8888, "ssh_host_keys_dir": directory,
+                           "school_bind_address": "10.138.23.12"},
                 "gpus": {1: {"container": "jupiterhub_gpu1", "device": "0", "host_port": 8001, "ssh_port": 2201}},
             }
             with mock.patch.object(daemon, "private_bind_address", return_value="100.100.136.37"), \
@@ -39,6 +40,10 @@ class GpuSshTest(unittest.TestCase):
             commands = [call.args[0] for call in run.call_args_list]
             docker_create = next(command for command in commands if command[:2] == ["docker", "create"])
             self.assertIn("100.100.136.37:2201:22", docker_create)
+            self.assertIn("127.0.0.1:8001:8888", docker_create)
+            self.assertIn("10.138.23.12:8001:8888", docker_create)
+            self.assertIn("100.100.136.37:8001:8888", docker_create)
+            self.assertNotIn("8001:8888", docker_create)
             self.assertIn("--gpus", docker_create)
             self.assertNotIn("--privileged", docker_create)
             self.assertNotIn("/var/run/docker.sock", " ".join(docker_create))
@@ -51,7 +56,8 @@ class GpuSshTest(unittest.TestCase):
             host_key_dir.mkdir()
             (host_key_dir / "ssh_host_ed25519_key").write_text("test key")
             cfg = {
-                "docker": {"image": "cbgpu/gpu-ssh:latest", "container_port": 8888, "ssh_host_keys_dir": directory},
+                "docker": {"image": "cbgpu/gpu-ssh:latest", "container_port": 8888, "ssh_host_keys_dir": directory,
+                           "school_bind_address": "10.138.23.12"},
                 "gpus": {1: {"container": "jupiterhub_gpu1", "device": "0", "host_port": 8001, "ssh_port": 2201}},
             }
             commands = []
@@ -85,7 +91,8 @@ class GpuSshTest(unittest.TestCase):
             host_key_dir.mkdir()
             (host_key_dir / "ssh_host_ed25519_key").write_text("test key")
             cfg = {
-                "docker": {"image": "cbgpu/gpu-ssh:latest", "container_port": 8888, "ssh_host_keys_dir": directory},
+                "docker": {"image": "cbgpu/gpu-ssh:latest", "container_port": 8888, "ssh_host_keys_dir": directory,
+                           "school_bind_address": "10.138.23.12"},
                 "gpus": {1: {"container": "jupiterhub_gpu1", "device": "0", "host_port": 8001, "ssh_port": 2201}},
             }
 

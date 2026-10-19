@@ -43,6 +43,12 @@ CPU 서버 배포 기능은 Supabase 서비스 롤 키가 필요합니다. 서�
 Supabase에는 `Migrations/cpu_projects_deployment_fix.sql`을 적용해 소유자
 조회/신청 정책과 승인 상태 보호 트리거를 설치해야 합니다.
 교내 전용 CPU 프로젝트는 `docker.school_bind_address`에만 바인딩합니다.
+GPU Jupyter 포트는 다음 컨테이너 재생성부터 loopback(호스트의 Cloudflare
+터널용), `docker.school_bind_address`(교내 접속용), Tailscale IPv4(기존 VPN
+접속용)에만 바인딩합니다. 이 변경은 현재 실행 중인 GPU 컨테이너에는 바로
+적용되지 않습니다. 예약 중인 컨테이너를 포트 변경만을 위해 재생성하면 작업과
+컨테이너 내부 파일이 사라질 수 있으므로, 예약 종료 시 초기화 또는 별도
+보존·복구 절차를 거쳐 적용하세요.
 Docker가 게시한 포트는 UFW 규칙을 우회할 수 있으므로, 실제 접근 범위는
 서버의 Docker 방화벽 체인과 학교 라우팅 정책도 함께 확인해야 합니다.
 서버에 설정된 학교 허용 대역 `10.138.26.0/24`는 다른 교내 대역

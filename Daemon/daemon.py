@@ -255,9 +255,13 @@ def reset_container(cfg: dict, gpu_id: int):
             "--gpus", f"device={device}",
             "--shm-size", "32g",
             "-e", "JUPYTER_SKIP_TRASH=yes",
-            "-p", f"{host_port}:{container_port}",
             "--restart", "always",
     ]
+    # The host-side Cloudflare tunnels use localhost, school clients use the
+    # school NIC, and existing Tailscale clients use the VPN address. Avoid
+    # Docker's all-interface binding (including public IPv6).
+    for address in dict.fromkeys(("127.0.0.1", school_bind_address(cfg), private_bind_address())):
+        run_args.extend(["-p", f"{address}:{host_port}:{container_port}"])
     if ssh_port:
         run_args.extend(["-p", f"{private_bind_address()}:{ssh_port}:22"])
         run_args.extend(["-v", f"{host_keys_dir}:/etc/ssh/hostkeys:ro"])
