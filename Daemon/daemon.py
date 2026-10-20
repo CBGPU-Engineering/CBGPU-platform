@@ -285,7 +285,7 @@ def reset_container(cfg: dict, gpu_id: int):
         )
         if inspect.returncode == 0:
             old_running = inspect.stdout.strip() == "true"
-        elif "No such object" not in inspect.stderr and "No such container" not in inspect.stderr:
+        elif not any(message in inspect.stderr.lower() for message in ("no such object", "no such container")):
             raise RuntimeError(f"Cannot inspect existing container: {inspect.stderr.strip()}")
 
         if inspect.returncode == 0:
@@ -396,16 +396,22 @@ def cpu_container_running(project_id: str) -> bool:
 def wait_for_cpu_container(project_id: str, git_mode: bool, timeout_seconds: int = 180):
     """A detached docker run only means Docker accepted the request."""
     container = cpu_container_name(project_id)
-    deadline = time.monotonic() + timeout_seconds
+    started_at = time.monotonic()
+    deadline = started_at + timeout_seconds
     while time.monotonic() < deadline:
-        if not cpu_container_running(project_id):
+        state = subprocess.run(
+            ["docker", "inspect", "--format", "{{.State.Running}}|{{.RestartCount}}", container],
+            capture_output=True, text=True,
+        )
+        running, _, restart_count = state.stdout.strip().partition("|")
+        if state.returncode != 0 or running != "true" or not restart_count.isdigit() or int(restart_count) > 0:
             logs = subprocess.run(["docker", "logs", "--tail", "20", container], capture_output=True, text=True)
-            raise RuntimeError(f"CPU container exited during startup: {logs.stderr[-1000:] or logs.stdout[-1000:]}")
+            raise RuntimeError(f"CPU container exited or restarted during startup: {logs.stderr[-1000:] or logs.stdout[-1000:]}")
         if git_mode:
             ready = subprocess.run(["docker", "exec", container, "test", "-f", "/tmp/cbgpu-ready"], capture_output=True)
             if ready.returncode == 0:
                 return
-        elif time.monotonic() <= deadline - timeout_seconds + 3:
+        elif time.monotonic() - started_at < 10:
             time.sleep(1)
             continue
         else:
@@ -468,9 +474,12 @@ def school_bind_address(cfg: dict) -> str:
 
 
 def start_cpu_container(project: dict, cfg: dict):
-    """Start a CPU project container (removing any existing container first)"""
+    """Stage a CPU deployment and restore the previous container on failure."""
     project_id = project["id"]
     container  = cpu_container_name(project_id)
+    suffix = secrets.token_hex(4)
+    candidate = f"{container}_next_{suffix}"
+    backup = f"{container}_previous_{suffix}"
     host_port  = project["host_port"]
     ctr_port   = project["container_port"]
     scope = project.get("access_scope", "private")
@@ -483,12 +492,16 @@ def start_cpu_container(project: dict, cfg: dict):
     else:
         raise ValueError(f"Unknown access scope: {scope}")
 
-    # Remove the existing container
-    subprocess.run(["docker", "rm", "-f", container], capture_output=True, text=True)
+    old = subprocess.run(["docker", "inspect", "--format", "{{.State.Running}}", container],
+                         capture_output=True, text=True)
+    if old.returncode != 0 and not any(message in old.stderr.lower() for message in ("no such object", "no such container")):
+        raise RuntimeError(f"Cannot inspect existing CPU container: {old.stderr.strip()}")
+    old_exists = old.returncode == 0
+    old_running = old_exists and old.stdout.strip() == "true"
 
     cmd = [
-        "docker", "run", "-d",
-        "--name", container,
+        "docker", "create",
+        "--name", candidate,
         "--cpus", str(project["cpu_limit"]),
         "-m", str(project["memory_limit"]),
         "-p", f"{bind_address}:{host_port}:{ctr_port}",
@@ -500,6 +513,9 @@ def start_cpu_container(project: dict, cfg: dict):
         cmd += ["-e", f"{k}={v}"]
 
     deploy_type = project.get("deploy_type", "docker")
+    staged_volume = None
+    source_volume = None
+    base_image = None
 
     if deploy_type == "docker":
         image = project.get("docker_image")
@@ -513,7 +529,17 @@ def start_cpu_container(project: dict, cfg: dict):
         run_cmd    = project.get("run_command") or "npm start"
         runtime    = project.get("runtime") or "node20"
         base_image = RUNTIME_IMAGES.get(runtime, "node:20-alpine")
-        volume     = cpu_volume_name(project_id)
+        volume = cpu_volume_name(project_id)
+        if old_exists:
+            mount = subprocess.run(
+                ["docker", "inspect", "--format", '{{range .Mounts}}{{if eq .Destination "/app"}}{{.Name}}{{end}}{{end}}', container],
+                capture_output=True, text=True,
+            )
+            source_volume = mount.stdout.strip() if mount.returncode == 0 else ""
+            if not source_volume:
+                raise RuntimeError("Existing Git project has no /app volume; refusing unsafe redeploy")
+            staged_volume = f"{volume}_next_{suffix}"
+            volume = staged_volume
 
         volume_proc = subprocess.run(["docker", "volume", "create", volume], capture_output=True, text=True)
         if volume_proc.returncode != 0:
@@ -551,9 +577,60 @@ def start_cpu_container(project: dict, cfg: dict):
 
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
-        raise RuntimeError(f"docker run failed: {proc.stderr.strip()}")
+        if staged_volume:
+            subprocess.run(["docker", "volume", "rm", staged_volume], capture_output=True, text=True)
+        raise RuntimeError(f"docker create failed: {proc.stderr.strip()}")
 
-    wait_for_cpu_container(project_id, deploy_type == "git")
+    old_stopped = False
+    old_renamed = False
+    candidate_renamed = False
+    try:
+        if old_running:
+            stopped = subprocess.run(["docker", "stop", container], capture_output=True, text=True)
+            if stopped.returncode != 0:
+                raise RuntimeError(f"Cannot stop existing CPU container: {stopped.stderr.strip()}")
+            old_stopped = True
+        if source_volume:
+            copied = subprocess.run(
+                ["docker", "run", "--rm", "--network", "none",
+                 "-v", f"{source_volume}:/source:ro", "-v", f"{staged_volume}:/target",
+                 base_image, "sh", "-c", "cp -a /source/. /target/"],
+                capture_output=True, text=True,
+            )
+            if copied.returncode != 0:
+                raise RuntimeError(f"Cannot copy Git project volume: {copied.stderr.strip()}")
+        if old_exists:
+            renamed = subprocess.run(["docker", "rename", container, backup], capture_output=True, text=True)
+            if renamed.returncode != 0:
+                raise RuntimeError(f"Cannot preserve existing CPU container: {renamed.stderr.strip()}")
+            old_renamed = True
+        renamed = subprocess.run(["docker", "rename", candidate, container], capture_output=True, text=True)
+        if renamed.returncode != 0:
+            raise RuntimeError(f"Cannot activate CPU replacement: {renamed.stderr.strip()}")
+        candidate_renamed = True
+        started = subprocess.run(["docker", "start", container], capture_output=True, text=True)
+        if started.returncode != 0:
+            raise RuntimeError(f"Cannot start CPU replacement: {started.stderr.strip()}")
+        wait_for_cpu_container(project_id, deploy_type == "git")
+    except Exception as exc:
+        failed_name = container if candidate_renamed else candidate
+        removed = subprocess.run(["docker", "rm", "-f", failed_name], capture_output=True, text=True)
+        if removed.returncode != 0:
+            log.error("CPU replacement %s cleanup failed: %s", failed_name, removed.stderr.strip())
+        if old_renamed:
+            restored = subprocess.run(["docker", "rename", backup, container], capture_output=True, text=True)
+            if restored.returncode != 0:
+                raise RuntimeError(f"{exc}; restore existing CPU container failed: {restored.stderr.strip()}") from exc
+        if old_stopped:
+            restarted = subprocess.run(["docker", "start", container], capture_output=True, text=True)
+            if restarted.returncode != 0:
+                raise RuntimeError(f"{exc}; restart existing CPU container failed: {restarted.stderr.strip()}") from exc
+        if staged_volume and removed.returncode == 0:
+            subprocess.run(["docker", "volume", "rm", staged_volume], capture_output=True, text=True)
+        raise
+
+    if old_renamed:
+        log.info("CPU project previous container preserved as %s", backup)
 
     log.info("CPU project '%s' deployed (container=%s, port=%d)", project.get("name"), container, host_port)
 
