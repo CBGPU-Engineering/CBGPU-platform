@@ -35,6 +35,25 @@ if (( poll_interval < 1 || poll_interval > 300 )); then
   exit 1
 fi
 
+# A daemon restart initializes idle GPUs on its first poll. Do not run this
+# rollout when that behavior could replace a container holding old user files.
+python3 - <<'PY'
+from datetime import datetime, timezone
+import runpy
+
+daemon = runpy.run_path('daemon.py.candidate-20261020')
+cfg = daemon['load_config']('config.yaml.candidate-20261020')
+now = datetime.now(timezone.utc)
+active = {
+    row['gpu_id'] for row in daemon['fetch_active_reservations'](cfg)
+    if datetime.fromisoformat(row['start_time'].replace('Z', '+00:00')) <= now
+    < datetime.fromisoformat(row['end_time'].replace('Z', '+00:00'))
+}
+if active != set(cfg['gpus']):
+    raise SystemExit('Refusing daemon restart: one or more GPUs have no active reservation. Preserve idle container files before a separate rollout.')
+print('Reservation preflight passed for all four GPUs.')
+PY
+
 for id in 1 2 3 4; do
   docker inspect --format '{{.Id}}|{{.State.Running}}' "jupiterhub_gpu$id" > "/tmp/cbgpu-gpu${id}-before-20261020"
 done
