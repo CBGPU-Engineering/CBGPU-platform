@@ -23,6 +23,17 @@ with open('config.yaml.candidate-20261020', encoding='utf-8') as f:
 assert cfg['docker']['school_bind_address'] == '10.138.23.12'
 assert set(cfg['gpus']) == {1, 2, 3, 4}
 PY
+poll_interval=$(python3 - <<'PY'
+import yaml
+with open('config.yaml.candidate-20261020', encoding='utf-8') as f:
+    cfg = yaml.safe_load(f)
+print(int(cfg.get('poll_interval_seconds', 30)))
+PY
+)
+if (( poll_interval < 1 || poll_interval > 300 )); then
+  echo 'Unexpected daemon poll interval; inspect configuration before deployment.' >&2
+  exit 1
+fi
 
 for id in 1 2 3 4; do
   docker inspect --format '{{.Id}}|{{.State.Running}}' "jupiterhub_gpu$id" > "/tmp/cbgpu-gpu${id}-before-20261020"
@@ -41,7 +52,7 @@ if ! systemctl restart "$service" || ! systemctl is-active --quiet "$service"; t
   exit 2
 fi
 
-sleep 3
+sleep "$((poll_interval + 5))"
 if ! systemctl is-active --quiet "$service"; then
   cp -p daemon.py.before-20261020 daemon.py
   cp -p config.yaml.before-20261020 config.yaml
