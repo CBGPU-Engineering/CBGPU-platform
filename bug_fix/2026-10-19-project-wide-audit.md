@@ -43,3 +43,7 @@ ESLint, Python·Go 테스트, `npm audit --omit=dev`를 실행했다. 운영 서
 4. Flutter SDK가 있는 환경에서 앱 분석·빌드를 실행하고, 행사 SQL 테스트를 PostgreSQL 환경에서 실행한다.
 
 참고: [Docker와 UFW](https://docs.docker.com/engine/network/packet-filtering-firewalls/#docker-and-ufw), [Docker 포트 게시](https://docs.docker.com/engine/network/port-publishing/), [Docker create](https://docs.docker.com/reference/cli/docker/container/create/).
+
+## 이후 진행 상태 — 2026-10-20
+
+위 표와 검사 결과는 **10월 19일 점검 당시 상태**다. 이후 CPU 접두어 고유 인덱스는 운영 DB에 적용·검증했고, 자료 공유 readiness 및 중복 업로드 수정은 운영 컨테이너에 배포했다. `study-proxy` Edge Function 수정도 운영 v5로 배포했다. CPU 재배포 실패 복구는 별도 실제 Docker 컨테이너에서 검증했으며 게이트웨이에 연결 ID·시간 로그를 추가했다. 데몬과 게이트웨이의 새 코드는 아직 운영 프로세스에 반영하지 않았다. 세부 증거와 남은 항목은 [운영 점검 기록](2026-10-19-production-operations-audit.md)의 최신 절을 따른다.
