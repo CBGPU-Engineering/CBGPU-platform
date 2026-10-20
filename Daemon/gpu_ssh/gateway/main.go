@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -43,6 +44,8 @@ type authorizer struct {
 	key     string
 	client  *http.Client
 }
+
+var gatewayConnectionSequence atomic.Uint64
 
 func (a *authorizer) fetch(ctx context.Context, path string, query url.Values, output any) error {
 	var lastErr error
@@ -148,36 +151,41 @@ type forwardRequest struct {
 	OriginPort  uint32
 }
 
-func handleForward(ch ssh.NewChannel, pub ssh.PublicKey, auth *authorizer, backendAddress func(int) string) {
+func handleForward(ch ssh.NewChannel, pub ssh.PublicKey, auth *authorizer, backendAddress func(int) string, connectionID, forwardID uint64) {
+	started := time.Now()
 	var target forwardRequest
 	if err := ssh.Unmarshal(ch.ExtraData(), &target); err != nil || target.Destination != gpuAddress || target.Port < 2201 || target.Port > 2204 {
-		log.Printf("forward rejected: invalid GPU destination %q:%d", target.Destination, target.Port)
+		log.Printf("conn=%d forward=%d rejected: invalid GPU destination %q:%d", connectionID, forwardID, target.Destination, target.Port)
 		ch.Reject(ssh.Prohibited, "GPU destination only")
 		return
 	}
 	gpu := int(target.Port - 2200)
+	log.Printf("conn=%d forward=%d GPU #%d requested", connectionID, forwardID, gpu)
 	ctx, cancel := context.WithTimeout(context.Background(), authorizationTimeout)
 	allowed, err := auth.allowed(ctx, pub, time.Now())
 	cancel()
 	end, ok := allowed[gpu]
 	if err != nil || !ok {
+		log.Printf("conn=%d forward=%d authorization denied after %s", connectionID, forwardID, time.Since(started))
 		if err != nil {
-			log.Printf("GPU #%d forward denied: reservation lookup: %v", gpu, err)
+			log.Printf("conn=%d forward=%d GPU #%d denied: reservation lookup: %v", connectionID, forwardID, gpu, err)
 		} else {
-			log.Printf("GPU #%d forward denied: no active reservation for SSH key", gpu)
+			log.Printf("conn=%d forward=%d GPU #%d denied: no active reservation for SSH key", connectionID, forwardID, gpu)
 		}
 		ch.Reject(ssh.Prohibited, "No active reservation")
 		return
 	}
+	log.Printf("conn=%d forward=%d authorized after %s", connectionID, forwardID, time.Since(started))
 	backend, err := net.DialTimeout("tcp", backendAddress(gpu), 5*time.Second)
 	if err != nil {
-		log.Printf("GPU #%d forward failed: backend connection: %v", gpu, err)
+		log.Printf("conn=%d forward=%d GPU #%d failed: backend connection: %v", connectionID, forwardID, gpu, err)
 		ch.Reject(ssh.ConnectionFailed, "GPU unavailable")
 		return
 	}
+	log.Printf("conn=%d forward=%d backend connected after %s", connectionID, forwardID, time.Since(started))
 	client, requests, err := ch.Accept()
 	if err != nil {
-		log.Printf("GPU #%d forward failed: channel accept: %v", gpu, err)
+		log.Printf("conn=%d forward=%d GPU #%d failed: channel accept: %v", connectionID, forwardID, gpu, err)
 		backend.Close()
 		return
 	}
@@ -186,11 +194,14 @@ func handleForward(ch ssh.NewChannel, pub ssh.PublicKey, auth *authorizer, backe
 	var once sync.Once
 	done := make(chan struct{})
 	closeBoth := func() { once.Do(func() { client.Close(); backend.Close(); close(done) }) }
-	defer func() { closeBoth(); log.Printf("GPU #%d forward closed", gpu) }()
+	defer func() {
+		closeBoth()
+		log.Printf("conn=%d forward=%d GPU #%d closed after %s", connectionID, forwardID, gpu, time.Since(started))
+	}()
 	copyDone := make(chan struct{}, 2)
 	go func() {
 		n, copyErr := io.Copy(backend, client)
-		log.Printf("GPU #%d client-to-backend finished: bytes=%d error=%v", gpu, n, copyErr)
+		log.Printf("conn=%d forward=%d GPU #%d client-to-backend finished: bytes=%d error=%v", connectionID, forwardID, gpu, n, copyErr)
 		if tcp, ok := backend.(*net.TCPConn); ok {
 			tcp.CloseWrite()
 		}
@@ -201,7 +212,7 @@ func handleForward(ch ssh.NewChannel, pub ssh.PublicKey, auth *authorizer, backe
 	}()
 	go func() {
 		n, copyErr := io.Copy(client, backend)
-		log.Printf("GPU #%d backend-to-client finished: bytes=%d error=%v", gpu, n, copyErr)
+		log.Printf("conn=%d forward=%d GPU #%d backend-to-client finished: bytes=%d error=%v", connectionID, forwardID, gpu, n, copyErr)
 		client.CloseWrite()
 		if copyErr != nil {
 			closeBoth()
@@ -216,7 +227,7 @@ func handleForward(ch ssh.NewChannel, pub ssh.PublicKey, auth *authorizer, backe
 	for {
 		select {
 		case <-deadline.C:
-			log.Printf("GPU #%d forward closed: reservation deadline reached", gpu)
+			log.Printf("conn=%d forward=%d GPU #%d closed: reservation deadline reached", connectionID, forwardID, gpu)
 			return
 		case <-ticker.C:
 			ctx, cancel := context.WithTimeout(context.Background(), authorizationTimeout)
@@ -224,7 +235,7 @@ func handleForward(ch ssh.NewChannel, pub ssh.PublicKey, auth *authorizer, backe
 			cancel()
 			newEnd := allowed[gpu]
 			if err != nil || newEnd.IsZero() || !time.Now().Before(newEnd) {
-				log.Printf("GPU #%d forward closed: reservation no longer valid, lookup error=%v", gpu, err)
+				log.Printf("conn=%d forward=%d GPU #%d closed: reservation no longer valid, lookup error=%v", connectionID, forwardID, gpu, err)
 				return
 			}
 			if newEnd.Before(end) {
@@ -249,14 +260,16 @@ func handleForward(ch ssh.NewChannel, pub ssh.PublicKey, auth *authorizer, backe
 }
 
 func serveConnection(conn net.Conn, config *ssh.ServerConfig, auth *authorizer, backendAddress func(int) string) {
+	connectionID := gatewayConnectionSequence.Add(1)
+	started := time.Now()
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(30 * time.Second))
 	server, channels, requests, err := ssh.NewServerConn(conn, config)
 	if err != nil {
-		log.Printf("gateway SSH handshake failed: %v", err)
+		log.Printf("conn=%d gateway SSH handshake failed after %s: %v", connectionID, time.Since(started), err)
 		return
 	}
-	log.Print("gateway SSH authenticated")
+	log.Printf("conn=%d gateway SSH authenticated after %s", connectionID, time.Since(started))
 	conn.SetDeadline(time.Time{})
 	defer server.Close()
 	go ssh.DiscardRequests(requests)
@@ -264,14 +277,17 @@ func serveConnection(conn net.Conn, config *ssh.ServerConfig, auth *authorizer, 
 	if err != nil {
 		return
 	}
+	var forwardID uint64
 	for channel := range channels {
 		if channel.ChannelType() != "direct-tcpip" {
-			log.Printf("gateway channel rejected: %s", channel.ChannelType())
+			log.Printf("conn=%d gateway channel rejected: %s", connectionID, channel.ChannelType())
 			channel.Reject(ssh.Prohibited, "Forwarding only")
 			continue
 		}
-		go handleForward(channel, pub, auth, backendAddress)
+		forwardID++
+		go handleForward(channel, pub, auth, backendAddress, connectionID, forwardID)
 	}
+	log.Printf("conn=%d gateway SSH connection closed after %s", connectionID, time.Since(started))
 }
 
 func main() {
