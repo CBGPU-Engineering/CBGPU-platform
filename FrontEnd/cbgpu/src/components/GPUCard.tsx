@@ -63,13 +63,9 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
 
   const fetchApprovedReservations = async () => {
     const now = new Date();
-    const { data, error } = await supabase
-      .from('reservations')
-      .select('start_time, end_time, user_email')
-      .eq('gpu_id', id)
-      .eq('status', 'approved')
-      .gte('end_time', now.toISOString())
-      .order('start_time', { ascending: true });
+    const { data, error } = await supabase.rpc('get_gpu_booking_schedule', {
+      p_from: now.toISOString(), p_to: new Date(now.getTime() + 90 * 86400000).toISOString(), p_gpu_id: id,
+    });
 
     if (!error) {
       setApprovedReservations(data || []);
@@ -96,16 +92,13 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
     setIsSubmitting(true);
 
     try {
-      const { data: existingReservations, error: checkError } = await supabase
-        .from('reservations')
-        .select('id, start_time, end_time')
-        .eq('gpu_id', id)
-        .eq('status', 'approved')
-        .gte('end_time', new Date().toISOString());
+      const { data: existingReservations, error: checkError } = await supabase.rpc('get_gpu_booking_schedule', {
+        p_from: start.toISOString(), p_to: end.toISOString(), p_gpu_id: id,
+      });
 
       if (checkError) throw checkError;
 
-      const hasConflict = existingReservations?.some((res) => {
+      const hasConflict = existingReservations?.some((res: { start_time: string; end_time: string }) => {
         const resStart = new Date(res.start_time);
         const resEnd = new Date(res.end_time);
         return (start < resEnd && end > resStart);
@@ -113,7 +106,7 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
 
       if (hasConflict) {
         setIsSubmitting(false);
-        showError('해당 시간에는 이미 확정된 예약이 있습니다.'); return;
+        showError('해당 시간에는 이미 대기 또는 확정된 예약이 있습니다.'); return;
       }
 
       const { error } = await supabase
@@ -134,7 +127,7 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
       fetchApprovedReservations();
     } catch (error: any) {
       console.error('Reservation Error:', error);
-      showError('예약 실패: ' + error.message);
+      showError(error?.code === '23P01' ? '해당 시간에 이미 대기 또는 확정된 GPU 예약이 있습니다.' : '예약 실패: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -217,9 +210,8 @@ export default function GPUCard({ id, name }: { id: number; name: string }) {
                                 {isStart ? format(s, 'HH:mm') : '00:00'} - {isEnd ? format(e, 'HH:mm') : '23:59'}
                               </span>
                               {!isStart && !isEnd && <span className="text-[8px] bg-primary/20 text-primary px-1 rounded">ALL DAY</span>}
-                              <span className="text-[9px] text-muted-foreground uppercase opacity-70">Approved</span>
+                              <span className="text-[9px] text-muted-foreground uppercase opacity-70">Reserved</span>
                             </div>
-                            <p className="text-muted-foreground truncate mt-0.5">{res.user_email}</p>
                           </div>
                         );
                       })

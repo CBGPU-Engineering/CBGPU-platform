@@ -68,13 +68,9 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchCalendar = async () => {
       setCalendarLoading(true);
-      const { data } = await supabase
-        .from('reservations')
-        .select('id, gpu_id, start_time, end_time, status, profiles:user_id(full_name, student_id)')
-        .eq('status', 'approved')
-        .lt('start_time', gridEnd.toISOString())
-        .gt('end_time', gridStart.toISOString())
-        .order('start_time', { ascending: true });
+      const { data } = await supabase.rpc('get_gpu_reservation_schedule', {
+        p_from: gridStart.toISOString(), p_to: gridEnd.toISOString(), p_gpu_id: null,
+      });
       if (data) setCalendarReservations(data);
       setCalendarLoading(false);
       setCalendarJustFinished(true);
@@ -185,12 +181,13 @@ export default function Dashboard() {
 
   const handleEndSession = async () => {
     if (!endTarget) return;
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('reservations')
       .update({ end_time: new Date().toISOString() })
-      .eq('id', endTarget);
-    if (error) {
-      showError("세션 종료 실패: " + error.message);
+      .eq('id', endTarget)
+      .select('id');
+    if (error || !data?.length) {
+      showError("세션 종료 실패: " + (error?.message || '종료 가능한 본인 예약을 찾지 못했습니다.'));
     } else {
       showSuccess("세션이 종료됐습니다.");
       setEndTarget(null);
@@ -439,8 +436,7 @@ export default function Dashboard() {
                             <span className={cn('absolute inset-y-0 left-0 w-1', c.dot)} />
                             <div className={cn('text-xs font-black mb-1.5', c.text)}>GPU #{res.gpu_id}</div>
                             <div className="text-[11px] font-bold space-y-0.5 text-foreground">
-                              <p>{res.profiles?.full_name || '—'}</p>
-                              <p className="opacity-60">{res.profiles?.student_id || '—'}</p>
+                              <p>예약됨</p>
                               <p className="opacity-40 text-[10px]">
                                 {format(parseISO(res.start_time), 'M/d')} – {format(parseISO(res.end_time), 'M/d')}
                               </p>

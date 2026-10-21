@@ -26,13 +26,10 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
   }, [id]);
 
   const fetchApprovedReservations = async () => {
-    const { data } = await supabase
-      .from('reservations')
-      .select('start_time, end_time, user_email')
-      .eq('gpu_id', id)
-      .eq('status', 'approved')
-      .gte('end_time', new Date().toISOString())
-      .order('start_time', { ascending: true });
+    const now = new Date();
+    const { data } = await supabase.rpc('get_gpu_booking_schedule', {
+      p_from: now.toISOString(), p_to: new Date(now.getTime() + 90 * 86400000).toISOString(), p_gpu_id: id,
+    });
     if (data) setApprovedReservations(data);
   };
 
@@ -82,12 +79,11 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
 
     setIsSubmitting(true);
     try {
-      const { data: existing, error: checkError } = await supabase
-        .from('reservations')
-        .select('id, start_time, end_time')
-        .eq('gpu_id', id)
-        .eq('status', 'approved')
-        .gte('end_time', new Date().toISOString());
+      const { data: existing, error: checkError } = await supabase.rpc('get_gpu_booking_schedule', {
+        p_from: new Date().toISOString(),
+        p_to: endOfWeek(addWeeks(new Date(), 7), { weekStartsOn: 1 }).toISOString(),
+        p_gpu_id: id,
+      });
 
       if (checkError) throw checkError;
 
@@ -126,14 +122,14 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
       for (const { start, end } of groups) {
         // 이 구간 맨 앞에 이미 승인된 예약이 걸쳐 있으면(조기 종료로 일부만 쓰고 끝난 경우 등)
         // 전체 기간을 막지 않고, 그 예약이 끝난 시점 이후 남은 기간만 신청 구간으로 좁힌다.
-        let adjustedStart = start;
-        const overlappingAtStart = existing?.filter(res => {
+        let adjustedStart = new Date(Math.max(start.getTime(), Date.now() + 2 * 60000));
+        const overlappingAtStart = existing?.filter((res: { start_time: string; end_time: string }) => {
           const s = new Date(res.start_time);
           const e = new Date(res.end_time);
           return s <= adjustedStart && e > adjustedStart;
         });
         if (overlappingAtStart && overlappingAtStart.length > 0) {
-          const latestEnd = overlappingAtStart.reduce((max, r) => {
+          const latestEnd = overlappingAtStart.reduce((max: Date, r: { end_time: string }) => {
             const e = new Date(r.end_time);
             return e > max ? e : max;
           }, adjustedStart);
@@ -145,7 +141,7 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
           showError(`${format(start, 'M월 d일', { locale: ko })} 주는 남은 기간이 없습니다.`); return;
         }
 
-        const hasConflict = existing?.some(res => {
+        const hasConflict = existing?.some((res: { start_time: string; end_time: string }) => {
           const s = new Date(res.start_time);
           const e = new Date(res.end_time);
           return adjustedStart < e && end > s;
@@ -153,7 +149,7 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
 
         if (hasConflict) {
           setIsSubmitting(false);
-          showError(`${format(start, 'M월 d일', { locale: ko })} 주에는 이미 확정된 예약이 있습니다.`); return;
+          showError(`${format(start, 'M월 d일', { locale: ko })} 주에는 이미 대기 또는 확정된 예약이 있습니다.`); return;
         }
 
         records.push({
@@ -173,7 +169,7 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
       setSelectedWeeks([]);
       fetchApprovedReservations();
     } catch (err: any) {
-      showError('예약 실패: ' + err.message);
+      showError(err?.code === '23P01' ? '해당 시간에 이미 대기 또는 확정된 GPU 예약이 있습니다.' : '예약 실패: ' + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -223,7 +219,7 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
         {showSchedule ? (
           <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
             <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1">
-              <CalendarDays className="size-3" /> 확정된 예약
+              <CalendarDays className="size-3" /> 신청된 예약
             </p>
             <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
               {approvedReservations.length === 0 ? (
@@ -237,9 +233,8 @@ export default function WeeklyGPUCard({ id, name }: { id: number; name: string }
                         <span className="mx-1 opacity-40">–</span>
                         {format(parseISO(res.end_time), 'M/d (eee)', { locale: ko })}
                       </span>
-                      <span className="text-emerald-600">Approved</span>
+                      <span className="text-emerald-600">Reserved</span>
                     </div>
-                    <p className="text-muted-foreground truncate mt-0.5">{res.user_email}</p>
                   </div>
                 ))
               )}
