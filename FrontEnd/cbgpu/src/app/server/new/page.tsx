@@ -76,7 +76,7 @@ const SCOPE_OPTS: { value: AccessScope; label: string; icon: React.ReactNode; de
 ];
 
 export default function NewServerPage() {
-  const { user, isApproved, isLoading: authLoading } = useAuth();
+  const { user, profile, isApproved, isLoading: authLoading } = useAuth();
   const { showError, showSuccess } = useAlert();
   const router = useRouter();
 
@@ -93,6 +93,7 @@ export default function NewServerPage() {
 
   const handleSubmit = async () => {
     if (!user) return;
+    if (!profile || profile.id !== user.id) { showError('계정 프로필을 확인할 수 없습니다. 새로고침 후 다시 시도하고, 계속되면 관리자에게 문의해 주세요.'); return; }
     if (!isApproved) { showError('학번 또는 이름 확인이 필요해 배포할 수 없습니다. 프로필에서 정보를 확인해 주세요.'); return; }
     if (!form.name.trim())                                         { showError('프로젝트 이름을 입력해주세요.'); return; }
     if (form.deployType === 'docker' && !form.dockerImage.trim()) { showError('Docker 이미지를 입력해주세요.'); return; }
@@ -130,6 +131,7 @@ export default function NewServerPage() {
 
     if (error) {
       if (error.code === '23505') showError('이미 사용 중인 포트입니다.');
+      else if (error.code === '42501') showError('프로젝트 생성 권한을 확인할 수 없습니다. 프로필 승인 상태를 확인해 주세요.');
       else showError('프로젝트 생성 실패: ' + error.message);
     } else {
       showSuccess('프로젝트가 신청됐습니다. 관리자 승인을 기다려주세요.');

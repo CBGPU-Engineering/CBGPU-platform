@@ -348,7 +348,11 @@ class _ServerNewScreenState extends State<ServerNewScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
     final profile = await _fetchOwnProfile();
-    if (profile?['is_approved'] == false) {
+    if (profile == null) {
+      _snack('계정 프로필을 확인할 수 없습니다. 다시 로그인하거나 관리자에게 문의해 주세요.');
+      return;
+    }
+    if (profile['is_approved'] == false) {
       _snack('학번 또는 이름 확인이 필요해 배포할 수 없습니다. 프로필에서 정보를 확인해 주세요.');
       return;
     }
@@ -412,6 +416,8 @@ class _ServerNewScreenState extends State<ServerNewScreen> {
     } catch (e) {
       if (e.toString().contains('23505')) {
         _snack('이미 사용 중인 포트입니다.');
+      } else if (e is PostgrestException && e.code == '42501') {
+        _snack('프로젝트 생성 권한을 확인할 수 없습니다. 프로필 승인 상태를 확인해 주세요.');
       } else {
         _snack('프로젝트 생성 실패: $e');
       }
