@@ -53,14 +53,8 @@ export default function AdminPage() {
     setTimeout(() => setGpuJustFinished(false), 600);
   };
 
-  function generatePassword(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-    const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
-    return Array.from(array).map(x => chars[x % chars.length]).join('');
-  }
-
   async function updateStatus(id: string, newStatus: 'approved' | 'rejected' | 'pending', gpuId?: number) {
+    if (newStatus === 'approved' && gpuId === undefined) { showError('GPU 번호가 없습니다.'); return; }
     if (newStatus === 'approved' && gpuId !== undefined) {
       const target = reservations.find(r => r.id === id);
       if (target) {
@@ -73,12 +67,13 @@ export default function AdminPage() {
         );
         if (conflict) { showError("승인 불가: 이미 확정된 예약과 시간이 겹칩니다."); return; }
       }
-      const password = generatePassword();
-      const { error: gpuError } = await supabase.from('gpus').upsert({ id: gpuId, password }, { onConflict: 'id' });
-      if (gpuError) { showError("비밀번호 생성 실패: " + gpuError.message); return; }
+      const { error } = await supabase.rpc('approve_gpu_reservation', { p_reservation_id: id });
+      if (error) showError("처리 실패: " + error.message);
+      else { showSuccess('예약이 승인됐습니다.'); fetchReservations(); }
+      return;
     }
-    const { error } = await supabase.from('reservations').update({ status: newStatus }).eq('id', id);
-    if (error) showError("처리 실패: " + error.message);
+    const { data, error } = await supabase.from('reservations').update({ status: newStatus }).eq('id', id).select('id');
+    if (error || !data?.length) showError("처리 실패: " + (error?.message || '변경된 예약이 없습니다.'));
     else { showSuccess(`상태가 ${newStatus}로 변경됐습니다.`); fetchReservations(); }
   }
 
@@ -332,6 +327,11 @@ export default function AdminPage() {
   const pendingCpuCount = cpuProjects.filter(p => p.status === 'pending').length;
   const unreviewedCount = profiles.filter(p => p.is_approved === null || p.is_approved === false).length;
   const pendingGpuCount = reservations.filter(r => r.status === 'pending').length;
+  const conflictsWithApproved = (target: any) => target.status === 'pending' && reservations.some(r =>
+    r.id !== target.id && r.gpu_id === target.gpu_id && r.status === 'approved' &&
+    new Date(r.start_time) < new Date(target.end_time) &&
+    new Date(r.end_time) > new Date(target.start_time)
+  );
   const matchesQuery = (...values: unknown[]) => values.some(value => String(value ?? '').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const filteredReservations = reservations.filter(r => (!needsReviewOnly || r.status === 'pending') && matchesQuery(r.profiles?.full_name, r.profiles?.student_id, r.gpu_id, r.purpose));
   const filteredProjects = cpuProjects.filter(p => (!needsReviewOnly || p.status === 'pending') && matchesQuery(p.name, p.user_email, p.profiles?.full_name, p.profiles?.student_id));
@@ -417,6 +417,7 @@ export default function AdminPage() {
                   const start = new Date(res.start_time);
                   const end = new Date(res.end_time);
                   const isEnded = new Date() > end;
+                  const hasConflict = conflictsWithApproved(res);
                   const dateOptions: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                   return (
                     <div key={res.id} className="p-4 space-y-3">
@@ -435,6 +436,7 @@ export default function AdminPage() {
                       <div className="flex items-center justify-between gap-2">
                         <div>
                           {res.status === 'pending'  && <Badge variant="warning" icon={<Clock className="size-3" />}>Pending</Badge>}
+                          {hasConflict && <p className="mt-1 text-xs font-bold text-destructive">확정 예약과 시간 겹침</p>}
                           {res.status === 'approved' && <Badge variant="success" icon={<CheckCircle2 className="size-3" />}>Approved</Badge>}
                           {res.status === 'rejected' && <Badge variant="danger"  icon={<XCircle className="size-3" />}>Rejected</Badge>}
                         </div>
@@ -442,7 +444,7 @@ export default function AdminPage() {
                           <span className="text-[10px] font-black uppercase opacity-30">Session Finished</span>
                         ) : res.status === 'pending' ? (
                           <div className="flex gap-2">
-                            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'approved', res.gpu_id)}>Approve</Button>
+                            <Button size="sm" disabled={hasConflict} title={hasConflict ? '확정 예약과 시간이 겹쳐 승인할 수 없습니다.' : undefined} className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'approved', res.gpu_id)}>Approve</Button>
                             <Button size="sm" variant="destructive" className="font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-destructive/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'rejected')}>Reject</Button>
                           </div>
                         ) : (
@@ -478,6 +480,7 @@ export default function AdminPage() {
                       const start = new Date(res.start_time);
                       const end = new Date(res.end_time);
                       const isEnded = new Date() > end;
+                      const hasConflict = conflictsWithApproved(res);
                       const dateOptions: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                       return (
                         <TableRow key={res.id} className="hover:bg-muted/20 transition-colors border-b last:border-0">
@@ -496,6 +499,7 @@ export default function AdminPage() {
                           </TableCell>
                           <TableCell className="py-5">
                             {res.status === 'pending'  && <Badge variant="warning" icon={<Clock className="size-3" />}>Pending</Badge>}
+                            {hasConflict && <p className="mt-1 text-xs font-bold text-destructive">확정 예약과 시간 겹침</p>}
                             {res.status === 'approved' && <Badge variant="success" icon={<CheckCircle2 className="size-3" />}>Approved</Badge>}
                             {res.status === 'rejected' && <Badge variant="danger"  icon={<XCircle className="size-3" />}>Rejected</Badge>}
                           </TableCell>
@@ -505,7 +509,7 @@ export default function AdminPage() {
                                 <span className="text-[10px] font-black uppercase opacity-30 px-4">Session Finished</span>
                               ) : res.status === 'pending' ? (
                                 <>
-                                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'approved', res.gpu_id)}>Approve</Button>
+                                  <Button size="sm" disabled={hasConflict} title={hasConflict ? '확정 예약과 시간이 겹쳐 승인할 수 없습니다.' : undefined} className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'approved', res.gpu_id)}>Approve</Button>
                                   <Button size="sm" variant="destructive" className="font-black text-[10px] uppercase h-8 px-4 rounded-xl shadow-lg shadow-destructive/20 transition-all active:scale-95" onClick={() => updateStatus(res.id, 'rejected')}>Reject</Button>
                                 </>
                               ) : (

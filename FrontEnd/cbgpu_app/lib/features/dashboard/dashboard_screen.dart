@@ -30,6 +30,10 @@ String _fmtMd(DateTime d) => '${d.month}/${d.day}';
 String _fmtMdWeekday(DateTime d) =>
     '${d.month}/${d.day}(${_weekdaysMon[d.weekday - 1]})';
 
+String _bookingError(Object error) => error is PostgrestException && error.code == '23P01'
+    ? '해당 시간에 이미 대기 또는 확정된 GPU 예약이 있습니다.'
+    : '예약 실패: $error';
+
 class _Reservation {
   _Reservation({
     required this.id,
@@ -53,12 +57,12 @@ class _Reservation {
   factory _Reservation.fromRow(Map<String, dynamic> r) {
     final profile = r['profiles'] as Map<String, dynamic>?;
     return _Reservation(
-      id: r['id'] as String,
+      id: r['id'] as String? ?? '',
       gpuId: r['gpu_id'] as int,
       userId: r['user_id'] as String? ?? '',
       start: DateTime.parse(r['start_time'] as String),
       end: DateTime.parse(r['end_time'] as String),
-      status: r['status'] as String? ?? 'pending',
+      status: r['status'] as String? ?? 'approved',
       fullName: profile?['full_name'] as String?,
       studentId: profile?['student_id'] as String?,
     );
@@ -194,18 +198,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadCalendar() async {
     setState(() => _calendarLoading = true);
     try {
-      final rows = await Supabase.instance.client
-          .from('reservations')
-          .select(
-            'id, gpu_id, user_id, start_time, end_time, status, profiles:user_id(full_name, student_id)',
-          )
-          .eq('status', 'approved')
-          .lt(
-            'start_time',
-            _gridEnd.add(const Duration(days: 1)).toIso8601String(),
-          )
-          .gt('end_time', _gridStart.toIso8601String())
-          .order('start_time', ascending: true);
+      final rows = await Supabase.instance.client.rpc(
+        'get_gpu_reservation_schedule',
+        params: {
+          'p_from': _gridStart.toIso8601String(),
+          'p_to': _gridEnd.add(const Duration(days: 1)).toIso8601String(),
+          'p_gpu_id': null,
+        },
+      );
       if (mounted) {
         setState(
           () => _calendarReservations = (rows as List)
@@ -320,10 +320,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _endSession(String id) async {
     try {
-      await Supabase.instance.client
+      final rows = await Supabase.instance.client
           .from('reservations')
           .update({'end_time': DateTime.now().toIso8601String()})
-          .eq('id', id);
+          .eq('id', id)
+          .select('id');
+      if ((rows as List).isEmpty) throw Exception('종료 가능한 본인 예약을 찾지 못했습니다.');
       _snack('세션이 종료됐습니다.');
       setState(() => _openReservationId = null);
       _loadMyReservations();
@@ -844,7 +846,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '${r.fullName ?? '—'} · ${r.studentId ?? '—'}',
+                                  '예약됨',
                                   style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
@@ -1271,13 +1273,14 @@ class _DailyBookingCardState extends State<_DailyBookingCard> {
 
   Future<void> _load() async {
     final now = DateTime.now();
-    final rows = await Supabase.instance.client
-        .from('reservations')
-        .select('id, gpu_id, user_id, start_time, end_time, status')
-        .eq('gpu_id', widget.gpuId)
-        .eq('status', 'approved')
-        .gte('end_time', now.toIso8601String())
-        .order('start_time', ascending: true);
+    final rows = await Supabase.instance.client.rpc(
+      'get_gpu_booking_schedule',
+      params: {
+        'p_from': now.toIso8601String(),
+        'p_to': now.add(const Duration(days: 90)).toIso8601String(),
+        'p_gpu_id': widget.gpuId,
+      },
+    );
     if (mounted) {
       setState(
         () => _approved = (rows as List)
@@ -1319,7 +1322,7 @@ class _DailyBookingCardState extends State<_DailyBookingCard> {
       );
       if (conflict) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('해당 시간에는 이미 확정된 예약이 있습니다.')),
+          const SnackBar(content: Text('해당 시간에는 이미 대기 또는 확정된 예약이 있습니다.')),
         );
         return;
       }
@@ -1343,7 +1346,7 @@ class _DailyBookingCardState extends State<_DailyBookingCard> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('예약 실패: $e')));
+        ).showSnackBar(SnackBar(content: Text(_bookingError(e))));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -1594,13 +1597,15 @@ class _WeeklyBookingCardState extends State<_WeeklyBookingCard> {
   }
 
   Future<void> _load() async {
-    final rows = await Supabase.instance.client
-        .from('reservations')
-        .select('id, gpu_id, user_id, start_time, end_time, status')
-        .eq('gpu_id', widget.gpuId)
-        .eq('status', 'approved')
-        .gte('end_time', DateTime.now().toIso8601String())
-        .order('start_time', ascending: true);
+    final now = DateTime.now();
+    final rows = await Supabase.instance.client.rpc(
+      'get_gpu_booking_schedule',
+      params: {
+        'p_from': now.toIso8601String(),
+        'p_to': now.add(const Duration(days: 90)).toIso8601String(),
+        'p_gpu_id': widget.gpuId,
+      },
+    );
     if (mounted) {
       setState(() {
         _approved = (rows as List)
@@ -1670,7 +1675,9 @@ class _WeeklyBookingCardState extends State<_WeeklyBookingCard> {
 
       final records = <Map<String, dynamic>>[];
       for (final g in groups) {
-        var adjustedStart = g.start;
+        var adjustedStart = g.start.isAfter(DateTime.now().add(const Duration(minutes: 2)))
+            ? g.start
+            : DateTime.now().add(const Duration(minutes: 2));
         final overlappingAtStart = _approved.where(
           (r) =>
               !r.start.isAfter(adjustedStart) && r.end.isAfter(adjustedStart),
@@ -1689,7 +1696,7 @@ class _WeeklyBookingCardState extends State<_WeeklyBookingCard> {
         );
         if (conflict) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${_fmtMd(g.start)} 주에는 이미 확정된 예약이 있습니다.')),
+            SnackBar(content: Text('${_fmtMd(g.start)} 주에는 이미 대기 또는 확정된 예약이 있습니다.')),
           );
           return;
         }
@@ -1718,7 +1725,7 @@ class _WeeklyBookingCardState extends State<_WeeklyBookingCard> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('예약 실패: $e')));
+        ).showSnackBar(SnackBar(content: Text(_bookingError(e))));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);

@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -75,13 +73,8 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  String _generatePassword() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-    final rand = Random.secure();
-    return List.generate(16, (_) => chars[rand.nextInt(chars.length)]).join();
-  }
-
   Future<void> _updateReservationStatus(String id, String newStatus, int? gpuId) async {
+    if (newStatus == 'approved' && gpuId == null) { _snack('GPU 번호가 없습니다.'); return; }
     if (newStatus == 'approved' && gpuId != null) {
       final target = _reservations.firstWhere((r) => r['id'] == id, orElse: () => {});
       if (target.isNotEmpty) {
@@ -99,20 +92,31 @@ class _AdminScreenState extends State<AdminScreen> {
         }
       }
       try {
-        await Supabase.instance.client.from('gpus').upsert({'id': gpuId, 'password': _generatePassword()}, onConflict: 'id');
+        await Supabase.instance.client.rpc('approve_gpu_reservation', params: {'p_reservation_id': id});
+        _snack('예약이 승인됐습니다.');
+        _fetchReservations();
       } catch (e) {
-        _snack('비밀번호 생성 실패: $e');
-        return;
+        _snack('처리 실패: $e');
       }
+      return;
     }
     try {
-      await Supabase.instance.client.from('reservations').update({'status': newStatus}).eq('id', id);
+      final rows = await Supabase.instance.client.from('reservations').update({'status': newStatus}).eq('id', id).select('id');
+      if ((rows as List).isEmpty) throw Exception('변경된 예약이 없습니다.');
       _snack('상태가 $newStatus로 변경됐습니다.');
       _fetchReservations();
     } catch (e) {
       _snack('처리 실패: $e');
     }
   }
+
+  bool _conflictsWithApproved(Map<String, dynamic> target) =>
+      target['status'] == 'pending' && _reservations.any((r) =>
+          r['id'] != target['id'] &&
+          r['gpu_id'] == target['gpu_id'] &&
+          r['status'] == 'approved' &&
+          DateTime.parse(r['start_time']).isBefore(DateTime.parse(target['end_time'])) &&
+          DateTime.parse(r['end_time']).isAfter(DateTime.parse(target['start_time'])));
 
   Future<void> _fetchCpuProjects() async {
     try {
@@ -358,6 +362,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final start = DateTime.parse(r['start_time']);
     final end = DateTime.parse(r['end_time']);
     final isEnded = DateTime.now().isAfter(end);
+    final hasConflict = _conflictsWithApproved(r);
     final status = r['status'] as String;
     final statusColor = {'pending': Colors.amber, 'approved': Colors.green, 'rejected': Colors.red}[status] ?? Colors.grey;
 
@@ -382,12 +387,17 @@ class _AdminScreenState extends State<AdminScreen> {
           ]),
           const SizedBox(height: 6),
           Text('${start.toLocal()} → ${end.toLocal()}'.replaceAll('.000', ''), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          if (hasConflict)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text('확정 예약과 시간 겹침', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
           const SizedBox(height: 8),
           if (isEnded)
             const Text('Session Finished', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.grey))
           else if (status == 'pending')
             Row(children: [
-              ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, foregroundColor: Colors.white), onPressed: () => _updateReservationStatus(r['id'], 'approved', r['gpu_id']), child: const Text('Approve')),
+              ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, foregroundColor: Colors.white), onPressed: hasConflict ? null : () => _updateReservationStatus(r['id'], 'approved', r['gpu_id']), child: const Text('Approve')),
               const SizedBox(width: 6),
               ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white), onPressed: () => _updateReservationStatus(r['id'], 'rejected', null), child: const Text('Reject')),
             ])
