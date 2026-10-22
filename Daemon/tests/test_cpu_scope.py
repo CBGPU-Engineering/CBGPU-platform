@@ -11,6 +11,23 @@ spec.loader.exec_module(daemon)
 
 
 class CpuScopeTest(unittest.TestCase):
+    def test_git_container_must_survive_after_setup_marker(self):
+        inspections = 0
+
+        def fake_run(command, **_):
+            nonlocal inspections
+            if command[:2] == ["docker", "inspect"]:
+                inspections += 1
+                state = "true|0" if inspections < 3 else "false|1"
+                return mock.Mock(returncode=0, stdout=state, stderr="")
+            return mock.Mock(returncode=0, stdout="", stderr="")
+
+        with mock.patch.object(daemon.subprocess, "run", side_effect=fake_run), \
+             mock.patch.object(daemon.time, "sleep"):
+            with self.assertRaisesRegex(RuntimeError, "exited or restarted"):
+                daemon.wait_for_cpu_container("12345678-1234-1234-1234-123456789abc", True)
+        self.assertEqual(inspections, 3)
+
     def test_restarting_container_is_not_ready(self):
         def fake_run(command, **_):
             if command[:2] == ["docker", "inspect"]:
