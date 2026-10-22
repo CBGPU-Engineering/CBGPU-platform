@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { useAlert } from '@/lib/alert';
+import { formatMemoryLimit } from '@/lib/formatMemoryLimit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
@@ -465,7 +466,7 @@ export default function NewServerPage() {
                   <SelectContent>
                     {MEMORY_OPTS.map(m => (
                       <SelectItem key={m} value={m}>
-                        {m.endsWith('g') ? `${m.slice(0, -1)} GB` : `${m.slice(0, -1)} MB`}
+                        {formatMemoryLimit(m)}
                       </SelectItem>
                     ))}
                   </SelectContent>

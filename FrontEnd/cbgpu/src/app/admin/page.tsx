@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { formatMemoryLimit } from '@/lib/formatMemoryLimit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -567,7 +568,7 @@ export default function AdminPage() {
                           {proj.access_scope === 'school'  && <><School className="size-2.5 text-blue-500" /> School</>}
                           {proj.access_scope === 'public'  && <><Globe className="size-2.5 text-green-500" /> Public</>}
                         </span>
-                        <span>CPU: {proj.cpu_limit} / Mem: {proj.memory_limit}</span>
+                        <span>CPU: {proj.cpu_limit} / Mem: {formatMemoryLimit(proj.memory_limit)}</span>
                       </div>
                     </div>
                     <div className="flex justify-end gap-2 flex-wrap">
@@ -639,7 +640,7 @@ export default function AdminPage() {
                               {proj.access_scope === 'school'  && <><School className="size-2.5 text-blue-500" /> School</>}
                               {proj.access_scope === 'public'  && <><Globe className="size-2.5 text-green-500" /> Public</>}
                             </span>
-                            <span>CPU: {proj.cpu_limit} / Mem: {proj.memory_limit}</span>
+                            <span>CPU: {proj.cpu_limit} / Mem: {formatMemoryLimit(proj.memory_limit)}</span>
                           </div>
                         </TableCell>
                         <TableCell className="py-5">
