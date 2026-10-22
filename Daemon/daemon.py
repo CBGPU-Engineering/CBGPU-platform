@@ -21,6 +21,7 @@ import string
 import base64
 import struct
 import ipaddress
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import yaml
@@ -618,7 +619,7 @@ def start_cpu_container(project: dict, cfg: dict):
         started = subprocess.run(["docker", "start", container], capture_output=True, text=True)
         if started.returncode != 0:
             raise RuntimeError(f"Cannot start CPU replacement: {started.stderr.strip()}")
-        wait_for_cpu_container(project_id, deploy_type == "git")
+        wait_for_cpu_container(project_id, deploy_type == "git", timeout_seconds=600 if deploy_type == "git" else 180)
     except Exception as exc:
         failed_name = container if candidate_renamed else candidate
         removed = subprocess.run(["docker", "rm", "-f", failed_name], capture_output=True, text=True)
@@ -651,6 +652,17 @@ def stop_cpu_container(project: dict):
     log.info("CPU project '%s' container removed (container=%s)", project.get("name"), container)
 
 
+def deploy_cpu_project(project: dict, cfg: dict):
+    apply_firewall(project["host_port"], project.get("access_scope", "private"), "allow")
+    start_cpu_container(project, cfg)
+    update_cpu_deployed_at(cfg, project["id"])
+
+
+def remove_cpu_project(project: dict):
+    stop_cpu_container(project)
+    apply_firewall(project["host_port"], project.get("access_scope", "private"), "delete")
+
+
 def main():
     cfg_path = sys.argv[1] if len(sys.argv) > 1 else "config.yaml"
 
@@ -670,6 +682,9 @@ def main():
     initialized_idle_containers = False
     seeded_running_passwords = False
     cpu_cleaned: set[str] = set()               # deleted project ids whose container was already removed
+    cpu_jobs: dict[str, tuple[Future, dict]] = {}
+    cpu_retry_after: dict[str, tuple[str | None, float]] = {}
+    cpu_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="cpu-deploy")
 
     while True:
         time.sleep(cfg["poll_interval_seconds"])
@@ -808,6 +823,25 @@ def main():
                         log.error("GPU #%d: reset failed: %s", gpu_id, e)
 
         # 3. Handle CPU project deployments
+        # CPU installs can take minutes. Keep them off the GPU reservation loop
+        # and let a healthy project proceed while another project fails.
+        for proj_id, (job, submitted) in list(cpu_jobs.items()):
+            if not job.done():
+                continue
+            del cpu_jobs[proj_id]
+            try:
+                job.result()
+                if submitted["status"] == "deleted":
+                    cpu_cleaned.add(proj_id)
+                else:
+                    cpu_cleaned.discard(proj_id)
+                    cpu_retry_after.pop(proj_id, None)
+            except Exception as e:
+                log.error("CPU project '%s' %s failed: %s", submitted.get("name"),
+                          "removal" if submitted["status"] == "deleted" else "deploy", e)
+                if submitted["status"] == "approved":
+                    cpu_retry_after[proj_id] = (submitted.get("deploy_requested_at"), time.monotonic() + 300)
+
         try:
             cpu_projects = fetch_cpu_projects(cfg)
         except Exception as e:
@@ -820,22 +854,18 @@ def main():
 
         for proj in cpu_projects:
             proj_id = proj["id"]
-            if proj_id[:8] in collided_prefixes:
+            if proj_id[:8] in collided_prefixes or proj_id in cpu_jobs:
                 continue
 
             # Deleted project -> remove container
             if proj["status"] == "deleted":
-                if proj_id not in cpu_cleaned:
+                if proj_id not in cpu_cleaned and len(cpu_jobs) < 2:
                     log.info("CPU project '%s' deletion detected -> removing container", proj.get("name"))
-                    try:
-                        stop_cpu_container(proj)
-                        apply_firewall(proj["host_port"], proj.get("access_scope", "private"), "delete")
-                        cpu_cleaned.add(proj_id)
-                    except Exception as e:
-                        log.error("CPU project '%s' container removal failed: %s", proj.get("name"), e)
+                    cpu_jobs[proj_id] = (cpu_executor.submit(remove_cpu_project, proj), proj)
                 continue
 
             # Approved project -> check whether it needs a deploy or redeploy
+            cpu_cleaned.discard(proj_id)
             deploy_requested = proj.get("deploy_requested_at")
             deployed         = proj.get("deployed_at")
 
@@ -843,15 +873,12 @@ def main():
                 deploy_requested is not None and deploy_requested > deployed
             )
 
-            if needs_deploy:
+            retry = cpu_retry_after.get(proj_id)
+            if needs_deploy and len(cpu_jobs) < 2 and not (
+                retry and retry[0] == deploy_requested and time.monotonic() < retry[1]
+            ):
                 log.info("CPU project '%s' starting %s", proj.get("name"), "redeploy" if deployed else "initial deploy")
-                try:
-                    apply_firewall(proj["host_port"], proj.get("access_scope", "private"), "allow")
-                    start_cpu_container(proj, cfg)
-                    update_cpu_deployed_at(cfg, proj_id)
-                    cpu_cleaned.discard(proj_id)
-                except Exception as e:
-                    log.error("CPU project '%s' deploy failed: %s", proj.get("name"), e)
+                cpu_jobs[proj_id] = (cpu_executor.submit(deploy_cpu_project, proj, cfg), proj)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import importlib.util
 import pathlib
 import unittest
+from concurrent.futures import Future
 from unittest import mock
 
 
@@ -11,6 +12,36 @@ spec.loader.exec_module(daemon)
 
 
 class CpuScopeTest(unittest.TestCase):
+    def test_slow_cpu_deploy_does_not_block_gpu_or_other_projects(self):
+        project = {
+            "id": "12345678-1234-1234-1234-123456789abc", "name": "slow",
+            "status": "approved", "deployed_at": None, "deploy_requested_at": "2026-10-22T00:00:00Z",
+        }
+        other = {**project, "id": "87654321-1234-1234-1234-123456789abc", "name": "other"}
+        sleeps = 0
+
+        def next_poll(_):
+            nonlocal sleeps
+            sleeps += 1
+            if sleeps == 3:
+                raise StopIteration
+
+        executor = mock.Mock()
+        executor.submit.side_effect = [Future(), Future()]  # Both deployments stay in progress.
+        with mock.patch.object(daemon, "load_config", return_value={"poll_interval_seconds": 30, "gpus": {}}), \
+             mock.patch.object(daemon, "fetch_gpus", return_value=[]) as fetch_gpus, \
+             mock.patch.object(daemon, "fetch_active_reservations", return_value=[]), \
+             mock.patch.object(daemon, "fetch_ssh_keys", return_value={}), \
+             mock.patch.object(daemon, "fetch_cpu_projects", return_value=[project, other]), \
+             mock.patch.object(daemon, "cpu_container_running", return_value=False), \
+             mock.patch.object(daemon, "ThreadPoolExecutor", return_value=executor), \
+             mock.patch.object(daemon.time, "sleep", side_effect=next_poll):
+            with self.assertRaises(StopIteration):
+                daemon.main()
+
+        self.assertEqual(fetch_gpus.call_count, 2)
+        self.assertEqual(executor.submit.call_count, 2)
+
     def test_git_container_must_survive_after_setup_marker(self):
         inspections = 0
 
@@ -118,10 +149,11 @@ class CpuScopeTest(unittest.TestCase):
             return mock.Mock(returncode=0, stdout="", stderr="")
 
         with mock.patch.object(daemon.subprocess, "run", side_effect=fake_run), \
-             mock.patch.object(daemon, "wait_for_cpu_container"):
+             mock.patch.object(daemon, "wait_for_cpu_container") as wait:
             daemon.start_cpu_container(project, {"docker": {"school_bind_address": "10.138.23.12"}})
 
         container = daemon.cpu_container_name(project["id"])
+        wait.assert_called_once_with(project["id"], True, timeout_seconds=600)
         copy = next(command for command in commands if command[:3] == ["docker", "run", "--rm"])
         self.assertIn("cbcpu_old_data:/source:ro", copy)
         self.assertLess(commands.index(["docker", "stop", container]), commands.index(copy))
