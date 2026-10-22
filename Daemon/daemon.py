@@ -398,6 +398,7 @@ def wait_for_cpu_container(project_id: str, git_mode: bool, timeout_seconds: int
     container = cpu_container_name(project_id)
     started_at = time.monotonic()
     deadline = started_at + timeout_seconds
+    ready_since = None
     while time.monotonic() < deadline:
         state = subprocess.run(
             ["docker", "inspect", "--format", "{{.State.Running}}|{{.RestartCount}}", container],
@@ -410,7 +411,12 @@ def wait_for_cpu_container(project_id: str, git_mode: bool, timeout_seconds: int
         if git_mode:
             ready = subprocess.run(["docker", "exec", container, "test", "-f", "/tmp/cbgpu-ready"], capture_output=True)
             if ready.returncode == 0:
-                return
+                if ready_since is None:
+                    ready_since = time.monotonic()
+                elif time.monotonic() - ready_since >= 3:
+                    return
+            else:
+                ready_since = None
         elif time.monotonic() - started_at < 10:
             time.sleep(1)
             continue
@@ -556,7 +562,8 @@ def start_cpu_container(project: dict, cfg: dict):
                 f"if [ ! -d /app/.git ]; then git clone -- {quoted_url} /app; fi; "
                 f"git -C /app remote set-url origin {quoted_url}; "
                 f"git -C /app fetch origin {quoted_branch}; git -C /app checkout -B {quoted_branch} FETCH_HEAD; "
-                "cd /app; if [ -f requirements.txt ]; then pip install -r requirements.txt -q; fi; "
+                "cd /app; if [ -f requirements.txt ]; then pip install -r requirements.txt -q; "
+                "elif [ -f pyproject.toml ]; then pip install . -q; fi; "
                 f"touch /tmp/cbgpu-ready; exec sh -c {quoted_run}"
             )
         else:
