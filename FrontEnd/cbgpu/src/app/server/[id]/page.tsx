@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { useAlert } from '@/lib/alert';
+import { formatMemoryLimit } from '@/lib/formatMemoryLimit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -345,7 +346,7 @@ export default function ServerDetailPage() {
               <label className={labelCls}>Memory Limit</label>
               <div className="flex items-center gap-1.5">
                 <MemoryStick className="size-3.5 text-muted-foreground" />
-                <span className="font-bold text-sm">{project.memory_limit}</span>
+                <span className="font-bold text-sm">{formatMemoryLimit(project.memory_limit)}</span>
               </div>
             </div>
           </div>
@@ -481,7 +482,7 @@ export default function ServerDetailPage() {
                     <SelectContent>
                       {MEMORY_OPTS.map(m => (
                         <SelectItem key={m} value={m}>
-                          {m.endsWith('g') ? `${m.slice(0, -1)} GB` : `${m.slice(0, -1)} MB`}
+                          {formatMemoryLimit(m)}
                         </SelectItem>
                       ))}
                     </SelectContent>
