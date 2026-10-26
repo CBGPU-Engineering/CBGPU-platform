@@ -16,6 +16,7 @@ import logging
 import subprocess
 import os
 import shlex
+import re
 import secrets
 import string
 import base64
@@ -378,6 +379,97 @@ def cpu_volume_name(project_id: str) -> str:
     return f"cbcpu_{project_id[:8]}_data"
 
 
+def cpu_tunnel_name(project_id: str) -> str:
+    return f"cbtun_{project_id[:8]}"
+
+
+DEFAULT_TUNNEL_IMAGE = "cloudflare/cloudflared:latest"
+TUNNEL_URL_RE = re.compile(r"https://[a-z0-9][a-z0-9-]*\.trycloudflare\.com")
+# cloudflared mentions this API host in its own error output; it is never a tunnel.
+TUNNEL_API_URL = "https://api.trycloudflare.com"
+
+
+def read_cpu_tunnel_url(project_id: str) -> str | None:
+    """The quick-tunnel URL is only announced in the container log; the latest one wins."""
+    proc = subprocess.run(["docker", "logs", cpu_tunnel_name(project_id)], capture_output=True, text=True)
+    if proc.returncode != 0:
+        return None
+    urls = [u for u in TUNNEL_URL_RE.findall(proc.stdout + proc.stderr) if u != TUNNEL_API_URL]
+    return urls[-1] if urls else None
+
+
+def remove_cpu_tunnel(project_id: str):
+    proc = subprocess.run(["docker", "rm", "-f", cpu_tunnel_name(project_id)], capture_output=True, text=True)
+    if proc.returncode != 0 and "No such container" not in proc.stderr:
+        raise RuntimeError(f"docker rm (tunnel) failed: {proc.stderr.strip()}")
+
+
+def ensure_cpu_tunnel(cfg: dict, project: dict, wait_seconds: int = 0) -> str | None:
+    """Keep a Cloudflare quick tunnel pointed at the project's loopback port.
+
+    Returns the tunnel URL, or None when it has not been announced yet.
+    """
+    project_id = project["id"]
+    port = project["host_port"]
+    name = cpu_tunnel_name(project_id)
+    state = subprocess.run(
+        ["docker", "inspect", "--format", '{{.State.Running}}|{{index .Config.Labels "cbgpu.port"}}', name],
+        capture_output=True, text=True,
+    )
+    # A tunnel for another port (after a redeploy) must be replaced; one that
+    # already targets this port keeps its URL.
+    if state.returncode != 0 or state.stdout.strip() != f"true|{port}":
+        remove_cpu_tunnel(project_id)
+        image = cfg["docker"].get("tunnel_image", DEFAULT_TUNNEL_IMAGE)
+        started = subprocess.run(
+            ["docker", "run", "-d", "--name", name, "--network", "host",
+             "--restart", "unless-stopped", "--label", f"cbgpu.port={port}",
+             image, "tunnel", "--no-autoupdate", "--url", f"http://127.0.0.1:{port}"],
+            capture_output=True, text=True,
+        )
+        if started.returncode != 0:
+            raise RuntimeError(f"Cannot start tunnel: {started.stderr.strip()}")
+    deadline = time.monotonic() + wait_seconds
+    while True:
+        url = read_cpu_tunnel_url(project_id)
+        if url or time.monotonic() >= deadline:
+            return url
+        time.sleep(1)
+
+
+def update_cpu_public_url(cfg: dict, project_id: str, url: str | None):
+    api = cfg["supabase_url"].rstrip("/") + f"/rest/v1/cpu_projects?id=eq.{project_id}"
+    headers = {**cpu_headers(), "Content-Type": "application/json", "Prefer": "return=representation"}
+    resp = requests.patch(api, headers=headers, json={"public_url": url}, timeout=10)
+    resp.raise_for_status()
+    if len(resp.json()) != 1:
+        raise RuntimeError(f"CPU project {project_id} public URL was not updated")
+
+
+def sync_cpu_tunnel(project: dict, cfg: dict, wait_seconds: int = 0):
+    """Make the tunnel and the stored public_url match the project's access scope.
+
+    Failures are logged, not raised: the project itself is already deployed and
+    the next poll retries.
+    """
+    project_id = project["id"]
+    current = project.get("public_url")
+    try:
+        if project.get("access_scope") == "public":
+            url = ensure_cpu_tunnel(cfg, project, wait_seconds)
+            if url is None and wait_seconds:
+                log.warning("CPU project '%s' tunnel has not announced a public URL yet", project.get("name"))
+            if url != current:
+                update_cpu_public_url(cfg, project_id, url)
+                log.info("CPU project '%s' public URL: %s", project.get("name"), url or "not ready")
+        else:
+            remove_cpu_tunnel(project_id)
+            if current:
+                update_cpu_public_url(cfg, project_id, None)
+    except Exception as exc:
+        log.warning("CPU project '%s' tunnel sync failed: %s", project.get("name"), exc)
+
+
 def cpu_collision_prefixes(projects: list[dict]) -> set[str]:
     """A deleted project must never resolve to another project's container."""
     owners: dict[str, set[str]] = {}
@@ -436,6 +528,12 @@ def apply_firewall(port: int, scope: str, action: str = "allow"):
     status = subprocess.run(["ufw", "status"], capture_output=True, text=True)
     if status.returncode != 0 or not status.stdout.startswith("Status: active"):
         raise RuntimeError("UFW must be active before school/public CPU ports can be exposed")
+    # New public projects use a loopback tunnel and have no UFW rule. Older
+    # projects may still have a direct-public rule that must be removed.
+    if scope == "public" and action == "delete" and not re.search(
+        rf"^{port}(?:/tcp)?\s+ALLOW\b", status.stdout, re.MULTILINE
+    ):
+        return
     try:
         if action == "allow":
             if scope == "school":
@@ -491,11 +589,14 @@ def start_cpu_container(project: dict, cfg: dict):
     ctr_port   = project["container_port"]
     scope = project.get("access_scope", "private")
     if scope == "private":
-        bind_address = private_bind_address()
+        bind_addresses = [private_bind_address()]
     elif scope == "school":
-        bind_address = school_bind_address(cfg)
+        bind_addresses = [school_bind_address(cfg)]
     elif scope == "public":
-        bind_address = "0.0.0.0"
+        # Same as the GPU ports: loopback for the Cloudflare tunnel that serves
+        # the internet, plus the school and VPN NICs. Never every interface,
+        # because Docker's published ports bypass UFW.
+        bind_addresses = list(dict.fromkeys(("127.0.0.1", school_bind_address(cfg), private_bind_address())))
     else:
         raise ValueError(f"Unknown access scope: {scope}")
 
@@ -511,9 +612,10 @@ def start_cpu_container(project: dict, cfg: dict):
         "--name", candidate,
         "--cpus", str(project["cpu_limit"]),
         "-m", str(project["memory_limit"]),
-        "-p", f"{bind_address}:{host_port}:{ctr_port}",
         "--restart", "unless-stopped",
     ]
+    for address in bind_addresses:
+        cmd += ["-p", f"{address}:{host_port}:{ctr_port}"]
 
     # Environment variables
     for k, v in (project.get("env_vars") or {}).items():
@@ -653,13 +755,20 @@ def stop_cpu_container(project: dict):
 
 
 def deploy_cpu_project(project: dict, cfg: dict):
-    apply_firewall(project["host_port"], project.get("access_scope", "private"), "allow")
+    scope = project.get("access_scope", "private")
+    # Public ports are loopback-bound and reached through the tunnel, so they
+    # need no UFW opening.
+    if scope != "public":
+        apply_firewall(project["host_port"], scope, "allow")
     start_cpu_container(project, cfg)
+    sync_cpu_tunnel(project, cfg, wait_seconds=30)
     update_cpu_deployed_at(cfg, project["id"])
 
 
 def remove_cpu_project(project: dict):
     stop_cpu_container(project)
+    remove_cpu_tunnel(project["id"])
+    # Also clears rules that earlier public deployments opened.
     apply_firewall(project["host_port"], project.get("access_scope", "private"), "delete")
 
 
@@ -673,6 +782,9 @@ def main():
         sys.exit(1)
 
     log.info("CBGPU Daemon started | poll_interval=%ds", cfg["poll_interval_seconds"])
+    # A controlled code rollout can preserve an idle GPU container for this
+    # restart. The root-owned marker exists only while the rollout is checked.
+    preserve_idle_on_start = os.path.isfile("/run/cbgpu-daemon-preserve-idle-once")
 
     # In-memory state for change detection
     applied_session_pass: dict[int, str] = {}   # gpu_id -> last password applied in the current reservation session
@@ -733,13 +845,16 @@ def main():
             seeded_running_passwords = True
 
         if not initialized_idle_containers:
-            for gpu_id in cfg["gpus"]:
-                if gpu_id not in current_sessions:
-                    try:
-                        reset_container(cfg, gpu_id)
-                    except Exception as reset_error:
-                        log.error("GPU #%d: failed to initialize idle container: %s", gpu_id, reset_error)
-                        continue
+            if preserve_idle_on_start:
+                log.info("Controlled rollout: preserving idle GPU containers at startup")
+            else:
+                for gpu_id in cfg["gpus"]:
+                    if gpu_id not in current_sessions:
+                        try:
+                            reset_container(cfg, gpu_id)
+                        except Exception as reset_error:
+                            log.error("GPU #%d: failed to initialize idle container: %s", gpu_id, reset_error)
+                            continue
             initialized_idle_containers = True
 
         for gpu_id, (old_ids, _) in list(active_sessions.items()):
@@ -879,6 +994,10 @@ def main():
             ):
                 log.info("CPU project '%s' starting %s", proj.get("name"), "redeploy" if deployed else "initial deploy")
                 cpu_jobs[proj_id] = (cpu_executor.submit(deploy_cpu_project, proj, cfg), proj)
+            elif not needs_deploy and len(cpu_jobs) < 2 and (proj.get("access_scope") == "public" or proj.get("public_url")):
+                # Quick-tunnel URLs change whenever the tunnel restarts (e.g. after a reboot).
+                # Docker may need to pull cloudflared, so never block GPU polling here.
+                cpu_jobs[proj_id] = (cpu_executor.submit(sync_cpu_tunnel, proj, cfg), proj)
 
 
 if __name__ == "__main__":

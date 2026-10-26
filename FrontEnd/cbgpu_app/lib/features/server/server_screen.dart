@@ -1334,7 +1334,12 @@ class _ServerDetailScreenState extends State<ServerDetailScreen> {
     final canManage = isOwner || _isAdmin;
     final status = project['status'] as String? ?? '';
     final isRunning = status == 'approved' && project['deployed_at'] != null;
-    final serverUrl = 'http://[서버IP]:${project['host_port']}';
+    final scope = project['access_scope'] as String?;
+    final serverUrl = switch (scope) {
+      'public' => project['public_url'] as String?,
+      'school' => 'http://10.138.23.12:${project['host_port']}',
+      _ => 'http://100.100.136.37:${project['host_port']}',
+    };
     final isDocker = project['deploy_type'] == 'docker';
     final envEntries = (project['env_vars'] as Map<String, dynamic>? ?? {})
         .entries
@@ -1470,7 +1475,7 @@ class _ServerDetailScreenState extends State<ServerDetailScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          serverUrl,
+                          serverUrl ?? '공개 주소 발급 중… 잠시 후 새로고침해 주세요',
                           style: TextStyle(
                             fontFamily: 'monospace',
                             fontWeight: FontWeight.w900,
@@ -1484,7 +1489,9 @@ class _ServerDetailScreenState extends State<ServerDetailScreen> {
                           size: 16,
                           color: Colors.green.shade700,
                         ),
-                        onPressed: () => launchUrl(Uri.parse(serverUrl)),
+                        onPressed: serverUrl == null
+                            ? null
+                            : () => launchUrl(Uri.parse(serverUrl)),
                       ),
                     ],
                   ),
