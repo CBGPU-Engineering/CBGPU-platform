@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "destination": "https://cbgpu.com",
+      "statusCode": 308
+    }
+  ]
+}
