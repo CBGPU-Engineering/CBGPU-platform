@@ -146,7 +146,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         keyboardType: TextInputType.emailAddress,
         autofocus: true,
         style: const TextStyle(fontWeight: FontWeight.bold),
-        decoration: const InputDecoration(hintText: 'your@email.com'),
+        decoration: const InputDecoration(hintText: '이메일 주소를 입력하세요'),
         onSubmitted: (_) => _submit(),
       ),
       if (_error != null) ...[

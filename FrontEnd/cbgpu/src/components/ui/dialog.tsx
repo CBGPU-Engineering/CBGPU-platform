@@ -22,7 +22,7 @@ function DialogTrigger({
 function DialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+  return <DialogPrimitive.Portal data-slot="dialog-portal" container={typeof document!=="undefined"&&['admin.cbgpu.com','manufacturing.cbgpu.com','print.cbgpu.com','laser.cbgpu.com'].includes(window.location.hostname)?document.querySelector<HTMLElement>(".admin-developer-shell")??undefined:undefined} {...props} />
 }
 
 function DialogClose({
@@ -76,7 +76,7 @@ function DialogContent({
             >
               <XIcon
               />
-              <span className="sr-only">닫기</span>
+              <span className="sr-only">{typeof window!=="undefined" && ['admin.cbgpu.com','manufacturing.cbgpu.com','print.cbgpu.com','laser.cbgpu.com'].includes(window.location.hostname) ? "Close" : "닫기"}</span>
             </Button>
           </DialogPrimitive.Close>
         )}
@@ -115,7 +115,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">닫기</Button>
+          <Button variant="outline">{typeof window!=="undefined" && ['admin.cbgpu.com','manufacturing.cbgpu.com','print.cbgpu.com','laser.cbgpu.com'].includes(window.location.hostname) ? "Close" : "닫기"}</Button>
         </DialogPrimitive.Close>
       )}
     </div>

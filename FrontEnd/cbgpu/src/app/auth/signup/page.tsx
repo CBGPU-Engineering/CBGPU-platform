@@ -82,11 +82,11 @@ export default function Signup() {
       <form onSubmit={handleSignup} className="space-y-4">
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">이름 (Name)</label>
-          <Input 
-            placeholder="Name" 
+          <Input
+            placeholder="Name"
             className="bg-background border-input text-foreground font-bold"
-            onChange={(e: any) => setFullName(e.target.value)} 
-            required 
+            onChange={(e: any) => setFullName(e.target.value)}
+            required
           />
         </div>
         <div className="space-y-1">
@@ -105,25 +105,25 @@ export default function Signup() {
         </div>
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Email</label>
-          <Input 
-            type="email" 
-            placeholder="your@email.com" 
+          <Input
+            type="email"
+            placeholder="이메일 주소를 입력하세요"
             className="bg-background border-input text-foreground font-bold"
-            onChange={(e: any) => setEmail(e.target.value)} 
-            required 
+            onChange={(e: any) => setEmail(e.target.value)}
+            required
           />
         </div>
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Password</label>
-          <Input 
-            type="password" 
-            placeholder="••••••••" 
+          <Input
+            type="password"
+            placeholder="••••••••"
             className="bg-background border-input text-foreground font-bold"
-            onChange={(e: any) => setPassword(e.target.value)} 
-            required 
+            onChange={(e: any) => setPassword(e.target.value)}
+            required
           />
         </div>
-        <Button 
+        <Button
           disabled={isSubmitting}
           className="w-full bg-primary py-6 text-lg font-black uppercase tracking-widest transition-all active:scale-95 mt-2"
         >

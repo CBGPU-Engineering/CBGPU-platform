@@ -167,7 +167,7 @@ export default function WakeupSongPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 pb-10">
+    <div className="cb-page-content max-w-2xl mx-auto space-y-8 pb-10">
       <div className="space-y-3">
         <div className="space-y-1">
           <h1 className="text-3xl font-black italic tracking-tighter">기상송 신청</h1>

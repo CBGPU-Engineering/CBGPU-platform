@@ -1,0 +1,20 @@
+/* Keep application components on the canonical developer portal palette. */
+.admin-developer-shell{--background:var(--dev-background);--foreground:var(--dev-ink);--card:var(--dev-surface);--card-foreground:var(--dev-ink);--border:var(--dev-border);--input:var(--dev-border);--primary:var(--dev-blue);--primary-foreground:#fff;--muted-foreground:var(--dev-muted);--ring:var(--dev-blue);min-height:100svh;background:var(--dev-background);color:var(--dev-ink)}
+.admin-developer-shell .navigation a{text-decoration:none}
+.admin-developer-shell .admin-page-heading{margin-bottom:36px}
+.admin-developer-shell .admin-page-heading p{margin-top:12px;color:var(--dev-muted);font-size:13px;line-height:1.7}
+.admin-developer-shell [data-slot="button"]{min-height:40px;border-radius:8px;font-size:13px;line-height:1.4;padding:9px 15px;font-weight:600;box-shadow:none;letter-spacing:0;text-transform:none;transform:none}
+.admin-developer-shell main :is(input,select,textarea){font-size:12px!important;border-radius:8px;min-height:36px;color:var(--dev-ink)}
+.admin-developer-shell :is([class~="bg-card"],[data-slot="card"]):not(button):not(a){background:var(--dev-surface);border:1px solid var(--dev-border);border-radius:0;box-shadow:none}
+.admin-developer-shell table{font-size:12px;border-collapse:collapse}
+.admin-developer-shell th{font-size:11px;text-transform:none;letter-spacing:0;font-weight:600}
+.admin-developer-shell td{font-size:12px}
+.admin-developer-shell :is(.font-black,.font-extrabold,.font-bold){font-weight:600}
+.admin-developer-shell .italic{font-style:normal}
+.admin-developer-shell :is(h2,h3){font-weight:600;font-size:15px}
+.admin-developer-shell [data-slot="table-container"]{border-radius:0}
+@media(max-width:720px){.admin-developer-shell .environment-badge{display:none}.admin-developer-shell [data-slot="button"]{min-height:40px}.admin-developer-shell .breadcrumbs{min-width:0}.admin-developer-shell .breadcrumbs strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px}}
+
+.admin-developer-shell [data-slot="button"][data-size="sm"]{min-height:34px;font-size:12px;padding:7px 11px}
+.admin-developer-shell [data-slot="dialog-content"]{background:var(--dev-surface);color:var(--dev-ink);border-color:var(--dev-border);border-radius:14px}
+.admin-developer-shell .admin-list-options{display:flex;align-items:end;gap:14px;flex-wrap:wrap;border-top:1px solid var(--dev-border);padding-top:14px}.admin-developer-shell .admin-list-options label{display:grid;gap:6px;font-size:11px;color:var(--dev-muted)}.admin-developer-shell .admin-list-options select{border:1px solid var(--dev-border);padding:6px 10px;background:var(--dev-surface)}.admin-developer-shell .admin-pagination{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px;flex-wrap:wrap}.admin-developer-shell .admin-pagination>div{display:flex;gap:8px}.admin-developer-shell .admin-management[data-density=compact] :is(td,th){padding-top:8px!important;padding-bottom:8px!important}.admin-developer-shell main [data-slot=table-container]{max-height:65vh;overflow:auto;scrollbar-width:thin}.admin-developer-shell main thead{position:sticky;top:0;z-index:2;background:var(--dev-surface)}.admin-developer-shell main tbody tr:focus-within{outline:2px solid var(--dev-blue);outline-offset:-2px}.admin-developer-shell main tbody tr:nth-child(even){background:color-mix(in srgb,var(--dev-background) 45%,var(--dev-surface))}.admin-developer-shell main details>summary{padding:8px 0}.admin-developer-shell .admin-list-toolbar{border-radius:8px}

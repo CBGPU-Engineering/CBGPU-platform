@@ -20,7 +20,7 @@ Future<void> main() async {
 }
 
 /// The app is a thin native shell around the deployed web app: real UI lives
-/// at cbgpu.vercel.app inside a WebView, and this shell's only job is the
+/// at cbgpu.com inside a WebView, and this shell's only job is the
 /// alarm "connector" the web page can't do on its own — see
 /// core/webview_shell.dart for the JS bridge and core/alarm_service.dart for
 /// the local notification scheduling it drives.

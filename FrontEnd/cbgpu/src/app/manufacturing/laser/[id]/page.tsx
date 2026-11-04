@@ -40,7 +40,7 @@ export default function LaserJobDetailPage() {
 
   const fetchJob = async () => {
     const { data, error } = await supabase.from('laser_jobs').select('*, manager:manager_id(full_name, student_id)').eq('id', id).single();
-    if (error) { showError('신청 내역을 찾을 수 없습니다.'); router.push('/manufacturing'); return; }
+    if (error) { showError('신청 내역을 찾을 수 없습니다.'); router.push('/manufacturing/laser'); return; }
     setJob(data);
     setLoading(false);
     if (data.file_path) {
@@ -90,7 +90,7 @@ export default function LaserJobDetailPage() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-2xl">
       <div>
         <button
-          onClick={() => router.push('/manufacturing')}
+          onClick={() => router.push('/manufacturing/laser')}
           className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft className="size-3" /> Back

@@ -115,15 +115,15 @@ export default function StudyContributorPage() {
     else { showSuccess('기기 연결을 해제했습니다.'); await loadDevices(); }
   };
 
-  if (isLoading) return <main className="mx-auto max-w-xl px-4 py-12 text-center text-sm text-muted-foreground">불러오는 중...</main>;
-  if (!user) return <main className="mx-auto max-w-xl px-4 py-12 text-center"><p>먼저 CBGPU에 로그인해주세요.</p></main>;
+  if (isLoading) return <section className="cb-page-content mx-auto max-w-xl px-4 py-12 text-center text-sm text-muted-foreground">불러오는 중...</section>;
+  if (!user) return <section className="cb-page-content mx-auto max-w-xl px-4 py-12 text-center"><p>먼저 CBGPU에 로그인해주세요.</p></section>;
 
   const syncedDevices = devices.filter((device) => device.last_used_at);
   const latestSync = syncedDevices.map((device) => device.last_used_at!).sort().at(-1);
   const guideVisible = showGuide || (!devicesLoading && syncedDevices.length === 0);
 
   return (
-    <main className="mx-auto max-w-xl space-y-6 px-4 py-10">
+    <section className="cb-page-content mx-auto max-w-xl space-y-6 px-4 py-10">
       <div className="space-y-2">
         <div className="flex items-center gap-2"><Puzzle className="size-6 text-primary" /><h1 className="text-3xl font-black tracking-tight">자습 조회 기여자</h1></div>
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm font-bold text-amber-800 dark:text-amber-300">
@@ -210,6 +210,6 @@ export default function StudyContributorPage() {
         </details>
       )}
       <Link href="/study" className="block text-center text-sm underline text-muted-foreground">자습신청 조회로 돌아가기</Link>
-    </main>
+    </section>
   );
 }

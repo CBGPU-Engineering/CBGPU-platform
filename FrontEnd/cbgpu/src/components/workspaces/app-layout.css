@@ -1,0 +1,15 @@
+/* App chrome owns insets and navigation. Feature pages only own their content. */
+.cb-app .cb-app-header{min-height:calc(56px + env(safe-area-inset-top,0px));height:auto;padding:calc(6px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 6px max(12px,env(safe-area-inset-left,0px));background:var(--background);backdrop-filter:none}
+.cb-app .cb-app-mode-trigger{min-height:44px;padding-block:4px}
+.cb-app .cb-workspace-content{max-width:1180px;width:100%;margin:0 auto;padding:14px max(16px,env(safe-area-inset-right,0px)) 32px max(16px,env(safe-area-inset-left,0px))}
+.cb-app .cb-page-content{max-width:none;min-height:0;margin:0;padding:0}
+.cb-app .cb-audience-design .cb-home-hero{padding:0;margin:0 0 18px;border:0}
+.cb-app .cb-audience-design .cb-home-hero .cb-overview-heading{display:flex;flex-direction:column;align-items:stretch;gap:12px;margin:0}
+.cb-app .cb-audience-design .cb-home-hero .cb-overview-heading h1{font-size:24px;font-weight:700;line-height:1.4;letter-spacing:-.035em;word-break:keep-all;text-wrap:pretty}
+.cb-app .cb-audience-design .cb-home-hero .cb-primary-action{min-height:44px;justify-content:space-between;font-size:14px;padding:10px 15px;width:100%;border-radius:12px}
+.cb-app .cb-audience-design .cb-section-heading{margin-bottom:10px}
+.cb-app .cb-audience-design .cb-section-heading h2{font-size:18px}
+.cb-app .cb-deploy-kicker{display:none}
+.cb-app .cb-deploy-header{padding-top:0;margin-top:0}
+.cb-app .cb-services-page header{padding-top:0}
+@media(min-width:761px){.cb-app .cb-workspace-content{padding-top:18px}}

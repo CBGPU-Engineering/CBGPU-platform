@@ -13,7 +13,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
- * 이 프록시는 관리자가 등록해둔 공유 토큰(admin 권한)으로 학교 API를 대신 호출한다.
+ * 이 프록시는 관리자가 등록해둔 조회용 공유 토큰으로 학교 API를 대신 호출한다.
  * 그래서 아무나 호출하면 안 되고, (1) 로그인+승인된 CBGPU 사용자만, (2) 실제 화면에서
  * 쓰는 조회성 엔드포인트만 통과시킨다 — 좌석 점유/해제 같은 쓰기 작업은 현재 어떤 화면에서도
  * 쓰지 않으므로 전부 막는다.

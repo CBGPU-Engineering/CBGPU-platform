@@ -1,0 +1,6 @@
+'use client';
+import {useEffect,useRef,useState} from 'react';
+import Link from 'next/link';
+import {supabase} from '@/lib/supabase';
+import {safeWorkspacePath} from '@/lib/workspaces';
+export default function Transfer(){const started=useRef(false),[error,setError]=useState('');useEffect(()=>{if(started.current)return;started.current=true;const params=new URLSearchParams(location.search),code=params.get('code'),next=safeWorkspacePath(params.get('next')||'/');history.replaceState(null,'','/auth/transfer');void(async()=>{try{const r=await fetch('/api/workspaces/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'consume',code})});if(!r.ok)throw Error('로그인 연결이 만료되었습니다. 이 작업 공간에서 다시 로그인해 주세요.');const session=await r.json();const {error}=await supabase.auth.setSession(session);if(error)throw error;location.replace(next)}catch{setError('로그인 연결이 만료되었습니다. 이 작업 공간에서 다시 로그인해 주세요.')}})()},[]);return <div className="max-w-md mx-auto py-20 text-center"><h1 className="text-2xl font-semibold">{error?'로그인을 이어갈 수 없습니다.':'작업 공간을 연결하고 있습니다.'}</h1><p role="status" className="mt-4 text-muted-foreground">{error||'같은 CBGPU 계정으로 안전하게 이동합니다.'}</p>{error&&<Link href="/auth/login" className="inline-block mt-6 underline">로그인하기</Link>}</div>}

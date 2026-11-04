@@ -1,0 +1,11 @@
+[Unit]
+Description=CBGPU LaTeX compiler
+After=network-online.target
+[Service]
+WorkingDirectory=@REPOSITORY@/backend/latex
+ExecStart=@REPOSITORY@/backend/latex/.venv/bin/python @REPOSITORY@/backend/latex/compiler.py
+Restart=on-failure
+RestartSec=5
+UMask=0077
+[Install]
+WantedBy=default.target

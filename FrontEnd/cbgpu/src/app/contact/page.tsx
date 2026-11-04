@@ -77,7 +77,7 @@ export default function ContactPage() {
               type="email"
               value={form.email}
               onChange={handleChange}
-              placeholder="you@example.com"
+              placeholder="이메일 주소를 입력하세요"
               className="h-10 font-bold text-sm"
             />
           </div>

@@ -40,9 +40,7 @@ export default function Dashboard() {
   const [selectedRes, setSelectedRes] = useState<any>(null);
   const [cancelTarget, setCancelTarget] = useState<{ id: string; status: string } | null>(null);
   const [endTarget, setEndTarget] = useState<string | null>(null);
-  const [currentHost, setCurrentHost] = useState<string>('100.89.196.43');
   const [endpoints, setEndpoints] = useState<GpuEndpoint[]>(FALLBACK_GPU_ENDPOINTS);
-  const [connectionMode, setConnectionMode] = useState<'internal' | 'public'>('public');
   const [gpuStatus, setGpuStatus] = useState<Record<number, 'online'|'offline'|'checking'>>({1:'checking',2:'checking',3:'checking',4:'checking'});
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
   const [statsData, setStatsData] = useState<{gpu_id: number; hours: number}[]>([]);
@@ -92,27 +90,13 @@ export default function Dashboard() {
   };
   const selectedDayReservations = selectedDay ? getReservationsForDay(selectedDay) : [];
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname;
-      const isIP = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostname);
-
-      if (isIP) {
-        setCurrentHost(hostname);
-        setConnectionMode('internal');
-      } else if (hostname.includes('trycloudflare.com')) {
-        setConnectionMode('public');
-      }
-    }
-  }, []);
-
   useEffect(() => { void fetchGpuEndpoints().then(setEndpoints); }, []);
 
   const gpus = endpoints.map(endpoint => ({
     id: endpoint.gpu_id,
     name: "RTX5000",
     username: `gpu${endpoint.gpu_id}`,
-    jupyterhubUrl: connectionMode === 'public' ? endpoint.public_url : `http://${endpoint.internal_host}:${endpoint.internal_port}`,
+    jupyterhubUrl: endpoint.public_url,
   }));
 
   useEffect(() => {
@@ -294,7 +278,7 @@ export default function Dashboard() {
   }, [user]);
 
   return (
-    <div className="space-y-12 md:space-y-20 transition-colors duration-500">
+    <div className="cb-page-content space-y-12 md:space-y-20 transition-colors duration-500">
       <section>
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
           <div className="flex flex-col gap-2">
@@ -482,18 +466,6 @@ export default function Dashboard() {
         </div>
       ) : (
       <div className="flex-1 min-w-0">
-        <div className="flex justify-end mb-6">
-          <SegmentedTabs
-            items={[
-              { value: 'internal', label: 'Internal (Local)' },
-              { value: 'public', label: 'Public (Global)' },
-            ]}
-            value={connectionMode}
-            onChange={(v) => setConnectionMode(v as 'internal' | 'public')}
-            className="bg-muted p-1 rounded-lg shadow-inner border border-border/50"
-          />
-        </div>
-
         <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
           <div className="flex flex-col">
             <h2 className="text-xl md:text-2xl font-black tracking-tight uppercase italic">My Reservations</h2>

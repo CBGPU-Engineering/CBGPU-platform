@@ -41,7 +41,7 @@ export default function PrintJobDetailPage() {
 
   const fetchJob = async () => {
     const { data, error } = await supabase.from('print_jobs').select('*, manager:manager_id(full_name, student_id), preferred_printer:preferred_printer_id(name)').eq('id', id).single();
-    if (error) { showError('신청 내역을 찾을 수 없습니다.'); router.push('/manufacturing'); return; }
+    if (error) { showError('신청 내역을 찾을 수 없습니다.'); router.push('/manufacturing/print'); return; }
     setJob(data);
     setLoading(false);
     if (data.file_path) {
@@ -91,7 +91,7 @@ export default function PrintJobDetailPage() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-2xl">
       <div>
         <button
-          onClick={() => router.push('/manufacturing')}
+          onClick={() => router.push('/manufacturing/print')}
           className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft className="size-3" /> Back

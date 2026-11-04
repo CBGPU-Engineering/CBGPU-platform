@@ -241,11 +241,11 @@ export async function getSelfStudyPolicy(): Promise<SelfStudyPolicy> {
   return res.data;
 }
 
-export function getRoomComposition(roomId: number): Promise<RoomComposition> {
+export function getRoomComposition(roomId: number | string): Promise<RoomComposition> {
   return apiFetch(`/rooms/${roomId}/composition`);
 }
 
-export function getSeatOccupations(roomId: number, dateStr: string): Promise<SeatOccupation[]> {
+export function getSeatOccupations(roomId: number | string, dateStr: string): Promise<SeatOccupation[]> {
   return apiFetch(`/rooms/${roomId}/seats/occupations?date=${dateStr}`);
 }
 

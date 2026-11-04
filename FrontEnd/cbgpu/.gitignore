@@ -42,3 +42,9 @@ next-env.d.ts
 
 # Supabase CLI local project metadata
 /supabase/.temp/
+
+# Isolated production builds
+/.next-*/
+
+# Publish the placeholder-only setup template.
+!.env.example

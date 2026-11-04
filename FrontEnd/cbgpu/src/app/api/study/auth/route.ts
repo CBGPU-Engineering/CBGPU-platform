@@ -25,13 +25,13 @@ export async function POST(request: NextRequest) {
     const password = String(body?.password ?? '').trim();
     const turnstileResponse = String(body?.turnstileResponse ?? '').trim();
 
-    const username = process.env.EDUSET_USERNAME?.trim() || id;
-    const secret = process.env.EDUSET_PASSWORD?.trim() || password;
+    const username = id;
+    const secret = password;
 
     if (!username || !secret) {
       return NextResponse.json(
         {
-          message: '서버에 EDUSET_USERNAME, EDUSET_PASSWORD 환경 변수를 설정해 주세요.',
+          message: '아이디와 비밀번호를 입력해 주세요.',
         },
         { status: 400 }
       );

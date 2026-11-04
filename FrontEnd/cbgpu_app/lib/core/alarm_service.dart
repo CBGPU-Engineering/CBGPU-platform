@@ -90,10 +90,42 @@ class AlarmService {
         >();
     await androidImpl?.createNotificationChannel(
       const AndroidNotificationChannel(
+        'cbgpu_requests',
+        'CBGPU requests',
+        description: 'New equipment requests and service updates',
+        importance: Importance.high,
+      ),
+    );
+    await androidImpl?.createNotificationChannel(
+      const AndroidNotificationChannel(
         _channelId,
         '알람',
         description: 'CBGPU 웹앱에서 설정한 알람',
         importance: Importance.high,
+      ),
+    );
+  }
+
+  /// Show a received push while Android is foregrounded; FCM handles background display.
+  Future<void> showPushNotification({
+    required String id,
+    required String title,
+    required String body,
+  }) async {
+    await init();
+    await _plugin.show(
+      _notificationId('push-$id'),
+      title,
+      body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'cbgpu_requests',
+          'CBGPU requests',
+          channelDescription: 'New equipment requests and service updates',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
       ),
     );
   }
@@ -176,7 +208,13 @@ class AlarmService {
     );
 
     await _save(
-      ScheduledAlarm(id: id, title: title, body: body, when: scheduled, repeat: repeat),
+      ScheduledAlarm(
+        id: id,
+        title: title,
+        body: body,
+        when: scheduled,
+        repeat: repeat,
+      ),
     );
   }
 
@@ -211,10 +249,7 @@ class AlarmService {
   Future<void> _save(ScheduledAlarm alarm) async {
     final prefs = await SharedPreferences.getInstance();
     final current = await listAlarms();
-    final next = [
-      ...current.where((a) => a.id != alarm.id),
-      alarm,
-    ];
+    final next = [...current.where((a) => a.id != alarm.id), alarm];
     await prefs.setString(
       _prefsKey,
       jsonEncode(next.map((a) => a.toJson()).toList()),

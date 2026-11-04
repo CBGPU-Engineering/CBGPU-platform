@@ -257,11 +257,11 @@ export default function MatchPage() {
   };
 
   if (dbMissing) return (
-    <main className="px-4 py-16 flex flex-col items-center gap-4 text-center max-w-lg mx-auto">
+    <section className="cb-page-content px-4 py-16 flex flex-col items-center gap-4 text-center max-w-lg mx-auto">
       <p className="text-4xl">⚠️</p>
       <p className="font-black text-xl uppercase tracking-tight">DB 설정 필요</p>
       <p className="text-sm text-muted-foreground"><code className="bg-muted px-1.5 py-0.5 rounded font-mono text-xs">supabase_notes_study_migration.sql</code>을 실행해 주세요.</p>
-    </main>
+    </section>
   );
 
   const myPostIds = posts.filter(p => p.user_id === user?.id).map(p => p.id);
@@ -271,7 +271,7 @@ export default function MatchPage() {
     .filter(p => !filter || p.subject === filter || p.title.includes(filter) || p.tags.some(t => t.includes(filter)));
 
   return (
-    <main className="px-4 py-8 space-y-6 max-w-2xl mx-auto">
+    <section className="cb-page-content px-4 py-8 space-y-6 max-w-2xl mx-auto">
       <ConfirmDialog
         open={!!confirmDeleteId}
         onConfirm={() => { del(confirmDeleteId!); setConfirmDeleteId(null); }}
@@ -318,6 +318,6 @@ export default function MatchPage() {
           ))}
         </div>
       )}
-    </main>
+    </section>
   );
 }

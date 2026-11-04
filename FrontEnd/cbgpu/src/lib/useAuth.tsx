@@ -72,6 +72,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    if (['admin.cbgpu.com','print.cbgpu.com','laser.cbgpu.com'].includes(window.location.hostname)) {
+      let cancelled = false;
+      let verified = false;
+      let expectedUser = '';
+      let csrf = '';
+      let leaving = false;
+      const abort = new AbortController();
+      const leave = async () => {
+        if (cancelled || leaving) return;
+        leaving = true;
+        try {
+          if (csrf) await fetch('/portal/api/logout', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: '{}' });
+        } finally { if (!cancelled) window.location.replace('/'); }
+      };
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (!verified || cancelled) return;
+        if (!session || session.user.id !== expectedUser) { void leave(); return; }
+        setUser(session.user);
+      });
+      void (async () => {
+        try {
+          const response = await fetch('/portal/session', { credentials: 'same-origin', cache: 'no-store', signal: abort.signal });
+          if (!response.ok) throw new Error('Admin session unavailable');
+          const gate = await response.json();
+          csrf = typeof gate.csrf_token === 'string' ? gate.csrf_token : '';
+          expectedUser = typeof gate.user_id === 'string' ? gate.user_id : '';
+          if (!expectedUser || !csrf) { await leave(); return; }
+          const { data: existing } = await supabase.auth.getSession();
+          if (cancelled) return;
+          let session = existing.session;
+          // Preserve locally refreshed tokens for the same verified account.
+          if (!session || session.user.id !== expectedUser) {
+            if (!gate.session?.access_token || !gate.session?.refresh_token) { await leave(); return; }
+            const restored = await supabase.auth.setSession({ access_token: gate.session.access_token, refresh_token: gate.session.refresh_token });
+            if (restored.error) throw restored.error;
+            session = restored.data.session;
+          }
+          if (!session || session.user.id !== expectedUser) { await leave(); return; }
+          if (cancelled) return;
+          setUser(session.user);
+          await Promise.all([fetchProfile(expectedUser), fetchManagedPrinters(expectedUser)]);
+          if (cancelled) return;
+          verified = true;
+          setIsLoading(false);
+        } catch { if (!cancelled) await leave(); }
+      })();
+      return () => { cancelled = true; abort.abort(); subscription.unsubscribe(); };
+    }
+
     // supabase-js fires onAuthStateChange immediately with whatever's in this
     // WebView's OWN localStorage (often nothing, right after an app restart —
     // that storage doesn't reliably survive one). Inside the native app we
@@ -176,14 +225,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
+  // Management controls belong exclusively to the separately authenticated admin host.
+  const managementWorkspace = typeof window !== 'undefined' && ['admin.cbgpu.com','manufacturing.cbgpu.com','print.cbgpu.com','laser.cbgpu.com'].includes(window.location.hostname);
   const value = {
     user,
     profile,
-    isAdmin: profile?.is_admin || false,
-    is3DPrintManager: managedPrinterIds.length > 0,
-    managedPrinterIds,
-    isLaserCutManager: profile?.is_laser_cut_manager || false,
-    isWakeupManager: profile?.is_wakeup_manager || false,
+    isAdmin: managementWorkspace && (profile?.is_admin || false),
+    is3DPrintManager: managementWorkspace && managedPrinterIds.length > 0,
+    managedPrinterIds: managementWorkspace ? managedPrinterIds : [],
+    isLaserCutManager: managementWorkspace && (profile?.is_laser_cut_manager || false),
+    isWakeupManager: managementWorkspace && (profile?.is_wakeup_manager || false),
     isApproved: profile?.is_approved !== false,
     isLoading,
     refreshProfile,

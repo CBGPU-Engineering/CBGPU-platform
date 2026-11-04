@@ -1,0 +1,29 @@
+/* CBGPU accents on the original Overleaf CE editor. Keep editor controls and shortcuts. */
+.ide-redesign-toolbar-home-link .toolbar-ol-logo{background:transparent url('/cbgpu/logo.png') center/contain no-repeat!important;mask:none!important;-webkit-mask:none!important;width:26px!important;height:26px!important}
+.ide-redesign-toolbar-home-link .toolbar-ol-logo:before,.ide-redesign-toolbar-home-link .toolbar-ol-logo:after{display:none!important}
+.ds-nav-page-switcher-logo img{content:url('/cbgpu/logo.png');width:42px;height:42px;object-fit:contain}
+.cbgpu-return{position:fixed;bottom:12px;left:12px;z-index:10000;background:#21232b;color:#fff;border:1px solid #555;border-radius:8px;padding:6px 12px;font:12px sans-serif;text-decoration:none}
+@media(max-width:600px){.cbgpu-return{bottom:7px;left:5px;padding:5px 7px;font-size:11px}}
+.cbgpu-mobile-editor-nav{display:none}
+@media(max-width:767px){
+ html[data-cbgpu-editor-view] .ide-redesign-main{height:calc(100dvh - 58px - env(safe-area-inset-bottom))!important;min-height:0!important}
+ html[data-cbgpu-editor-view] .ide-redesign-toolbar{min-height:44px!important;height:44px!important;overflow:visible}
+ html[data-cbgpu-editor-view] .ide-redesign-toolbar-project-dropdown,html[data-cbgpu-editor-view] .ide-redesign-toolbar-actions-wrapper{display:none!important}
+ html[data-cbgpu-editor-view] .ide-redesign-toolbar-menu{max-width:100%;min-width:0;flex:1}
+ html[data-cbgpu-editor-view] .ide-redesign-toolbar-menu-bar{min-width:0;overflow-x:auto}
+ html[data-cbgpu-editor-view] .ide-redesign-inner{position:relative;display:block!important}
+ html[data-cbgpu-editor-view] .ide-rail,html[data-cbgpu-editor-view] [data-panel-resize-handle-id]{display:none!important}
+ html[data-cbgpu-editor-view] [data-panel-id^="ide-redesign-sidebar-panel-"]{display:none!important;position:absolute!important;inset:0;width:100%!important;max-width:none!important;flex:none!important}
+ html[data-cbgpu-editor-view] [data-panel-id="ide-redesign-editor-and-pdf-panel"]{position:absolute!important;inset:0;width:100%!important;max-width:none!important;flex:none!important}
+ html[data-cbgpu-editor-view] [data-panel-id="ide-redesign-editor-panel"],html[data-cbgpu-editor-view] [data-panel-id="ide-redesign-pdf-panel"]{display:none!important;position:absolute!important;inset:0;width:100%!important;max-width:none!important;flex:none!important}
+ html[data-cbgpu-editor-view="code"] [data-panel-id="ide-redesign-editor-panel"]{display:block!important}
+ html[data-cbgpu-editor-view="pdf"] [data-panel-id="ide-redesign-pdf-panel"]{display:block!important}
+ html[data-cbgpu-editor-view="files"] [data-panel-id="ide-redesign-editor-and-pdf-panel"]{display:none!important}
+ html[data-cbgpu-editor-view="files"] [data-panel-id="ide-redesign-sidebar-panel-file-tree"]{display:block!important}
+ html[data-cbgpu-editor-view] .cm-content{font-size:15px!important;line-height:1.6!important}
+ html[data-cbgpu-editor-view] .cbgpu-return{display:none}
+ .cbgpu-mobile-editor-nav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:1500;min-height:58px;padding:5px 5px calc(5px + env(safe-area-inset-bottom));gap:4px;background:#1b2028;border-top:1px solid #3a4050}
+ .cbgpu-mobile-editor-nav button,.cbgpu-mobile-editor-nav a{display:flex;align-items:center;justify-content:center;flex:1;min-width:0;min-height:46px;border:0;border-radius:8px;padding:7px 4px;background:none;color:#bdc3d0;font:600 13px system-ui;text-decoration:none}
+ .cbgpu-mobile-editor-nav button[aria-pressed="true"]{background:#008d462b;color:#a2e6ba}
+ .cbgpu-mobile-editor-nav button[data-compile]{background:#007f3e;color:#fff}
+}

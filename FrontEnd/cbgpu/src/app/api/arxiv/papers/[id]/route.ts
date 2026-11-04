@@ -1,0 +1,3 @@
+import {NextResponse} from 'next/server';
+import {getPublicPaper,preprintsClient} from '@/lib/preprintsServer';
+export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){try{const {id}=await params,paper=await getPublicPaper(id);if(!paper)return NextResponse.json({message:'원고를 찾을 수 없습니다.'},{status:404});const {data,error}=await preprintsClient().from('preprint_versions').select('version,created_at,notes,pdf_size').eq('paper_id',id).order('version',{ascending:false});if(error)throw error;return NextResponse.json({paper,versions:data||[]},{headers:{'Cache-Control':'public, max-age=15'}})}catch{return NextResponse.json({message:'원고를 불러오지 못했습니다.'},{status:503})}}

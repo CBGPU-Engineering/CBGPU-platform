@@ -586,40 +586,40 @@ export default function PollsPage() {
   };
 
   if (dbMissing) return (
-    <main className="px-4 py-16 flex flex-col items-center gap-5 text-center max-w-lg mx-auto">
+    <section className="cb-page-content px-4 py-16 flex flex-col items-center gap-5 text-center max-w-lg mx-auto">
       <p className="text-4xl">⚠️</p>
       <h2 className="font-black text-xl uppercase tracking-tight">DB 설정 필요</h2>
       <p className="text-sm text-muted-foreground">
         <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-xs">supabase_polls_migration.sql</code>을
         Supabase SQL Editor에서 실행해 주세요.
       </p>
-    </main>
+    </section>
   );
 
   // ── sub-views ──
   if (view.type === 'builder') return (
-    <main className="px-4 py-8">
+    <section className="cb-page-content px-4 py-8">
       <PollBuilder poll={view.poll} onSaved={() => { loadPolls(); setView({ type: 'list' }); }} onBack={() => setView({ type: 'list' })} />
-    </main>
+    </section>
   );
   if (view.type === 'form') return (
-    <main className="px-4 py-8">
+    <section className="cb-page-content px-4 py-8">
       <PollForm poll={view.poll} questions={view.questions}
         onSubmitted={() => { loadPolls(); setView({ type: 'results', poll: view.poll, questions: view.questions }); }}
         onBack={() => setView({ type: 'list' })} />
-    </main>
+    </section>
   );
   if (view.type === 'results') return (
-    <main className="px-4 py-8">
+    <section className="cb-page-content px-4 py-8">
       <PollResults poll={view.poll} questions={view.questions} onBack={() => setView({ type: 'list' })} />
-    </main>
+    </section>
   );
 
   // ── list ──
   const shown = polls.filter(p => tab === 'active' ? (p.is_active && (!p.ends_at || new Date(p.ends_at) >= new Date())) : isClosed(p));
 
   return (
-    <main className="px-4 py-8 space-y-6 max-w-2xl mx-auto">
+    <section className="cb-page-content px-4 py-8 space-y-6 max-w-2xl mx-auto">
       <ConfirmDialog
         open={!!confirmDeleteId}
         title="투표를 삭제하시겠습니까?"
@@ -692,6 +692,6 @@ export default function PollsPage() {
           })}
         </div>
       )}
-    </main>
+    </section>
   );
 }

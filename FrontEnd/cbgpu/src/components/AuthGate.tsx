@@ -4,20 +4,20 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
 import { LoadingSpinner } from './ui/spinner';
 
-const PUBLIC_PATHS = ['/', '/contact', '/download', '/privacy'];
+const PUBLIC_PATHS = ['/', '/services', '/contact', '/download', '/privacy'];
 
 function isPublicPath(pathname: string) {
   // Every auth flow must be reachable before a normal signed-in session
   // exists. This includes forgot/reset password and any future callback page.
   // Sensitive actions still require the recovery session enforced by
   // Supabase; this only allows the page itself to render.
-  return PUBLIC_PATHS.includes(pathname) || pathname.startsWith('/auth/');
+  return PUBLIC_PATHS.includes(pathname) || pathname.startsWith('/auth/') || pathname === '/docs' || pathname.startsWith('/docs/') || pathname === '/arxiv' || pathname.startsWith('/arxiv/');
 }
 
-export default function AuthGate({ children }: { children: React.ReactNode }) {
+export default function AuthGate({ children, publicSite = false,workspaceSite=false }: { children: React.ReactNode; publicSite?: boolean;workspaceSite?:boolean }) {
   const { user, isLoading } = useAuth();
   const pathname = usePathname();
-  const isPublic = isPublicPath(pathname);
+  const isPublic = publicSite || (workspaceSite&&(pathname==='/'||pathname==='/workspace')) || isPublicPath(pathname);
   const blocked = !isLoading && !user && !isPublic;
 
   // 공개 경로(로그인/회원가입 포함)는 auth 체크를 기다릴 필요가 전혀 없다 — 바로 렌더
@@ -43,7 +43,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex flex-col gap-2">
           <Link
-            href={pathname.startsWith('/contests') ? `/auth/login?next=${encodeURIComponent(pathname)}` : '/auth/login'}
+            href={`/auth/login?next=${encodeURIComponent(pathname)}`}
             className="rounded-2xl bg-primary text-primary-foreground py-3.5 font-black text-sm uppercase tracking-widest active:scale-[0.98] transition-transform"
           >
             로그인

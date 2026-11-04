@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LoadingSpinner } from '@/components/ui/spinner';
 
 /** Renders a .3mf model in an interactive, orbit-controllable WebGL viewport. */
-export function Model3MFViewer({ src }: { src: string }) {
+export function Model3MFViewer({ src, english=false }: { src: string; english?:boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +72,7 @@ export function Model3MFViewer({ src }: { src: string }) {
       },
       undefined,
       () => {
-        if (!disposed) { setError('모델을 불러오지 못했습니다.'); setLoading(false); }
+        if (!disposed) { setError(english?'Could not load the model.':'모델을 불러오지 못했습니다.'); setLoading(false); }
       }
     );
 
@@ -102,7 +102,7 @@ export function Model3MFViewer({ src }: { src: string }) {
     <div className="relative w-full rounded-2xl overflow-hidden border-2 border-border/60 bg-muted/10" style={{ height: 420 }}>
       {loading && !error && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <LoadingSpinner size={40} label="모델 불러오는 중" />
+          <LoadingSpinner size={40} label={english?"Loading model":"모델 불러오는 중"} />
         </div>
       )}
       {error && (
@@ -112,7 +112,7 @@ export function Model3MFViewer({ src }: { src: string }) {
       )}
       <div ref={containerRef} className="w-full h-full" />
       {!loading && !error && (
-        <p className="absolute bottom-2 right-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">드래그: 회전 · 스크롤: 확대</p>
+        <p className="absolute bottom-2 right-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">{english?"Drag to rotate · Scroll to zoom":"드래그: 회전 · 스크롤: 확대"}</p>
       )}
     </div>
   );

@@ -4,8 +4,9 @@ const status = document.querySelector('#status');
 
 async function load() {
   const data = await chrome.storage.local.get(['deviceKey', 'serverUrl', 'lastSyncAt', 'lastError']);
+  if(data.serverUrl !== 'https://cbgpu.com'){await chrome.storage.local.set({serverUrl:'https://cbgpu.com',lastToken:'',lastError:''});data.lastError='';data.lastSyncAt='';}
   keyInput.value = data.deviceKey || '';
-  serverInput.value = data.serverUrl || 'https://cbgpu.vercel.app';
+  serverInput.value = 'https://cbgpu.com';
   if (data.lastError) {
     status.className = 'status error'; status.textContent = `최근 오류: ${data.lastError}`;
   } else if (data.lastSyncAt) {
@@ -17,7 +18,7 @@ async function load() {
 
 document.querySelector('#save').addEventListener('click', async () => {
   const deviceKey = keyInput.value.trim();
-  const serverUrl = serverInput.value.trim().replace(/\/$/, '');
+  const serverUrl = 'https://cbgpu.com';
   if (!deviceKey.startsWith('cbgpu_')) { status.className='status error'; status.textContent='올바른 연결 키를 입력해주세요.'; return; }
   await chrome.storage.local.set({ deviceKey, serverUrl, lastToken: '', lastError: '' });
   status.className='status ok'; status.textContent='저장됐습니다. edu-set 페이지를 새로고침하거나 로그인해주세요.';

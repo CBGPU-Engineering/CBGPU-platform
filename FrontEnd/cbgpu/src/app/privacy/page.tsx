@@ -1,8 +1,13 @@
-export const metadata = { title: '개인정보처리방침 — CBGPU' };
+export const metadata = {
+  title: '개인정보처리방침',
+  description: 'CBGPU 서비스의 개인정보 수집, 이용 및 보호에 관한 안내입니다.',
+  alternates: { canonical: '/privacy' },
+  openGraph: { title: '개인정보처리방침 | CBGPU', url: 'https://cbgpu.com/privacy' },
+};
 
 export default function PrivacyPage() {
   return (
-    <main className="max-w-2xl mx-auto px-6 py-16 space-y-10">
+    <section className="cb-page-content max-w-2xl mx-auto px-6 py-16 space-y-10">
       <div className="space-y-2">
         <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">CBGPU</p>
         <h1 className="text-3xl font-black tracking-tight">개인정보처리방침</h1>
@@ -56,18 +61,20 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <Section title="6. 문의처">
+      <Section title="6. 서비스 이용 통계">
+        <p>방문 수와 서비스 상태를 확인하기 위해 임의의 브라우저 식별자를 최대 30일 동안 쿠키에 저장합니다. 방문 통계에는 이메일 주소, IP 주소, 페이지 내용이 저장되지 않으며, 일별로 변환된 식별자와 방문 횟수만 최대 30일 보관합니다. 브라우저의 추적 거부 설정을 지원합니다.</p>
+      </Section>
+
+      <Section title="7. 문의처">
         <p className="text-muted-foreground">
-          <a className="underline underline-offset-4" href="mailto:ahn.hyunjun2009@gmail.com">ahn.hyunjun2009@gmail.com</a>
-          {' · '}
-          <a className="underline underline-offset-4" href="mailto:lmw.hpc@gmail.com">lmw.hpc@gmail.com</a>
+          <a className="underline underline-offset-4" href="mailto:just_grassy@cbgpu.com">just_grassy@cbgpu.com</a>
         </p>
       </Section>
 
       <p className="text-xs text-muted-foreground pt-4 border-t">
         이 방침은 서비스 변경에 따라 갱신될 수 있으며, 변경 시 이 페이지에 최신 내용이 반영됩니다.
       </p>
-    </main>
+    </section>
   );
 }
 

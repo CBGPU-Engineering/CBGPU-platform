@@ -127,7 +127,7 @@ export default function NewLaserJobPage() {
       router.push(`/manufacturing/laser/${data[0].id}`);
     } else {
       showSuccess(`파일 ${rows.length}개가 각각 신청됐습니다. 담당자 승인을 기다려주세요.`);
-      router.push('/manufacturing');
+      router.push('/manufacturing/laser');
     }
   };
 
