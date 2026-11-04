@@ -1,0 +1,68 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: FrontEnd/cbgpu/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: FrontEnd/cbgpu
+      - run: npm test
+        working-directory: FrontEnd/cbgpu
+      - run: npm run build:demo
+        working-directory: FrontEnd/cbgpu
+      - run: npx playwright install --with-deps chromium
+        working-directory: FrontEnd/cbgpu
+      - name: Local demo browser test
+        run: |
+          node scripts/demo.mjs --built > /tmp/demo.log 2>&1 &
+          demo_pid=$!
+          trap 'kill "$demo_pid" || true; cat /tmp/demo.log' EXIT
+          node scripts/demo-smoke.mjs
+      - name: Source publication checks
+        run: node scripts/check-publication.mjs
+      - name: Dependency inventory
+        run: npm sbom --sbom-format cyclonedx --omit=dev > /tmp/web-sbom.cdx.json
+        working-directory: FrontEnd/cbgpu
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: web-sbom
+          path: /tmp/web-sbom.cdx.json
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: 3.47.8
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: FrontEnd/cbgpu_app
+      - run: flutter test test/app_navigation_test.dart test/eduset_login_policy_test.dart
+        working-directory: FrontEnd/cbgpu_app
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s backend/latex -p test_zip_import.py

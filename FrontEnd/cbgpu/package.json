@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "prebuild": "node scripts/check-docs-coverage.cjs"
+    "prebuild": "node scripts/check-docs-coverage.cjs",
+    "test": "node --test tests/*.test.mjs && node ../../backend/scripts/verify-study-student.cjs && node --test ../../tests/*.test.mjs",
+    "demo": "node ../../scripts/demo.mjs",
+    "build:demo": "node scripts/check-docs-coverage.cjs && node ../../scripts/demo.mjs --build",
+    "start:demo": "node ../../scripts/demo.mjs --built"
   },
   "dependencies": {
     "@sparticuz/chromium": "^149.0.0",
@@ -43,8 +47,10 @@
     "@types/three": "^0.185.4",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "playwright": "1.64.1",
     "shadcn": "^4.22.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "ws": "8.22.0"
   }
 }

@@ -6,3 +6,8 @@ Daemon/venv/
 
 # Supabase CLI local link/session cache — machine-specific, not project config.
 **/supabase/.temp/
+
+# Local fork configuration and generated release artifacts.
+config/school.json
+/dist/
+/release-artifacts/

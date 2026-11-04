@@ -1,5 +1,7 @@
 # CBGPU
 
+[![CI](https://github.com/lmwmason/CBGPU/actions/workflows/ci.yml/badge.svg)](https://github.com/lmwmason/CBGPU/actions/workflows/ci.yml)
+
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Web-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -176,6 +178,36 @@ subdomains also need a certificate that covers their hostnames.
 - **External services:** Cloudflare for public routing, Resend for email,
   Firebase for push, and EduSet for official school applications.
 
+## Contributing
+
+Start with the [local demo](./docs/DEVELOPMENT.md), then read
+[CONTRIBUTING.md](./CONTRIBUTING.md). Bug and feature issue forms and a PR template
+are provided. Participation follows the [code of conduct](./CODE_OF_CONDUCT.md).
+Report vulnerabilities privately using [SECURITY.md](./SECURITY.md).
+
+[Releases](https://github.com/lmwmason/CBGPU/releases) include source packages and
+checksums. Android uses separate `android-vX.Y.Z` releases. See
+[CHANGELOG.md](./CHANGELOG.md), [release procedures](./docs/RELEASING.md),
+[third-party notices](./THIRD_PARTY_NOTICES.md) and the
+[dependency inventory](./docs/DEPENDENCIES.md).
+
+## Try the local demo
+
+No school account or production services are needed:
+
+```bash
+cd FrontEnd/cbgpu
+npm ci
+npm run demo
+```
+
+Open `http://localhost:3100`. Sign in with `student@example.invalid` or
+`researcher@example.invalid`, password `demo-only`. The existing web UI runs
+against synthetic in-memory auth, school applications and GPU data. Unsupported
+integrations return a demo response; no real school, email, equipment or deployment
+operation is forwarded. See [development setup](./docs/DEVELOPMENT.md) and the
+[school configuration guide](./docs/SELF_HOSTING.md).
+
 ## Getting started
 
 ### Web application
@@ -227,7 +259,7 @@ See [`FrontEnd/cbgpu/`](./FrontEnd/cbgpu/README.md) for additional feature notes
 The easiest way to install the app is the
 [download page](https://cbgpu.com/download). The EduSet login bridge was introduced
 in **v1.0.7 / build 8**; its
-[signed APK](https://app.cbgpu.com/downloads/cbgpu-1.0.7.apk) is available directly.
+[signed APK](https://github.com/lmwmason/CBGPU/releases/download/android-v1.0.7/cbgpu.apk) is available directly.
 
 To build from source, install Flutter and the Android SDK:
 
@@ -288,7 +320,7 @@ FrontEnd/
     src/components/              Service and workspace interfaces
     src/lib/                     Authentication, routing and service logic
     extension/                   EduSet connection extension
-    public/downloads/            Android APK and school connection helpers
+    public/downloads/            School helpers; APKs are operator-managed/ignored
   cbgpu_app/                     Flutter app and native bridge
     lib/core/                    Navigation, sessions, EduSet login and notifications
     test/                        App navigation and school-session tests

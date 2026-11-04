@@ -1,0 +1,5 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {schoolReplacements,applyReplacements} from '../scripts/configure-school.mjs';
+const config={schoolName:'Example School',domain:'gpu.example.org',edusetHost:'study.example.org',contactEmail:'team@example.org',installRoot:'/srv/platform'};
+test('fork configuration updates domains and paths without changing environment identifiers',()=>{const output=applyReplacements('https://app.cbgpu.com /home/cbgpu/CBGPU-live cbsh.edu-set.com 충북과학고등학교 CBGPU_TOKEN just_grassy@cbgpu.com',schoolReplacements(config));assert.equal(output,'https://app.gpu.example.org /srv/platform study.example.org Example School CBGPU_TOKEN team@example.org')});
+test('rejects executable configuration and path traversal',()=>{for(const patch of [{domain:'bad/host'},{schoolName:'School";evil()'},{installRoot:'/srv/../etc'},{contactEmail:'bad\nvalue'},{edusetHost:'https://school.test'}])assert.throws(()=>schoolReplacements({...config,...patch}))});

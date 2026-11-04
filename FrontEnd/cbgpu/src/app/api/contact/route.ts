@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { WindowRateLimiter, readJsonBody, RequestBodyError } from '@/lib/requestSecurity';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const RECIPIENTS = [SUPPORT_EMAIL];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+  if (!resend) return NextResponse.json({ error: 'Email delivery is not configured.' }, { status: 503 });
   const { error } = await resend.emails.send({
     from: emailSender(),
     to: RECIPIENTS,

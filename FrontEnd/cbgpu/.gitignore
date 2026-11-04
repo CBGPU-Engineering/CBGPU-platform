@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Publish the placeholder-only setup template.
 !.env.example
+
+# Binary releases are distributed through GitHub Releases.
+/public/downloads/*.apk

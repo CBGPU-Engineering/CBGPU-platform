@@ -57,3 +57,6 @@ supabase/.temp/
 *.jks
 *.keystore
 key.properties
+
+# Signed distributables belong in Releases, not the source tree.
+/store/*.apk

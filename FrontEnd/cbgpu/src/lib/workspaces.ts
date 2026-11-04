@@ -15,4 +15,4 @@ export const workspaceServicePaths:Record<WorkspaceId,string[]>={
  student:['/download','/study','/timetable','/meal','/wakeup','/materials','/contests','/match','/polls','/feed','/tools','/games','https://docs.cbgpu.com'],
  researcher:['/download','/dashboard','/dashboard/ssh-guide','/deploy','/server','/latex','/notes','/materials','/manufacturing','/manufacturing/print','/manufacturing/laser','/contests','/tools','https://docs.cbgpu.com','https://arxiv.cbgpu.com'],
 };
-export function appWorkspaceHome(mode:WorkspaceId){return 'https://app.cbgpu.com/?mode='+mode}
+export function appWorkspaceHome(mode:WorkspaceId){return (process.env.NEXT_PUBLIC_CBGPU_DEMO==='1'?'/?mode=':'https://app.cbgpu.com/?mode=')+mode}
