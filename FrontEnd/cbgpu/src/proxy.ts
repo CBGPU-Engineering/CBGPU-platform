@@ -9,7 +9,7 @@ const cataloguePaths = new Set(['/api/wakeup/search', '/api/wakeup/youtube-resol
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   if(process.env.CBGPU_DEMO==='1'){
-    if(!['localhost','127.0.0.1'].includes(request.nextUrl.hostname)||!['localhost','127.0.0.1'].includes(request.headers.get('host')?.split(':')[0]||''))return new NextResponse('Local demo only',{status:403});
+    if(!['localhost','127.0.0.1'].includes(request.headers.get('host')?.split(':')[0]||''))return new NextResponse('Local demo only',{status:403});
     if(path==='/api'||path.startsWith('/api/')||path.startsWith('/backend/'))return NextResponse.rewrite(new URL(request.nextUrl.pathname+request.nextUrl.search,'http://127.0.0.1:54329'));
     const h=new Headers(request.headers);h.set('x-cbgpu-public-host','app.cbgpu.com');h.set('x-cbgpu-app','1');h.set('x-cbgpu-mode',request.nextUrl.searchParams.get('mode')==='researcher'?'researcher':'student');
     const response=path==='/'?NextResponse.rewrite(new URL('/workspace'+request.nextUrl.search,request.url),{request:{headers:h}}):NextResponse.next({request:{headers:h}});

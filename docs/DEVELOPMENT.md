@@ -56,8 +56,9 @@ A [Docker Compose option](../compose.demo.yml) is also available:
 docker compose -f compose.demo.yml up --build
 ```
 
-This publishes only loopback port 3100. The demo runtime network is marked
-internal. Internet access is needed while installing/building dependencies.
+This publishes only loopback port 3100 through an nginx gateway. The application
+and fixture API use an internal network; only the gateway also joins the ingress
+network. Internet access is needed while installing/building dependencies.
 
 ## Work on a real integration
 

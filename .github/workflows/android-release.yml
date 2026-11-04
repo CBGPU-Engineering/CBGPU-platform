@@ -7,6 +7,7 @@ permissions:
   contents: read
 jobs:
   android:
+    environment: android-release
     if: startsWith(github.ref, 'refs/tags/android-v')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -14,6 +15,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
       - name: Check signing availability
         id: signing
         env:
@@ -21,8 +24,9 @@ jobs:
           STORE_PASS: ${{ secrets.ANDROID_STORE_PASSWORD }}
           KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          EXPECTED_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
         run: |
-          if [[ -n "$KEYSTORE" && -n "$STORE_PASS" && -n "$KEY_PASS" && -n "$KEY_ALIAS" ]]; then
+          if [[ -n "$KEYSTORE" && -n "$STORE_PASS" && -n "$KEY_PASS" && -n "$KEY_ALIAS" && -n "$EXPECTED_CERT_SHA256" ]]; then
             echo 'ready=true' >> "$GITHUB_OUTPUT"
           else
             echo 'ready=false' >> "$GITHUB_OUTPUT"
@@ -45,9 +49,11 @@ jobs:
           STORE_PASS: ${{ secrets.ANDROID_STORE_PASSWORD }}
           KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          EXPECTED_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
         run: |
           set -euo pipefail
           [[ "$GITHUB_REF_NAME" =~ ^android-v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git merge-base --is-ancestor HEAD origin/main
           cd FrontEnd/cbgpu_app
           test "$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)" = "${GITHUB_REF_NAME#android-v}"
           umask 077
@@ -56,6 +62,9 @@ jobs:
           flutter pub get
           flutter test test/app_navigation_test.dart test/eduset_login_policy_test.dart
           flutter build apk --release
+          signer_bin=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
+          test -n "$signer_bin"
+          "$signer_bin" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | grep -Fi "$EXPECTED_CERT_SHA256"
           mkdir -p ../../release-artifacts
           cp build/app/outputs/flutter-apk/app-release.apk ../../release-artifacts/cbgpu.apk
           cd ../..
@@ -66,7 +75,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release create "$GITHUB_REF_NAME" --verify-tag --title "CBGPU Android ${GITHUB_REF_NAME#android-v}" --notes 'Signed Android release. See CHANGELOG.md and README.md for verification scope.'
+            gh release create "$GITHUB_REF_NAME" --verify-tag --latest=false --title "CBGPU Android ${GITHUB_REF_NAME#android-v}" --notes 'Signed Android release. See CHANGELOG.md and README.md for verification scope.'
           fi
           gh release upload "$GITHUB_REF_NAME" release-artifacts/* --clobber
       - name: Clean signing material

@@ -18,17 +18,22 @@ git tag -a v0.1.0 -m 'CBGPU source baseline'
 git push origin v0.1.0
 ```
 
-For signed Android automation configure repository Actions secrets:
+For signed Android automation configure encrypted secrets in the `android-release`
+GitHub environment (restricted to `android-v*` tags):
 `ANDROID_KEYSTORE_BASE64`, `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
 `ANDROID_KEY_PASSWORD`. Never commit the keystore or passwords. The Android
 workflow skips publication if secrets are absent; it does not publish a
 fallback debug-signed build. Back up the signing key separately and retain it
-for compatibility with existing app installations.
+for compatibility with existing app installations. Set the environment variable
+`ANDROID_SIGNING_CERT_SHA256` to the expected public signing certificate fingerprint;
+the workflow verifies it before publishing. The CBGPU repository has these values
+configured. Forks must supply their own signing identity.
 
 An operator can instead build locally with the same signing key, check version
 and signing certificate, then upload the APK and generated checksums with `gh
-release create/upload`. The baseline Android 1.0.7 release uses the existing
-locally signed binary; no signing key is uploaded to GitHub during setup.
+release create/upload`. The workflow accepts only tags reachable from `main` and checks the version
+against pubspec.yaml. Signing material is injected privately, removed after the
+build and never included in source/release assets.
 
 Source archives intentionally omit Android binaries. Old Git history still
 contains previously committed APKs; no repository history purge is part of this
