@@ -14,7 +14,7 @@
     "start:demo": "node ../../scripts/demo.mjs --built"
   },
   "dependencies": {
-    "@sparticuz/chromium": "^149.0.0",
+    "@sparticuz/chromium": "^153.0.0",
     "@supabase/supabase-js": "^2.99.1",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
