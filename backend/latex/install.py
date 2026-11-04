@@ -13,7 +13,7 @@ def main():
   if not file.exists():file.write_text(value+'\n');file.chmod(0o600)
  env=PRIVATE/'overleaf.env'
  if not env.exists():
-  env.write_text('\n'.join(['OVERLEAF_APP_NAME=CBGPU LaTeX','OVERLEAF_NAV_TITLE=CBGPU LaTeX','OVERLEAF_SITE_URL=https://latex.cbgpu.com','OVERLEAF_MONGO_URL=mongodb://mongo:27017/sharelatex?replicaSet=cbgpu-latex','OVERLEAF_REDIS_HOST=redis','OVERLEAF_SESSION_SECRET='+secrets.token_hex(64),'OVERLEAF_INVITE_TOKEN_SECRET='+secrets.token_urlsafe(32),'OVERLEAF_ADMIN_EMAIL=just_grassy@cbgpu.com','OVERLEAF_ALLOW_ANONYMOUS_READ_AND_WRITE_SHARING=false','OVERLEAF_RESTRICT_INVITES_TO_EXISTING_ACCOUNTS=true','OVERLEAF_SECURE_COOKIE=true','COMPILE_TIMEOUT=300'])+'\n');env.chmod(0o600)
+  env.write_text('\n'.join(['OVERLEAF_APP_NAME=CBGPU LaTeX','OVERLEAF_NAV_TITLE=CBGPU LaTeX','OVERLEAF_SITE_URL=https://latex.cbgpu.com','OVERLEAF_MONGO_URL=mongodb://mongo:27017/sharelatex?replicaSet=cbgpu-latex','OVERLEAF_REDIS_HOST=redis','OVERLEAF_SESSION_SECRET='+secrets.token_hex(64),'OVERLEAF_INVITE_TOKEN_SECRET='+secrets.token_urlsafe(32),'OVERLEAF_ADMIN_EMAIL=info@cbgpu.com','OVERLEAF_ALLOW_ANONYMOUS_READ_AND_WRITE_SHARING=false','OVERLEAF_RESTRICT_INVITES_TO_EXISTING_ACCOUNTS=true','OVERLEAF_SECURE_COOKIE=true','COMPILE_TIMEOUT=300'])+'\n');env.chmod(0o600)
  unit=Path.home()/'.config/systemd/user';unit.mkdir(parents=True,exist_ok=True)
  for source in (HERE/'systemd').iterdir():(unit/source.name).write_text(source.read_text().replace('@REPOSITORY@',str(REPO)))
  compose('up','-d','mongo','redis')

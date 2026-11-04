@@ -8,7 +8,7 @@ export function schoolReplacements(config){
  if(!/^[\p{L}\p{N} ._-]{2,100}$/u.test(config.schoolName||''))throw Error('Invalid schoolName');
  if(!/^[A-Za-z0-9._+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(config.contactEmail||''))throw Error('Invalid contactEmail');
  if(!/^\/[A-Za-z0-9_/-]+$/.test(config.installRoot||'')||config.installRoot.split('/').includes('..'))throw Error('Invalid installRoot');
- return [['/home/cbgpu/CBGPU-live',config.installRoot],['cbgpu.com',config.domain],['cbsh.edu-set.com',config.edusetHost],['충북과학고등학교',config.schoolName],['Chungbuk Science High School',config.schoolName],['충북과학고',config.schoolName],['lmw.hpc@gmail.com',config.contactEmail],['just_grassy@cbgpu.com',config.contactEmail]];
+ return [['/home/cbgpu/CBGPU-live',config.installRoot],['cbgpu.com',config.domain],['cbsh.edu-set.com',config.edusetHost],['충북과학고등학교',config.schoolName],['Chungbuk Science High School',config.schoolName],['충북과학고',config.schoolName],['lmw.hpc@gmail.com',config.contactEmail],['info@cbgpu.com',config.contactEmail]];
 }
 export function applyReplacements(text,replacements){const pattern=new RegExp(replacements.map(([from])=>from.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|'),'g');const values=new Map(replacements);return text.replace(pattern,match=>values.get(match));}
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){

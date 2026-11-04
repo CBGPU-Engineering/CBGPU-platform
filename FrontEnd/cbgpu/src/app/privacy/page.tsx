@@ -67,7 +67,7 @@ export default function PrivacyPage() {
 
       <Section title="7. 문의처">
         <p className="text-muted-foreground">
-          <a className="underline underline-offset-4" href="mailto:just_grassy@cbgpu.com">just_grassy@cbgpu.com</a>
+          <a className="underline underline-offset-4" href="mailto:info@cbgpu.com">info@cbgpu.com</a>
         </p>
       </Section>
 
