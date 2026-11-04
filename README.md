@@ -6,6 +6,7 @@
 [![Flutter](https://img.shields.io/badge/Flutter-Android-02569B?logo=flutter&logoColor=white)](https://flutter.dev/)
 [![Supabase](https://img.shields.io/badge/Supabase-Self--hosted-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Docker](https://img.shields.io/badge/Docker-Deployment-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-D22128?logo=apache&logoColor=white)](./LICENSE)
 
 <img src="./FrontEnd/cbgpu/public/img/cbgpu-logo.png" width="160" alt="CBGPU logo">
 
@@ -359,10 +360,13 @@ private account details from screenshots.
 
 ## License
 
-A top-level license has not yet been declared for CBGPU. Public source access does
-not itself grant redistribution or commercial-use rights.
+CBGPU's original code is licensed under the [Apache License 2.0](./LICENSE),
+except where a component carries a separate license. See [NOTICE](./NOTICE)
+for attribution and component notices.
 
-Bundled components retain their own licenses. See the
-[Overleaf integration notes](./backend/latex/README.md), its
-[AGPL license](./backend/latex/LICENSE), and the terminal library license files in
+The LaTeX integration under `backend/latex/` retains its
+[GNU Affero General Public License 3.0](./backend/latex/LICENSE).
+Overleaf CE and other third-party components retain their respective licenses.
+See the [Overleaf integration notes](./backend/latex/README.md) and the terminal
+library license files in
 [`backend/developer/static/vendor/`](./backend/developer/static/vendor/).
