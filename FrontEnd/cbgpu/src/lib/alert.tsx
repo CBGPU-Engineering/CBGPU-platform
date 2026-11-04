@@ -27,15 +27,17 @@ interface AlertCtx {
 
 const Ctx = createContext<AlertCtx | null>(null);
 
-export function AlertProvider({ children }: { children: ReactNode }) {
+export function AlertProvider({ children, english = false }: { children: ReactNode; english?: boolean }) {
   const [s, setS] = useState<AlertState>({ open: false, title: '', message: '', type: 'info' });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
 
   const showAlert = useCallback((msg: string, type: AlertType = 'info', title?: string) => {
-    const titles = { success: '완료', error: '오류', info: '알림' };
+    const titles = english ? {success:'Done',error:'Error',info:'Notice'} : { success: '완료', error: '오류', info: '알림' };
+    if (english && type === 'error' && /[가-힣]/.test(msg)) msg = 'The operation could not be completed. Refresh the page and try again.';
+    if (english && title && /[가-힣]/.test(title)) title = titles[type];
     setS({ open: true, message: msg, type, title: title ?? titles[type] });
-  }, []);
+  }, [english]);
 
   const showError = useCallback((msg: string, title = '오류') => showAlert(msg, 'error', title), [showAlert]);
 
@@ -65,7 +67,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
               variant={s.type === 'error' ? 'destructive' : 'default'}
               className="font-black text-xs uppercase tracking-widest"
             >
-              확인
+              {english ? 'OK' : '확인'}
             </Button>
           </DialogFooter>
         </DialogContent>

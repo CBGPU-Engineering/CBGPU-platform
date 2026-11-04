@@ -338,11 +338,31 @@ def reset_container(cfg: dict, gpu_id: int):
 
 # Docker base image per Git-mode runtime
 RUNTIME_IMAGES: dict[str, str] = {
+    "node22":     "node:22-alpine",
     "node20":     "node:20-alpine",
     "node18":     "node:18-alpine",
+    "python312":  "python:3.12-slim",
+    "java21":     "maven:3.9-eclipse-temurin-21",
+    "java17":     "maven:3.9-eclipse-temurin-17",
+    "go1":        "golang:1-alpine",
+    "dotnet10":   "mcr.microsoft.com/dotnet/sdk:10.0",
     "python311":  "python:3.11-slim",
     "python39":   "python:3.9-slim",
 }
+
+
+def cpu_git_configuration(project: dict) -> tuple[str, str, str]:
+    """Resolve the actual runtime/root without changing legacy native table columns."""
+    values = project.get("env_vars") or {}
+    runtime = values.get("CBGPU_RUNTIME_PRESET") or project.get("runtime") or "node22"
+    if runtime not in RUNTIME_IMAGES:
+        raise ValueError("Unsupported server runtime")
+    root = str(values.get("CBGPU_ROOT_DIRECTORY") or ".").strip()
+    if len(root) > 200 or root.startswith("/") or "\\" in root or any(p == ".." for p in root.split("/")) or any(c in root for c in "\0\r\n"):
+        raise ValueError("Root Directory must stay inside the repository")
+    quoted = shlex.quote("/app/" + root)
+    setup = f"cd {quoted}; project_root=$(pwd -P); case \"$project_root\" in /app|/app/*) ;; *) echo 'Root Directory escapes repository'; exit 1 ;; esac; "
+    return runtime, root, setup
 
 
 def fetch_cpu_projects(cfg: dict) -> list[dict]:
@@ -353,7 +373,7 @@ def fetch_cpu_projects(cfg: dict) -> list[dict]:
     )
     resp = requests.get(url, headers=cpu_headers(), timeout=10)
     resp.raise_for_status()
-    return resp.json()
+    return [project for project in resp.json() if (project.get("env_vars") or {}).get("CBGPU_DEPLOY_ENGINE") != "compose"]
 
 
 def update_cpu_deployed_at(cfg: dict, project_id: str):
@@ -635,9 +655,10 @@ def start_cpu_container(project: dict, cfg: dict):
     elif deploy_type == "git":
         git_url    = project.get("git_url", "")
         git_branch = project.get("git_branch") or "main"
-        run_cmd    = project.get("run_command") or "npm start"
-        runtime    = project.get("runtime") or "node20"
-        base_image = RUNTIME_IMAGES.get(runtime, "node:20-alpine")
+        runtime, root_directory, root_setup = cpu_git_configuration(project)
+        defaults = {"java21": "mvn -B -DskipTests package && java -jar target/*.jar", "java17": "mvn -B -DskipTests package && java -jar target/*.jar", "go1": "go build -o /tmp/cbgpu-server . && exec /tmp/cbgpu-server", "dotnet10": "dotnet run --configuration Release --no-launch-profile --urls http://0.0.0.0:8080"}
+        run_cmd = project.get("run_command") or defaults.get(runtime, "python app.py" if runtime.startswith("python") else "npm start")
+        base_image = RUNTIME_IMAGES[runtime]
         volume = cpu_volume_name(project_id)
         if old_exists:
             mount = subprocess.run(
@@ -658,27 +679,21 @@ def start_cpu_container(project: dict, cfg: dict):
         quoted_branch = shlex.quote(git_branch)
         quoted_run = shlex.quote(run_cmd)
 
-        if "python" in runtime:
-            # python:slim image -> install git via apt-get
-            setup = (
-                "set -e; apt-get update -qq; apt-get install -y -qq git; "
-                f"if [ ! -d /app/.git ]; then git clone -- {quoted_url} /app; fi; "
-                f"git -C /app remote set-url origin {quoted_url}; "
-                f"git -C /app fetch origin {quoted_branch}; git -C /app checkout -B {quoted_branch} FETCH_HEAD; "
-                "cd /app; if [ -f requirements.txt ]; then pip install -r requirements.txt -q; "
-                "elif [ -f pyproject.toml ]; then pip install . -q; fi; "
-                f"touch /tmp/cbgpu-ready; exec sh -c {quoted_run}"
-            )
+        if runtime.startswith("python"):
+            dependency_setup = "if [ -f requirements.txt ]; then pip install -r requirements.txt -q; elif [ -f pyproject.toml ]; then pip install . -q; fi; "
+        elif runtime.startswith("node"):
+            dependency_setup = "if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi; "
         else:
-            # node:alpine image -> install git via apk
-            setup = (
-                "set -e; apk add --no-cache git; "
-                f"if [ ! -d /app/.git ]; then git clone -- {quoted_url} /app; fi; "
-                f"git -C /app remote set-url origin {quoted_url}; "
-                f"git -C /app fetch origin {quoted_branch}; git -C /app checkout -B {quoted_branch} FETCH_HEAD; "
-                "cd /app; if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi; "
-                f"touch /tmp/cbgpu-ready; exec sh -c {quoted_run}"
-            )
+            dependency_setup = ""
+        install_git = "apk add --no-cache git; " if runtime.startswith(("node", "go")) else "apt-get update -qq; apt-get install -y -qq git; "
+        setup = (
+            "set -e; " + install_git
+            + f"if [ ! -d /app/.git ]; then git clone -- {quoted_url} /app; fi; "
+            + f"git -C /app remote set-url origin {quoted_url}; "
+            + f"git -C /app fetch origin {quoted_branch}; git -C /app checkout -B {quoted_branch} FETCH_HEAD; "
+            + root_setup + dependency_setup
+            + f"touch /tmp/cbgpu-ready; exec sh -c {quoted_run}"
+        )
 
         cmd += ["-v", f"{volume}:/app", base_image, "sh", "-c", setup]
 

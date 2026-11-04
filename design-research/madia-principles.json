@@ -1,0 +1,150 @@
+{
+  "channel": "https://www.youtube.com/@UXUIDesign/shorts",
+  "purpose": "Apply observed UI/UX critique principles to CBGPU; this is an independent implementation, not the creator's design or endorsement.",
+  "coverage": {
+    "listed_shorts": 481,
+    "status": "source_and_sampled_visual_review_complete",
+    "method": "Public video, Korean captions where available, local CPU transcription and sampled frames across each video. Automated captions/transcripts may be inaccurate.",
+    "collected_videos": 481,
+    "visual_contact_sheets_reviewed": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61
+    ],
+    "visual_method": "Four sampled frames across each video inspected in contact sheets; the frame sequence samples the full timeline every eight seconds. This is not real-time playback of every frame.",
+    "with_caption_or_transcribed_speech": 452,
+    "without_reliable_speech": 29,
+    "duration_hours": 11.12
+  },
+  "principles": [
+    {
+      "rule": "Use clear visual hierarchy; distinguish the main action, supporting actions and information.",
+      "sources": [
+        "https://www.youtube.com/shorts/N2aZc4jpuKs",
+        "https://www.youtube.com/shorts/h4ipDOclFA8"
+      ],
+      "application": "Larger readable titles and body text; one audience-specific primary action; secondary controls remain quiet."
+    },
+    {
+      "rule": "Avoid stacking decorative glass, borders, cards and shadows around every element.",
+      "sources": [
+        "https://www.youtube.com/shorts/Vy5jPIzW3XA",
+        "https://www.youtube.com/shorts/h4ipDOclFA8"
+      ],
+      "application": "Flatten the greeting and account area; retain surfaces only for independently actionable services and work."
+    },
+    {
+      "rule": "Use spacing to explain grouping, rather than creating arbitrary empty regions.",
+      "sources": [
+        "https://www.youtube.com/shorts/k-wVKTuKKR4",
+        "https://www.youtube.com/shorts/dT-OarWW2Wo"
+      ],
+      "application": "Consistent section rhythm and smaller internal gaps; shared alignment across cards and headings."
+    },
+    {
+      "rule": "Motion should communicate the result of an action before it acts as decoration.",
+      "sources": [
+        "https://www.youtube.com/shorts/iRHkNBYNlJc"
+      ],
+      "application": "Visible and accessible favorite-save feedback, pressed/focus states, real loading/error states and reduced-motion support."
+    },
+    {
+      "rule": "Keep a repeatable module structure even when text and numbers get long.",
+      "sources": [
+        "https://www.youtube.com/shorts/N2aZc4jpuKs"
+      ],
+      "application": "Stable project title/domain/status ordering, wrapping instead of clipping, mobile touch targets."
+    },
+    {
+      "rule": "Balance strong and quiet sections instead of competing decorative treatments everywhere.",
+      "sources": [
+        "https://www.youtube.com/shorts/og2SNAe7H5o",
+        "https://www.youtube.com/shorts/ubMpccEp2Mo",
+        "https://www.youtube.com/shorts/m0Pvo4D6qmM"
+      ],
+      "application": "Confident introductory type with calm task lists and low-emphasis supporting links."
+    },
+    {
+      "rule": "Improve the user's task and preserve product policy; generic patterns do not justify invented capabilities.",
+      "sources": [
+        "https://www.youtube.com/shorts/FnCQ9yeA7n0",
+        "https://www.youtube.com/shorts/tYcELDbbQYs"
+      ],
+      "application": "Retain audience-only services, real authentication rules, original time/weather greetings, and honest deployment state."
+    },
+    {
+      "rule": "Show actual task status; do not mistake a decorative dashboard for a usable workflow.",
+      "sources": [
+        "https://www.youtube.com/shorts/6nOJ4cuveHo",
+        "https://www.youtube.com/shorts/NO0gFeKefFs"
+      ],
+      "application": "Developer home reads shared server projects and actual Compose deployment state; failed deployments are not labelled successful. Refresh while visible every thirty seconds."
+    },
+    {
+      "rule": "Let a strong heading establish a section instead of adding repeated explanatory boxes.",
+      "sources": [
+        "https://www.youtube.com/shorts/EP3bWayFm8E",
+        "https://www.youtube.com/shorts/e4UUgMU2wW0"
+      ],
+      "application": "Keep necessary actionable surfaces, remove empty personal-work blocks for guests and make the start guide a plain text section."
+    }
+  ]
+}

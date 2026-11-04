@@ -354,7 +354,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'DTSTART:${fmtDt(r.start)}',
             'DTEND:${fmtDt(r.end)}',
             'SUMMARY:GPU ${r.gpuId} 예약 — CBGPU',
-            'UID:cbgpu-${r.id}@cbgpu.vercel.app',
+            'UID:cbgpu-${r.id}@cbgpu.com',
             'END:VEVENT',
           ].join('\r\n'),
         )

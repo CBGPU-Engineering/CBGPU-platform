@@ -277,7 +277,7 @@ export default function Profile() {
   );
 
   return (
-    <div className="max-w-2xl mx-auto mt-10 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="cb-page-content max-w-2xl mx-auto mt-10 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="tilt-3d flex flex-col md:flex-row items-center gap-6 bg-card ring-1 ring-foreground/5 p-8 rounded-[2.5rem] shadow-lg">
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
         <button

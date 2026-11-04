@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import {serverProjectRequest} from '@/lib/deploymentApi';
 import { useAuth } from '@/lib/useAuth';
 import { useAlert } from '@/lib/alert';
 import { Button } from '@/components/ui/button';
@@ -40,11 +40,7 @@ export default function ServerPage() {
   const fetchProjects = async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('cpu_projects')
-      .select('*')
-      .neq('status', 'deleted')
-      .order('created_at', { ascending: false });
+    const {data,error}=await serverProjectRequest();
     if (error) showError('프로젝트 목록 로드 실패: ' + error.message);
     else setProjects(data || []);
     setLoading(false);
@@ -82,7 +78,7 @@ export default function ServerPage() {
   }
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="cb-page-content space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* 헤더 */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-1">

@@ -1,25 +1,25 @@
 // ==UserScript==
 // @name         CBGPU 자습 조회 기여자
 // @namespace    https://cbgpu.vercel.app/
-// @version      1.0.1
+// @version      1.1.0
 // @description  edu-set 로그인 토큰을 CBGPU 자습 조회에 자동으로 기여합니다.
 // @author       CBGPU
 // @match        https://cbsh.edu-set.com/*
-// @connect      cbgpu.vercel.app
+// @connect      cbgpu.com
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
 // @run-at       document-idle
-// @downloadURL  https://cbgpu.vercel.app/downloads/cbgpu-eduset-contributor.user.js
-// @updateURL    https://cbgpu.vercel.app/downloads/cbgpu-eduset-contributor.user.js
+// @downloadURL  https://cbgpu.com/downloads/cbgpu-eduset-contributor.user.js
+// @updateURL    https://cbgpu.com/downloads/cbgpu-eduset-contributor.user.js
 // ==/UserScript==
 
 (function () {
   'use strict';
 
-  const SERVER = 'https://cbgpu.vercel.app';
-  let observedToken = '';
+  const SERVER = 'https://cbgpu.com';
+  let observedToken = '', pending = false, retryAfter = 0;
 
   function notify(message, error = false) {
     const old = document.querySelector('#cbgpu-contributor-toast');
@@ -65,8 +65,11 @@
   }
 
   function upload(token, deviceKey) {
+    pending = true;
+    const fail = message => {pending=false;retryAfter=Date.now()+30000;notify(message,true);};
     GM_xmlhttpRequest({
       method: 'POST',
+      timeout: 15000,
       url: `${SERVER}/api/study/contributor/sync`,
       headers: { 'Content-Type': 'application/json', 'x-cbgpu-device': deviceKey },
       data: JSON.stringify({ accessToken: token }),
@@ -75,12 +78,16 @@
         try { body = JSON.parse(response.responseText); } catch {}
         if (response.status >= 200 && response.status < 300) {
           await GM_setValue('lastToken', token);
+          await GM_setValue('lastServer', SERVER);
+          pending=false;retryAfter=0;observedToken=token;
           notify('CBGPU 자습 조회 토큰이 자동 갱신됐습니다.');
         } else {
-          notify(body.message || `CBGPU 동기화 실패 (HTTP ${response.status})`, true);
+          fail(body.message || `CBGPU 동기화 실패 (HTTP ${response.status})`);
         }
       },
-      onerror: () => notify('CBGPU 서버에 연결하지 못했습니다.', true),
+      onerror: () => fail('CBGPU 서버에 연결하지 못했습니다. 30초 후 다시 시도합니다.'),
+      ontimeout: () => fail('CBGPU 연결 시간이 초과됐습니다. 30초 후 다시 시도합니다.'),
+      onabort: () => fail('CBGPU 동기화가 중단됐습니다.'),
     });
   }
 
@@ -92,10 +99,11 @@
       deviceKey = await GM_getValue('deviceKey', '');
     }
     const token = localStorage.getItem('accessToken') || '';
-    if (!token || token === observedToken) return;
-    observedToken = token;
+    if (!token || token === observedToken || pending || Date.now()<retryAfter) return;
     const lastToken = await GM_getValue('lastToken', '');
-    if (lastToken !== token) upload(token, deviceKey);
+    const lastServer = await GM_getValue('lastServer', '');
+    if (lastToken !== token || lastServer !== SERVER) upload(token, deviceKey);
+    else observedToken = token;
   }
 
   GM_registerMenuCommand('CBGPU 연결 키 변경', configure);

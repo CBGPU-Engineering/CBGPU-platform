@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { QRCodeSVG } from 'qrcode.react';
 import Link from 'next/link';
 import {
   Cpu, Printer, Server, CalendarDays, UtensilsCrossed, LayoutGrid, Smartphone, ShieldCheck,
@@ -11,7 +12,7 @@ import { isNativeApp, onNativeBridgeReady } from '@/lib/nativeBridge';
 
 // 아직 Play Store 심사 전이라 APK를 직접 배포한다. 스토어에 올라가면 이 링크만
 // Play Store URL로 바꿔주면 됨 — 나머지 UI/문구는 그대로 재사용 가능하게 짜둠.
-const APK_URL = '/downloads/cbgpu.apk';
+const APK_URL = '/downloads/cbgpu.apk?v=1.0.7';
 
 const FEATURES = [
   { Icon: CalendarDays, label: '시간표', desc: '대강까지 반영되는 실시간 시간표' },
@@ -39,7 +40,7 @@ export default function DownloadPage() {
   }, [router]);
 
   return (
-    <main className="max-w-3xl mx-auto px-6 py-16 space-y-16">
+    <section className="cb-page-content max-w-3xl mx-auto px-6 py-16 space-y-16">
       <div className="text-center space-y-6">
         <Image src="/img/cbgpu-logo.png" alt="CBGPU" width={96} height={96} className="mx-auto" />
         <div className="space-y-2">
@@ -56,7 +57,7 @@ export default function DownloadPage() {
             download
             className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest px-8 py-4 rounded-2xl shadow-xl shadow-primary/20 transition-transform active:scale-95 hover:scale-[1.02]"
           >
-            APK 다운로드
+            APK 다운로드 · v1.0.7
           </a>
           <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-bold">
             <Smartphone className="size-3" /> 안드로이드 전용 · iOS는 아직 준비 중이에요
@@ -70,7 +71,11 @@ export default function DownloadPage() {
           <p className="text-xs font-black">Play 스토어 출시 전이라 APK로 직접 설치해요</p>
           <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
             다운로드한 APK를 열면 &quot;출처를 알 수 없는 앱&quot; 설치를 허용해달라는 안내가 떠요.
-            학교 동아리에서 직접 서명한 정식 빌드이니 안심하고 설치를 허용해 주세요.
+            이 사이트에서 내려받은 APK인지 확인한 후 설치해 주세요.
+          </p>
+          <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
+            기존 앱과 서명이 달라 업데이트 설치가 되지 않는 경우, 기존 앱을 삭제한 뒤 설치해 주세요.
+            앱 삭제 시 기기에 저장된 로그인 정보와 알람 설정이 지워질 수 있어요.
           </p>
         </div>
       </div>
@@ -89,12 +94,12 @@ export default function DownloadPage() {
 
       {/* 컴퓨터로 보고 있는 경우를 위한 QR — 모바일에선 굳이 필요 없어서 숨김 */}
       <div className="hidden md:flex flex-col items-center gap-3 py-8 border-y border-border/50">
-        <Image
-          src="/img/cbgpu-apk-qr.png"
-          alt="APK 다운로드 QR코드"
-          width={140}
-          height={140}
-          className="rounded-xl ring-1 ring-foreground/10"
+        <QRCodeSVG
+          value="https://app.cbgpu.com/downloads/cbgpu.apk?v=1.0.7"
+          title="CBGPU 앱 다운로드"
+          size={140}
+          marginSize={2}
+          className="rounded-xl bg-white ring-1 ring-foreground/10"
         />
         <p className="text-xs text-muted-foreground font-bold">휴대폰으로 QR코드를 스캔해서 설치하세요</p>
       </div>
@@ -113,6 +118,6 @@ export default function DownloadPage() {
           </Link>
         </div>
       </div>
-    </main>
+    </section>
   );
 }

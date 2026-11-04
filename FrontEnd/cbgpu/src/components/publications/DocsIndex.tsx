@@ -1,0 +1,19 @@
+'use client';
+import {useState} from 'react';
+import Link from 'next/link';
+import {BookOpen,ArrowUpRight,Search,X} from 'lucide-react';
+import {docCategories,guides,type Guide} from './docs';
+import {matchesService} from '@/lib/serviceDiscovery';
+export default function DocsIndex({base}:{base:string}){
+ const [query,setQuery]=useState(''),[category,setCategory]=useState('all');
+ const results=guides.filter(guide=>(category==='all'||guide.category===category)&&matchesService(query,[guide.title,guide.description,...(guide.keywords||[]),...guide.features,...guide.sections.flatMap(section=>[section.title,section.body,...(section.steps||[])])].join(' '))).sort((a,b)=>{if(!query.trim())return 0;const score=(guide:Guide)=>matchesService(query,[guide.title,...(guide.keywords||[])].join(' '))?2:matchesService(query,guide.description)?1:0;return score(b)-score(a)});
+ function card(guide:Guide){return <Link key={guide.slug} data-guide-slug={guide.slug} href={`${base}/${guide.slug}`} className="portal-guide-card"><div className="flex justify-between text-primary mb-4"><BookOpen className="size-5"/><ArrowUpRight className="size-4"/></div><h3>{guide.title}</h3><p className="text-sm text-muted-foreground mt-3 leading-relaxed">{guide.description}</p><p className="mt-4 meta">{guide.sections.length}개 항목 · 약 {Math.max(1,Math.ceil(guide.sections.reduce((sum,section)=>sum+section.body.length+(section.steps||[]).join('').length,0)/450))}분</p></Link>}
+ return <><p className="portal-page-label mb-3">CBGPU Documentation</p><h1>CBGPU 사용 설명서</h1><p className="portal-page-description">자습 신청부터 자료 공유, GPU·배포·논문과 제작까지. 하고 싶은 일을 검색해보세요.</p>
+ <div className="portal-discovery"><Search className="size-4"/><label className="sr-only" htmlFor="docs-search">문서 검색</label><input id="docs-search" type="search" value={query} onChange={event=>setQuery(event.target.value)} onKeyDown={event=>{if(event.key==='Escape')setQuery('')}} placeholder="기능, 질문, 오류 문구 검색"/>{query&&<button aria-label="문서 검색어 지우기" onClick={()=>setQuery('')}><X className="size-4"/></button>}</div>
+ <nav className="docs-categories" aria-label="문서 분류"><button onClick={()=>setCategory('all')} aria-pressed={category==='all'}>전체</button>{docCategories.map(item=><button key={item.id} onClick={()=>setCategory(item.id)} aria-pressed={category===item.id}>{item.title}</button>)}</nav>
+ <p role="status" className="meta" aria-live="polite">{results.length}개 안내 · 로그인 없이 읽을 수 있습니다.</p>
+ {!query.trim()&&category==='all'&&<section className="docs-start-links" aria-label="빠른 안내">{['getting-started','feature-search','troubleshooting'].map(slug=>{const guide=guides.find(item=>item.slug===slug)!;return <Link key={slug} href={`${base}/${slug}`}><BookOpen className="size-4"/><span>{guide.title}</span><ArrowUpRight className="size-4"/></Link>})}</section>}
+ {query.trim()?<div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 mt-6">{results.map(card)}</div>:docCategories.map(item=>{const entries=results.filter(guide=>guide.category===item.id);return entries.length?<section className="docs-index-group" key={item.id} aria-labelledby={'docs-category-'+item.id}><h2 id={'docs-category-'+item.id}>{item.title}<span className="meta">{entries.length}개</span></h2><div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 mt-4">{entries.map(card)}</div></section>:null})}
+ {!results.length&&<section className="surface p-8 mt-6"><h2>일치하는 문서가 없습니다.</h2><p className="meta mt-3">‘급식’, ‘프린터’, ‘메일’처럼 짧은 말로 검색하거나 다른 분류를 선택해보세요.</p><button className="button secondary mt-4" onClick={()=>{setQuery('');setCategory('all')}}>검색·분류 초기화</button></section>}
+ <aside className="notice mt-8"><h2>설명과 실제 화면이 다른가요?</h2><p className="mt-2 text-sm">문서 주소와 사용 중인 기능, 달랐던 내용을 알려주세요. 비밀번호·토큰은 보내지 마세요.</p><a href="https://cbgpu.com/contact" className="text-primary text-sm inline-block mt-3">문서 오류·누락 알려주기 →</a></aside></>;
+}

@@ -1,0 +1,14 @@
+import Link from 'next/link';
+import {notFound} from 'next/navigation';
+import {guides,docCategories} from '@/components/publications/docs';
+import {publicationHref} from '@/components/publications/SiteShell';
+export function generateStaticParams(){return guides.map(({slug})=>({slug}))}
+export async function generateMetadata({params}:{params:Promise<{slug:string}>}){const {slug}=await params;const guide=guides.find(item=>item.slug===slug);return {title:guide?.title,description:guide?.description,alternates:{canonical:`https://docs.cbgpu.com/${slug}`}}}
+export default async function Page({params}:{params:Promise<{slug:string}>}){
+ const {slug}=await params,guide=guides.find(item=>item.slug===slug);if(!guide)notFound();
+ const home=await publicationHref('docs'),base=home==='/'?'':home,index=guides.findIndex(item=>item.slug===slug),previous=guides[index-1],next=guides[index+1];
+ return <div><Link href={home} className="text-xs text-primary font-semibold">← 모든 문서</Link><div className="portal-doc-layout mt-8"><article className="portal-doc-article min-w-0"><p className="portal-page-label mb-3">{docCategories.find(item=>item.id===guide.category)?.title}</p><h1 className="text-3xl md:text-4xl font-semibold tracking-tight">{guide.title}</h1><p className="mt-5 text-muted-foreground leading-relaxed">{guide.description}</p><p className="meta mt-3">현재 서비스 화면 기준 · 2026년 10월 30일 확인</p>
+ <div className="mt-8 space-y-5">{guide.sections.map((section,i)=><section id={`section-${i+1}`} key={section.title} className="portal-reading-surface"><p className="text-xs font-mono text-muted-foreground mb-3">{String(i+1).padStart(2,'0')}</p><h2 className="font-semibold text-xl">{section.title}</h2><p className="mt-4 text-sm leading-7 text-muted-foreground">{section.body}</p>{section.steps&&<ol className="docs-steps">{section.steps.map(step=><li key={step}>{step}</li>)}</ol>}{section.code&&<pre className="docs-code" tabIndex={0} aria-label={section.title+' 명령어'}><code>{section.code}</code></pre>}{section.links&&<div className="mt-5 flex flex-wrap gap-3">{section.links.map(link=><a key={link.href} href={link.href} className="docs-action">{link.label} ↗</a>)}</div>}</section>)}</div>
+ {guide.related.length>0&&<section className="docs-related" aria-label="관련 문서"><h2>이어서 읽기</h2><div>{guide.related.map(id=>{const item=guides.find(entry=>entry.slug===id);return item?<Link key={id} href={`${base}/${id}`}><strong>{item.title}</strong><span>{item.description}</span></Link>:null})}</div></section>}
+ <nav aria-label="이전 다음 문서" className="portal-doc-pager">{previous?<Link href={`${base}/${previous.slug}`}>← {previous.title}</Link>:<span/>}{next&&<Link href={`${base}/${next.slug}`}>{next.title} →</Link>}</nav></article><nav aria-label="이 문서의 목차" className="portal-doc-toc"><strong>이 문서에서</strong>{guide.sections.map((section,i)=><a key={section.title} href={`#section-${i+1}`}>{i+1}. {section.title}</a>)}<a href="#main-content">맨 위로 ↑</a></nav></div></div>;
+}

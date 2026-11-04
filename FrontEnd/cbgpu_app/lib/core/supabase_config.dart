@@ -3,6 +3,6 @@
 /// safe to ship in the app; it's the same value already public in the
 /// deployed web bundle, and every table is protected by RLS, not this key.
 class SupabaseConfig {
-  static const url = 'https://fclbzjlcepoaifvcoxdw.supabase.co';
-  static const anonKey = 'sb_publishable_fgrXxcwq2FC-G4YWzB7Y2A_M93BlQ4X';
+  static const url = 'https://cbgpu.com/backend';
+  static const anonKey = 'sb_publishable_fWE68mJ0qDMA0CdgU2D5nK_7jWO2mVR';
 }

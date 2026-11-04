@@ -118,7 +118,7 @@ export default function MaterialsPage() {
 
   const filtering = Boolean(query.trim() || selectedTag || tab === 'mine');
 
-  return <main className="mx-auto max-w-3xl space-y-5 px-4 py-8">
+  return <section className="cb-page-content mx-auto max-w-3xl space-y-5 px-4 py-8">
     <div className="flex items-end justify-between gap-4">
       <div className="min-w-0">
         <h1 className="text-3xl font-black uppercase tracking-tighter italic">자료 공유</h1>
@@ -192,5 +192,5 @@ export default function MaterialsPage() {
 
     <ConfirmDialog open={Boolean(deleteTarget)} title="자료를 삭제할까요?" description={deleteTarget ? `“${deleteTarget.title}”을(를) 삭제하면 다른 사람도 더 이상 받을 수 없어요.` : ''}
       onCancel={() => setDeleteTarget(null)} onConfirm={() => { if (deleteTarget) void remove(deleteTarget); }} />
-  </main>;
+  </section>;
 }

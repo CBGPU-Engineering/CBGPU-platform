@@ -1,25 +1,30 @@
-import Link from 'next/link';
+import { headers } from 'next/headers';
+import SiteTraffic from '@/components/SiteTraffic';
 import './globals.css';
-import Navbar from '@/components/Navbar';
+import AdminShell from '@/components/AdminShell';
+import ManufacturingShell from '@/components/manufacturing/ManufacturingShell';
+import MainSiteFrame from '@/components/workspaces/MainSiteFrame';
+import WorkspaceShell from '@/components/workspaces/WorkspaceShell';
+import {isWorkspace,workspaceForHost} from '@/lib/workspaces';
 import AuthGate from '@/components/AuthGate';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/lib/useAuth';
-import { Metadata } from 'next';
+import { Metadata,Viewport } from 'next';
 import { AlertProvider } from '@/lib/alert';
-import { Analytics } from "@vercel/analytics/next"
-import { SpeedInsights } from "@vercel/speed-insights/next"
 import DeferredStylesheet from '@/components/DeferredStylesheet';
 import ApprovalNotice from '@/components/ApprovalNotice';
 import SiteBanner from '@/components/SiteBanner';
-import InstallAppNudge from '@/components/InstallAppNudge';
 
-const siteUrl = 'https://cbgpu.vercel.app';
-const schoolLogo = 'https://i.namu.wiki/i/qMgg10XRSaTorhAnQaV-bKbUWK_xIlq2socc7pVyw1SJmovke8gEWfeofFitiIJ1VBMngGy4o1NuAnjrOA0m1w.webp';
+export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',interactiveWidget:'resizes-content'};
+
+const siteUrl = 'https://cbgpu.com';
+const schoolLogo = '/img/cbgpu-logo.png';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  alternates: { canonical: '/' },
   title: {
-    default: 'CBGPU | 충북과학고 학생 생활 플랫폼',
+    default: 'CBGPU | 학교생활·연구·개발을 하나로',
     template: '%s | CBGPU',
   },
   description: '충북과학고등학교 학생을 위한 올인원 플랫폼. GPU 대여, 자습신청, 시간표, 급식, 투표, 연구노트, 스터디 매칭까지 학교생활에 필요한 모든 것.',
@@ -28,20 +33,20 @@ export const metadata: Metadata = {
   creator: 'CBGPU',
   publisher: '충북과학고등학교',
   verification: {
-    google: 'xAyYkYGezYlzmSkzhCwwrTl-nCGv6ewScASAFt9AnQc',
+    google: 'sQMtTP1fRlurHqsuva_YpLUcIBbClWVp2eFWOwxP2K4',
   },
   openGraph: {
     type: 'website',
     locale: 'ko_KR',
     url: siteUrl,
     siteName: 'CBGPU',
-    title: 'CBGPU | 충북과학고 학생 생활 플랫폼',
+    title: 'CBGPU | 학교생활·연구·개발을 하나로',
     description: '충북과학고등학교 학생을 위한 올인원 플랫폼. GPU 대여, 자습신청, 시간표, 급식, 투표, 연구노트, 스터디 매칭까지.',
     images: [{ url: schoolLogo, width: 512, height: 512, alt: '충북과학고등학교 로고' }],
   },
   twitter: {
     card: 'summary',
-    title: 'CBGPU | 충북과학고 학생 생활 플랫폼',
+    title: 'CBGPU | 학교생활·연구·개발을 하나로',
     description: '충북과학고등학교 학생을 위한 올인원 플랫폼.',
     images: [schoolLogo],
   },
@@ -62,18 +67,27 @@ const jsonLd = {
   '@type': 'WebSite',
   name: 'CBGPU',
   url: siteUrl,
-  description: '충북과학고등학교 학생을 위한 올인원 학생 생활 플랫폼',
+  description: '학교생활, 연구와 개발을 연결하는 CBGPU 작업 공간',
   publisher: {
     '@type': 'EducationalOrganization',
     name: '충북과학고등학교',
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const currentYear = new Date().getFullYear();
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const requestHeaders = await headers();
+  const host = requestHeaders.get('x-cbgpu-public-host')||requestHeaders.get('host')?.split(':')[0];
+  const section = requestHeaders.get('x-cbgpu-site');
+  const workspace=workspaceForHost(host||'');
+  const savedMode=requestHeaders.get('x-cbgpu-mode');
+  const appSite=host==='app.cbgpu.com'||requestHeaders.get('x-cbgpu-app')==='1';
+
+  const adminSite = host === 'admin.cbgpu.com';
+  const manufacturingSite=['manufacturing.cbgpu.com','print.cbgpu.com','laser.cbgpu.com'].includes(host||'');
+  const publicSite = section === 'docs' || section === 'arxiv' || host === 'docs.cbgpu.com' || host === 'arxiv.cbgpu.com';
 
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html lang={adminSite||manufacturingSite ? "en" : "ko"} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://cdn.jsdelivr.net" />
         <DeferredStylesheet href="https://cdn.jsdelivr.net/gh/toss/tossface/dist/tossface.css" />
@@ -86,44 +100,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-xl focus:bg-primary focus:px-4 focus:py-3 focus:text-primary-foreground">본문으로 건너뛰기</a>
         <ThemeProvider
           attribute="class"
+          storageKey={adminSite||manufacturingSite?"cbgpu-developer-theme":"theme"}
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
           <AuthProvider>
-            <AlertProvider>
-              <Navbar />
-              <SiteBanner />
-              <ApprovalNotice />
-              <main id="main-content" tabIndex={-1} className="flex-grow container mx-auto px-4 md:px-6 py-10 pb-28 xl:pb-10">
-                <AuthGate>{children}</AuthGate>
-              </main>
-              <footer className="hidden xl:block border-t py-12 bg-muted/20 text-center text-sm text-muted-foreground transition-all">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="flex items-center gap-2 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-500">
-                    <img
-                      src="https://i.namu.wiki/i/qMgg10XRSaTorhAnQaV-bKbUWK_xIlq2socc7pVyw1SJmovke8gEWfeofFitiIJ1VBMngGy4o1NuAnjrOA0m1w.webp"
-                      alt="School Logo"
-                      className="w-6 h-6 object-contain"
-                    />
-                    <span className="font-black tracking-tighter italic">CBGPU</span>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-bold text-foreground/80 px-4">Chungbuk Science High School Computing Service</p>
-                    <p className="flex items-center justify-center gap-3 text-xs font-bold">
-                      <Link href="/privacy" className="underline-offset-4 transition-colors hover:text-foreground hover:underline">개인정보처리방침</Link>
-                      <span className="opacity-30" aria-hidden="true">·</span>
-                      <Link href="/contact" className="underline-offset-4 transition-colors hover:text-foreground hover:underline">문의하기</Link>
-                    </p>
-                    <p className="text-[10px] uppercase tracking-widest opacity-60">
-                    © {currentYear} <a href="https://github.com/lmwmason" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors underline-offset-4 hover:underline">CBGPU</a>. All rights reserved.
-                  </p>
-                  </div>
-                </div>
-              </footer>
-              <InstallAppNudge />
-              <Analytics />
-              <SpeedInsights />
+            <AlertProvider english={adminSite||manufacturingSite}>
+              {manufacturingSite ? <ManufacturingShell equipmentKind={host==='laser.cbgpu.com'?'laser':'print'}>{children}</ManufacturingShell> : adminSite ? <AdminShell><AuthGate>{children}</AuthGate></AdminShell> : publicSite ? <AuthGate publicSite>{children}</AuthGate> : workspace||appSite||host==='cbgpu.com'||host==='www.cbgpu.com' ? <WorkspaceShell workspace={workspace||(isWorkspace(savedMode)?savedMode:'student')} isApp={appSite}><SiteBanner/><ApprovalNotice/><AuthGate workspaceSite>{children}</AuthGate></WorkspaceShell> : <MainSiteFrame>{children}</MainSiteFrame>}
+              {!adminSite && !manufacturingSite && <SiteTraffic />}
             </AlertProvider>
           </AuthProvider>
         </ThemeProvider>

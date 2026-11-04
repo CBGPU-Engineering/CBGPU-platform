@@ -15,14 +15,16 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import 'alarm_service.dart';
+import 'eduset_login_screen.dart';
 import 'home_widgets.dart';
 import 'push_notifications.dart';
+import 'app_navigation.dart';
 import 'supabase_config.dart';
 
-const _siteUrl = 'https://cbgpu.vercel.app/';
-const _siteHost = 'cbgpu.vercel.app';
+const _siteUrl = 'https://app.cbgpu.com/';
+const _siteHost = 'app.cbgpu.com';
 const _bridgeChannel = 'CBGPUNativeChannel';
-const _materialsApiUrl = 'https://cbshoj.taild105d1.ts.net:8443';
+const _materialsApiUrl = 'https://cbgpu.com/api/files';
 
 /// Tags every URL we load with `?native=1` so the site can tell it's running
 /// inside this app from its very first synchronous render — before the JS
@@ -40,14 +42,17 @@ Uri _withNativeFlag(Uri uri) {
 /// the "connector" between the webview and Supabase-backed alarm scheduling
 /// that plain web/PWA notifications can't do reliably (especially on iOS,
 /// and on Android once the page/tab is gone from memory).
-final _bridgeScript = '''
+final _bridgeScript =
+    '''
 (function () {
+  if (location.origin !== 'https://app.cbgpu.com') return;
   if (window.CBGPUNative) return;
   var pending = {};
   var seq = 0;
+  var epoch = Date.now().toString(36) + Math.random().toString(36).slice(2);
   function call(action, payload) {
     return new Promise(function (resolve, reject) {
-      var callId = 'c' + (seq++);
+      var callId = epoch + '-c' + (seq++);
       pending[callId] = { resolve: resolve, reject: reject };
       $_bridgeChannel.postMessage(JSON.stringify({
         callId: callId,
@@ -68,6 +73,7 @@ final _bridgeScript = '''
     },
     syncSession: function (opts) { return call('syncSession', opts); },
     clearSession: function () { return call('clearSession', {}); },
+    loginEduset: function (opts) { return call('loginEduset', opts || {}); },
     getPersistedSession: function () { return call('getPersistedSession', {}); },
     downloadMaterial: function (opts) { return call('downloadMaterial', opts); },
     _resolve: function (callId, ok, result) {
@@ -103,6 +109,10 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
   // return for the unsupported-platform fallback UI.
   late final WebViewController _controller;
   bool _loading = true;
+  bool _hasLoadError = false;
+  String _currentUrl = _siteUrl;
+  bool _bridgeAllowed = false;
+  bool _schoolLoginPending = false;
 
   @override
   void initState() {
@@ -119,17 +129,44 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.white)
+      ..setBackgroundColor(
+        WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+                Brightness.dark
+            ? const Color(0xFF17171C)
+            : Colors.white,
+      )
       ..addJavaScriptChannel(
         _bridgeChannel,
         onMessageReceived: _handleBridgeMessage,
       )
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (_) => setState(() => _loading = true),
-          onPageFinished: (_) async {
+          onPageStarted: (url) {
+            if (!mounted) return;
+            _bridgeAllowed = isNativeBridgeOrigin(Uri.parse(url));
+            setState(() {
+              _loading = true;
+              _hasLoadError = false;
+              _currentUrl = url;
+            });
+          },
+          onWebResourceError: (error) {
+            if (!mounted || error.isForMainFrame != true) return;
+            setState(() {
+              _loading = false;
+              _hasLoadError = true;
+            });
+          },
+          onPageFinished: (url) async {
+            if (!mounted) return;
             setState(() => _loading = false);
-            await _controller.runJavaScript(_bridgeScript);
+            if (!_hasLoadError &&
+                _bridgeAllowed &&
+                isNativeBridgeOrigin(Uri.parse(url))) {
+              try {
+                await _controller.runJavaScript(_bridgeScript);
+              } catch (_) {}
+            }
           },
           onNavigationRequest: _handleNavigationRequest,
         ),
@@ -142,15 +179,19 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
         ),
       );
 
-    if (Platform.isAndroid && _controller.platform is AndroidWebViewController) {
-      (_controller.platform as AndroidWebViewController).setOnShowFileSelector((params) async {
-        final selection = await FilePicker.platform.pickFiles(
+    if (Platform.isAndroid &&
+        _controller.platform is AndroidWebViewController) {
+      (_controller.platform as AndroidWebViewController).setOnShowFileSelector((
+        params,
+      ) async {
+        final selection = await FilePicker.pickFiles(
           type: FileType.any,
           allowMultiple: params.mode == FileSelectorMode.openMultiple,
         );
-        return selection?.files.where((file) => file.path != null)
-                .map((file) => Uri.file(file.path!).toString()).toList() ??
-            <String>[];
+        return selection
+            .where((file) => file.path != null)
+            .map((file) => Uri.file(file.path!).toString())
+            .toList();
       });
     }
 
@@ -185,18 +226,61 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
     NavigationRequest request,
   ) async {
     final uri = Uri.tryParse(request.url);
-    if (uri != null && uri.host == _siteHost) {
+    // Subframe navigation must never launch a browser merely by loading a page.
+    if (!request.isMainFrame) {
+      return uri != null &&
+              const {
+                'http',
+                'https',
+                'about',
+                'data',
+                'blob',
+              }.contains(uri.scheme)
+          ? NavigationDecision.navigate
+          : NavigationDecision.prevent;
+    }
+    final mobileTarget = uri == null ? null : appNavigationTarget(uri);
+    if (mobileTarget != null) {
+      _bridgeAllowed = false;
+      if (request.isMainFrame) {
+        await _controller.loadRequest(_withNativeFlag(mobileTarget));
+      }
+      return NavigationDecision.prevent;
+    }
+    if (uri != null &&
+        uri.scheme == 'https' &&
+        uri.host == _siteHost &&
+        uri.path.endsWith('.apk')) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return NavigationDecision.prevent;
+    }
+    if (uri != null && isInAppWebNavigation(uri)) {
+      _bridgeAllowed = isNativeBridgeOrigin(uri);
+      return NavigationDecision.navigate;
+    }
+    if (uri != null && const {'about', 'blob', 'data'}.contains(uri.scheme)) {
+      _bridgeAllowed = false;
       return NavigationDecision.navigate;
     }
     // Anything leaving the site (external links, mailto:, tel:, OAuth
     // redirects to other domains) opens outside the webview.
-    if (uri != null) {
+    if (uri != null &&
+        const {
+          'http',
+          'https',
+          'mailto',
+          'tel',
+          'spotify',
+        }.contains(uri.scheme)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
     return NavigationDecision.prevent;
   }
 
   Future<void> _handleBridgeMessage(JavaScriptMessage message) async {
+    final current = Uri.tryParse(await _controller.currentUrl() ?? '');
+    if (!_bridgeAllowed || current == null || !isNativeBridgeOrigin(current))
+      return;
     Map<String, dynamic> decoded;
     try {
       decoded = jsonDecode(message.message) as Map<String, dynamic>;
@@ -207,7 +291,8 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
 
     final callId = decoded['callId'] as String?;
     final action = decoded['action'] as String?;
-    final payload = (decoded['payload'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final payload =
+        (decoded['payload'] as Map?)?.cast<String, dynamic>() ?? const {};
     if (callId == null || action == null) return;
 
     try {
@@ -307,26 +392,53 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
         return {
           'session': {'accessToken': accessToken, 'refreshToken': refreshToken},
         };
+      case 'loginEduset':
+        if (_schoolLoginPending) throw StateError('학교 로그인을 진행 중입니다.');
+        final owner = Supabase.instance.client.auth.currentUser?.id;
+        if (owner == null) throw StateError('CBGPU에 먼저 로그인해 주세요.');
+        _schoolLoginPending = true;
+        try {
+          final token = await Navigator.of(context).push<String>(
+            MaterialPageRoute(
+              builder: (_) => EdusetLoginScreen(
+                forceSignOut: payload['forceSignOut'] == true,
+              ),
+            ),
+          );
+          if (Supabase.instance.client.auth.currentUser?.id != owner)
+            throw StateError('CBGPU 계정이 바뀌었습니다. 다시 연결해 주세요.');
+          return token == null ? {'cancelled': true} : {'accessToken': token};
+        } finally {
+          _schoolLoginPending = false;
+        }
       case 'downloadMaterial':
         final id = payload['id'] as String?;
         final token = payload['accessToken'] as String?;
         final requestedName = payload['fileName'] as String?;
-        if (id == null || !RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(id) ||
-            token == null || requestedName == null) {
+        if (id == null ||
+            !RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(id) ||
+            token == null ||
+            requestedName == null) {
           throw ArgumentError('Invalid material download request');
         }
         final fileName = requestedName.split(RegExp(r'[/\\]')).last;
         final client = HttpClient();
-        final file = File('${(await getTemporaryDirectory()).path}/$id-$fileName');
+        final file = File(
+          '${(await getTemporaryDirectory()).path}/$id-$fileName',
+        );
         try {
-          final request = await client.getUrl(Uri.parse('$_materialsApiUrl/materials/$id/content'));
+          final request = await client.getUrl(
+            Uri.parse('$_materialsApiUrl/materials/$id/content'),
+          );
           request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
           final response = await request.close();
           if (response.statusCode != HttpStatus.ok) {
             throw StateError('파일을 내려받지 못했습니다 (${response.statusCode})');
           }
           await response.pipe(file.openWrite());
-          await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
+          await SharePlus.instance.share(
+            ShareParams(files: [XFile(file.path)]),
+          );
           return {'ok': true};
         } catch (_) {
           if (await file.exists()) await file.delete();
@@ -340,8 +452,10 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
   }
 
   Future<void> _resolveJs(String callId, bool ok, dynamic result) async {
+    final uri = Uri.tryParse(await _controller.currentUrl() ?? '');
+    if (!_bridgeAllowed || uri == null || !isNativeBridgeOrigin(uri)) return;
     final js =
-        "window.CBGPUNative && window.CBGPUNative._resolve('$callId', $ok, ${jsonEncode(result)});";
+        "if(location.origin === 'https://app.cbgpu.com') { window.CBGPUNative && window.CBGPUNative._resolve(${jsonEncode(callId)}, $ok, ${jsonEncode(result)}); }";
     try {
       await _controller.runJavaScript(js);
     } catch (error) {
@@ -395,6 +509,52 @@ class _WebViewShellScreenState extends State<WebViewShellScreen>
             children: [
               WebViewWidget(controller: _controller),
               if (_loading) const LinearProgressIndicator(minHeight: 2),
+              if (_hasLoadError)
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(28),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.wifi_off_rounded,
+                              size: 42,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(height: 22),
+                            const Text(
+                              '연결을 확인해 주세요',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              '화면을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 24),
+                            FilledButton.icon(
+                              onPressed: () => _controller.loadRequest(
+                                _withNativeFlag(Uri.parse(_currentUrl)),
+                              ),
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('다시 시도'),
+                            ),
+                            TextButton(
+                              onPressed: _openExternally,
+                              child: const Text('브라우저에서 열기'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

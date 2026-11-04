@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 
-export const MATERIALS_API_BASE = (process.env.NEXT_PUBLIC_MATERIALS_API_URL ||
-  (process.env.NODE_ENV === 'development' ? 'http://localhost:8421' : 'https://cbshoj.taild105d1.ts.net:8443')).replace(/\/$/, '');
+/** All browser traffic stays on the public site's HTTPS origin. */
+export const MATERIALS_API_BASE = '/api/files';
 
 export type MaterialsQuota = { used_bytes: number; quota_bytes: number; remaining_bytes: number };
 export type MaterialsUsage = MaterialsQuota & {

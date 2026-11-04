@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     keyboardType: TextInputType.emailAddress,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                     decoration: const InputDecoration(
-                      hintText: 'your@email.com',
+                      hintText: '이메일 주소를 입력하세요',
                     ),
                   ),
                   const SizedBox(height: 16),

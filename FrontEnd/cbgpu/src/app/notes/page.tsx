@@ -365,9 +365,9 @@ export default function NotesPage() {
   const [editing, setEditing] = useState<Note | null | 'new'>('list' as any);
 
   if (!user) return (
-    <main className="px-4 py-16 flex flex-col items-center gap-4 text-center">
+    <section className="cb-page-content px-4 py-16 flex flex-col items-center gap-4 text-center">
       <p className="font-black text-xl uppercase">로그인이 필요합니다</p>
-    </main>
+    </section>
   );
 
   if (editing !== ('list' as any)) {
@@ -383,12 +383,12 @@ export default function NotesPage() {
   }
 
   return (
-    <main className="px-4 py-8 max-w-3xl mx-auto">
+    <section className="cb-page-content px-4 py-8 max-w-3xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-black uppercase tracking-tighter italic">연구노트</h1>
         <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">마크다운 지원 · 자동 저장 · 공유 가능</p>
       </div>
       <NoteList onOpen={(n) => setEditing(n ?? 'new')} />
-    </main>
+    </section>
   );
 }

@@ -1,3 +1,4 @@
+import { emailSender, SITE_URL, renderEmail } from '@/lib/email';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
@@ -26,7 +27,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const emails = (await Promise.all(data.map(async row => (await admin.auth.admin.getUserById(row.user_id)).data.user?.email))).filter((email): email is string => !!email);
   const resend = new Resend(resendKey); let sent = 0;
   for (let index = 0; index < emails.length; index += 100) {
-    const batch = emails.slice(index, index + 100).map(email => ({ from: 'CBGPU 교내 대회 <cbgpu@airhood.dev>', to: email, subject: `[${contest?.title || '교내 대회'}] ${labels[status]}`, html: `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:28px"><p style="font-size:12px;color:#17634d;font-weight:700">CBGPU 교내 대회</p><h1 style="font-size:22px">${labels[status]}</h1><p>신청 상태가 <strong>${labels[status]}</strong> 상태로 변경됐어요.</p><p style="margin-top:28px"><a href="${new URL(`/contests/${id}`, request.url)}" style="color:#17634d;font-weight:700">행사 페이지에서 확인하기</a></p></div>` }));
+    const batch = emails.slice(index, index + 100).map(email => ({ from: emailSender(), to: email, subject: `[${contest?.title || '교내 대회'}] ${labels[status]}`, html: renderEmail({ title: labels[status], preview: `[${contest?.title || '교내 대회'}] ${labels[status]}`, description: (contest?.title || '교내 대회') + ' 신청 상태가 ' + labels[status] + ' 상태로 변경되었어요.', buttonLabel: '행사 페이지에서 확인하기', buttonUrl: SITE_URL + '/contests/' + encodeURIComponent(id) }) }));
     const { error: emailError } = await resend.batch.send(batch); if (emailError) break; sent += batch.length;
   }
   return NextResponse.json({ ok: true, changed: data.length, emailed: sent });

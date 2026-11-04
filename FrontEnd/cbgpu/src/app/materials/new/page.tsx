@@ -9,31 +9,82 @@ import { Input } from '@/components/ui/input';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import { supabase } from '@/lib/supabase';
-import { MATERIALS_API_BASE as API_BASE, fetchMaterialsJson, formatBytes as fileSize, type MaterialsQuota } from '@/lib/materialsApi';
+import { MATERIALS_API_BASE as API_BASE, fetchMaterialsJson, materialsToken, formatBytes as fileSize, type MaterialsQuota } from '@/lib/materialsApi';
 
 const MAX_BYTES = 1024 * 1024 * 1024;
 const cardClass = 'space-y-5 rounded-2xl border border-border/60 bg-card p-5 sm:p-6';
 const labelClass = 'mb-1.5 block text-[10px] font-black uppercase tracking-widest text-muted-foreground';
 
-function putFile(url: string, token: string, file: File, onProgress: (ratio: number) => void) {
-  // fetch cannot report upload progress, so use XHR for the (potentially 1GB) file body.
-  return new Promise<void>((resolve, reject) => {
+const CHUNK_BYTES = 8 * 1024 * 1024;
+type UploadState = { offset: number; size_bytes: number; complete: boolean };
+
+function transferError(status: number, responseText: string) {
+  let detail: unknown;
+  try { detail = JSON.parse(responseText)?.detail; } catch { /* proxy may return a non-JSON error */ }
+  const message = status === 507 ? '자료 공유 저장 공간이 가득 찼습니다. 관리자에게 문의해 주세요.'
+    : typeof detail === 'string' ? detail : status === 0 ? '파일 서버에 연결하지 못했습니다.' : `파일 서버 오류 (${status})`;
+  return Object.assign(new Error(message), { status });
+}
+
+function putChunk(url: string, token: string, chunk: Blob, onProgress: (loaded: number) => void) {
+  return new Promise<{ offset: number; complete: boolean }>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', url);
+    xhr.timeout = 180000;
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-    xhr.upload.onprogress = event => { if (event.lengthComputable) onProgress(event.loaded / event.total); };
+    xhr.upload.onprogress = event => { if (event.lengthComputable) onProgress(event.loaded); };
     xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) { resolve(); return; }
-      if (xhr.status === 507) { reject(new Error('자료 공유 저장 공간이 가득 찼습니다. 관리자에게 문의해 주세요.')); return; }
-      let detail: unknown;
-      try { detail = JSON.parse(xhr.responseText)?.detail; } catch { /* non-JSON error body */ }
-      reject(new Error(typeof detail === 'string' ? detail : `파일 서버 오류 (${xhr.status})`));
+      if (xhr.status < 200 || xhr.status >= 300) { reject(transferError(xhr.status, xhr.responseText)); return; }
+      try { resolve(JSON.parse(xhr.responseText)); } catch { reject(transferError(502, '')); }
     };
-    xhr.onerror = () => reject(new Error('파일 서버에 연결하지 못했습니다.'));
+    xhr.onerror = xhr.ontimeout = () => reject(transferError(0, ''));
     xhr.onabort = () => reject(new Error('업로드가 취소됐습니다.'));
-    xhr.send(file);
+    xhr.send(chunk);
   });
+}
+
+async function putFile(url: string, file: File, onProgress: (ratio: number) => void) {
+  async function status(): Promise<UploadState> {
+    const response = await fetch(`${url}/upload`, { cache: 'no-store', headers: { Authorization: `Bearer ${await materialsToken()}` } });
+    if (!response.ok) throw transferError(response.status, await response.text());
+    const state: UploadState = await response.json();
+    if (!Number.isSafeInteger(state.offset) || state.offset < 0 || state.offset > file.size || state.size_bytes !== file.size || (state.complete && state.offset !== file.size)) {
+      throw new Error('서버의 업로드 상태가 파일과 일치하지 않습니다.');
+    }
+    return state;
+  }
+  let current = await status();
+  onProgress(current.offset / file.size);
+  if (current.complete) return;
+  while (current.offset < file.size) {
+    const offset = current.offset;
+    const end = Math.min(offset + CHUNK_BYTES, file.size);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const result = await putChunk(`${url}/chunks?offset=${offset}`, await materialsToken(), file.slice(offset, end), loaded => onProgress(Math.min(offset + loaded, file.size) / file.size));
+        if (result.offset !== end || result.complete !== (end === file.size)) throw new Error('서버의 업로드 확인 응답이 일치하지 않습니다.');
+        current = { offset: result.offset, size_bytes: file.size, complete: result.complete };
+        onProgress(current.offset / file.size);
+        break;
+      } catch (error) {
+        // The response may be lost after the server commits a chunk. Reconcile
+        // its authenticated offset before retrying, rather than append twice.
+        try {
+          const saved = await status();
+          if (saved.complete || saved.offset !== offset) { current = saved; onProgress(current.offset / file.size); break; }
+        } catch { /* a transient outage can also prevent the status probe */ }
+        const code = error instanceof Error && 'status' in error ? Number(error.status) : 0;
+        if (attempt === 2 || code === 507 || (code >= 400 && code < 500 && ![401, 408, 409, 429].includes(code))) throw error;
+        await new Promise(resolve => setTimeout(resolve, 750 * (attempt + 1)));
+      }
+    }
+  }
+  if (!current.complete) {
+    current = await status();
+    if (!current.complete) throw new Error('업로드를 마무리하지 못했습니다. 다시 시도해 주세요.');
+  }
+  onProgress(1);
 }
 
 export default function NewMaterialPage() {
@@ -80,7 +131,7 @@ export default function NewMaterialPage() {
       }).select('id').single();
       if (error) throw error;
       materialId = data.id;
-      await putFile(`${API_BASE}/materials/${materialId}/content`, session.access_token, file, setProgress);
+      await putFile(`${API_BASE}/materials/${materialId}`, file, setProgress);
       showSuccess('자료가 공유됐습니다.');
       router.push('/materials');
     } catch (error) {
@@ -92,6 +143,12 @@ export default function NewMaterialPage() {
           router.push('/materials');
           return;
         }
+        // Ask the file service to remove its partial bytes/reservation first.
+        // If it is unreachable, abandoned partials expire automatically.
+        try {
+          const cleanupToken = await materialsToken();
+          await fetch(`${API_BASE}/materials/${materialId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${cleanupToken}` } });
+        } catch { /* Expired sessions or outages leave partials for safe expiry cleanup. */ }
         await supabase.from('shared_materials').delete().eq('id', materialId);
       }
       showError(error instanceof Error ? error.message : '자료를 올리지 못했습니다.');
@@ -100,7 +157,7 @@ export default function NewMaterialPage() {
     }
   }
 
-  return <main className="mx-auto max-w-2xl space-y-8 px-4 py-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+  return <section className="cb-page-content mx-auto max-w-2xl space-y-8 px-4 py-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
     <div className="flex items-center gap-4">
       <button type="button" onClick={() => router.push('/materials')} disabled={uploading} aria-label="자료 공유로 돌아가기" className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-card text-muted-foreground transition-all hover:border-border hover:text-foreground disabled:opacity-50">
         <ArrowLeft className="size-4" />
@@ -157,5 +214,5 @@ export default function NewMaterialPage() {
         </Button>
       </div>
     </form>
-  </main>;
+  </section>;
 }

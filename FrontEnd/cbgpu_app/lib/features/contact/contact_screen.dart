@@ -170,7 +170,7 @@ class _ContactScreenState extends State<ContactScreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                                 decoration: const InputDecoration(
-                                  hintText: 'you@example.com',
+                                  hintText: '이메일 주소를 입력하세요',
                                 ),
                               ),
                             ],

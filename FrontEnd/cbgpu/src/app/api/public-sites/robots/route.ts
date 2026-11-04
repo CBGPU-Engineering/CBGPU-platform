@@ -1,0 +1,2 @@
+import {NextRequest} from 'next/server';
+export function GET(request:NextRequest){const site=request.nextUrl.searchParams.get('site');if(site!=='docs'&&site!=='arxiv')return new Response('Not found',{status:404});return new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /auth/\nDisallow: /submit\nSitemap: https://${site}.cbgpu.com/sitemap.xml\n`,{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'public, max-age=300','X-Robots-Tag':'index, follow'}})}

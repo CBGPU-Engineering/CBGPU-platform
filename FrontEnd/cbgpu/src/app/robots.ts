@@ -1,16 +1,5 @@
 import { MetadataRoute } from 'next';
 
-const siteUrl = 'https://cbgpu.vercel.app';
-
 export default function robots(): MetadataRoute.Robots {
-  return {
-    rules: [
-      {
-        userAgent: '*',
-        allow: ['/', '/contact'],
-        disallow: ['/dashboard', '/admin', '/profile', '/auth'],
-      },
-    ],
-    sitemap: `${siteUrl}/sitemap.xml`,
-  };
+  return { rules: { userAgent: '*', allow: '/' }, sitemap: 'https://cbgpu.com/sitemap.xml' };
 }

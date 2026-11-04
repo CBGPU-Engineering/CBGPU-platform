@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import BackendPresets from '@/components/deploy/BackendPresets';
+import {SERVER_RUNTIMES,legacyServerRuntime,serverGitEnvironment,type ServerRuntime} from '@/lib/serverRuntime';
+import {serverDomains} from '@/lib/deployDomains';
+import {serverProjectRequest} from '@/lib/deploymentApi';
 import { useAuth } from '@/lib/useAuth';
 import { useAlert } from '@/lib/alert';
 import { formatMemoryLimit } from '@/lib/formatMemoryLimit';
@@ -13,19 +16,14 @@ import { LoadingSpinner } from '@/components/ui/spinner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ArrowLeft, Plus, Trash2, Container, GitBranch,
-  Lock, School, Globe, ShieldAlert,
+  Lock, School, Globe, ShieldAlert, Layers,
 } from 'lucide-react';
 
-type DeployType = 'docker' | 'git';
+type DeployType = 'docker' | 'git' | 'compose';
 type AccessScope = 'private' | 'school' | 'public';
-type Runtime = 'node20' | 'node18' | 'python311' | 'python39';
+type Runtime = ServerRuntime;
 
-const RUNTIMES: { value: Runtime; label: string }[] = [
-  { value: 'node20',    label: 'Node.js 20' },
-  { value: 'node18',    label: 'Node.js 18' },
-  { value: 'python311', label: 'Python 3.11' },
-  { value: 'python39',  label: 'Python 3.9' },
-];
+const RUNTIMES=SERVER_RUNTIMES;
 
 const MEMORY_OPTS = ['128m', '256m', '512m', '1g', '2g', '4g'] as const;
 type MemoryLimit = typeof MEMORY_OPTS[number];
@@ -39,6 +37,10 @@ interface FormState {
   dockerImage: string;
   gitUrl: string;
   gitBranch: string;
+  rootDirectory: string;
+  composeFile:string;
+  gatewayService:string;
+  storageGB:string;
   runtime: Runtime;
   runCommand: string;
   containerPort: string;
@@ -56,7 +58,11 @@ const DEFAULT_FORM: FormState = {
   dockerImage: '',
   gitUrl: '',
   gitBranch: 'main',
-  runtime: 'node20',
+  rootDirectory: '.',
+  composeFile:'',
+  gatewayService:'api-gw',
+  storageGB:'40',
+  runtime: 'node22',
   runCommand: '',
   containerPort: '80',
   hostPort: '',
@@ -82,6 +88,7 @@ export default function NewServerPage() {
   const router = useRouter();
 
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+  const [domainName,setDomainName]=useState(''),[bulkEnv,setBulkEnv]=useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const set = <K extends keyof FormState>(key: K, val: FormState[K]) =>
@@ -96,37 +103,42 @@ export default function NewServerPage() {
     if (!user) return;
     if (!profile || profile.id !== user.id) { showError('계정 프로필을 확인할 수 없습니다. 새로고침 후 다시 시도하고, 계속되면 관리자에게 문의해 주세요.'); return; }
     if (!isApproved) { showError('학번 또는 이름 확인이 필요해 배포할 수 없습니다. 프로필에서 정보를 확인해 주세요.'); return; }
+    if (domainName&&!/^[a-z][a-z0-9-]{2,34}$/.test(domainName)) {showError('도메인 이름은 영문 소문자로 시작하는 3~35자 영문·숫자·하이픈으로 입력하세요.');return;}
     if (!form.name.trim())                                         { showError('프로젝트 이름을 입력해주세요.'); return; }
     if (form.deployType === 'docker' && !form.dockerImage.trim()) { showError('Docker 이미지를 입력해주세요.'); return; }
-    if (form.deployType === 'git'    && !form.gitUrl.trim())      { showError('Git 저장소 URL을 입력해주세요.'); return; }
-    if (!form.hostPort.trim())                                     { showError('호스트 포트를 입력해주세요.'); return; }
+    if (form.deployType !== 'docker'    && !form.gitUrl.trim())      { showError('Git 저장소 URL을 입력해주세요.'); return; }
+    if (form.deployType==='git'&&/YOUR_PROJECT|YOUR_APP/.test(form.runCommand)){showError('실행 명령의 YOUR_PROJECT 또는 YOUR_APP을 실제 프로젝트 이름으로 바꿔 주세요.');return;}
 
-    const hostPort      = parseInt(form.hostPort);
+
+    const hostPort      = form.hostPort.trim()?parseInt(form.hostPort):null;
     const containerPort = parseInt(form.containerPort);
-    if (isNaN(hostPort)      || hostPort < 1      || hostPort > 65535)      { showError('포트는 1~65535 사이 숫자여야 합니다.'); return; }
+    if (hostPort!==null&&(isNaN(hostPort)      || hostPort < 1024      || hostPort > 65535))      { showError('포트는 1~65535 사이 숫자여야 합니다.'); return; }
     if (isNaN(containerPort) || containerPort < 1 || containerPort > 65535) { showError('컨테이너 포트는 1~65535 사이 숫자여야 합니다.'); return; }
 
     const envVarsObj: Record<string, string> = {};
     for (const e of form.envVars) if (e.key.trim()) envVarsObj[e.key.trim()] = e.value;
 
+    try{for(const line of bulkEnv.split('\n')){const text=line.trim();if(!text||text.startsWith('#'))continue;const pos=text.indexOf('=');if(pos<1)throw Error('환경변수는 KEY=value 형식으로 입력하세요.');const key=text.slice(0,pos).trim().replace(/^export\s+/,'');let value=text.slice(pos+1).trim();if((value.startsWith('\"')&&value.endsWith('\"'))||(value.startsWith("'")&&value.endsWith("'")))value=value.slice(1,-1);envVarsObj[key]=value}}catch(error){showError(error instanceof Error?error.message:'환경변수를 확인해 주세요.');return;}
+    let deploymentEnvironment=envVarsObj;try{if(form.deployType!=='docker')deploymentEnvironment=serverGitEnvironment(envVarsObj,form.runtime,form.rootDirectory)}catch(error){showError(error instanceof Error?error.message:'폴더 설정을 확인해 주세요.');return;}
+    if(form.deployType==='compose'){const {CBGPU_RUNTIME_PRESET:unused,...values}=deploymentEnvironment;void unused;deploymentEnvironment={...values,CBGPU_DEPLOY_ENGINE:'compose',CBGPU_COMPOSE_FILE:form.composeFile,CBGPU_GATEWAY_SERVICE:form.gatewayService,CBGPU_STORAGE_GB:form.storageGB};}
     setSubmitting(true);
-    const { error } = await supabase.from('cpu_projects').insert({
+    const { data:created, error } = await serverProjectRequest(undefined,{
       user_id:        user.id,
       user_email:     user.email,
       name:           form.name.trim(),
       description:    form.description.trim(),
-      deploy_type:    form.deployType,
+      deploy_type:    form.deployType==='compose'?'git':form.deployType,
       docker_image:   form.deployType === 'docker' ? form.dockerImage.trim() : null,
-      git_url:        form.deployType === 'git'    ? form.gitUrl.trim()      : null,
-      git_branch:     form.deployType === 'git'    ? (form.gitBranch.trim() || 'main') : null,
-      runtime:        form.deployType === 'git'    ? form.runtime            : null,
-      run_command:    form.deployType === 'git'    ? form.runCommand.trim()  : null,
+      git_url:        form.deployType !== 'docker'    ? form.gitUrl.trim()      : null,
+      git_branch:     form.deployType !== 'docker'    ? (form.gitBranch.trim() || 'main') : null,
+      runtime:        form.deployType !== 'docker'    ? legacyServerRuntime(form.runtime)            : null,
+      run_command:    form.deployType==='compose'?'docker compose up -d':form.deployType !== 'docker'    ? form.runCommand.trim()  : null,
       container_port: containerPort,
       host_port:      hostPort,
       access_scope:   form.accessScope,
       cpu_limit:      form.cpuLimit.trim()    || '1',
       memory_limit:   form.memoryLimit.trim() || '512m',
-      env_vars:       envVarsObj,
+      env_vars:       deploymentEnvironment,
     });
     setSubmitting(false);
 
@@ -135,7 +147,8 @@ export default function NewServerPage() {
       else if (error.code === '42501') showError('프로젝트 생성 권한을 확인할 수 없습니다. 프로필 승인 상태를 확인해 주세요.');
       else showError('프로젝트 생성 실패: ' + error.message);
     } else {
-      showSuccess('프로젝트가 신청됐습니다. 관리자 승인을 기다려주세요.');
+      if(domainName&&created){try{await serverDomains(created.id,domainName)}catch(error){showError('서버 배포는 시작됐지만 도메인 설정에 실패했습니다. 프로젝트 상세에서 다시 설정하세요. '+(error instanceof Error?error.message:''));router.push('/server/'+created.id);return;}}
+      showSuccess('프로젝트를 생성했습니다. 배포가 자동으로 시작됩니다.');
       router.push('/server');
     }
   };
@@ -168,10 +181,10 @@ export default function NewServerPage() {
   }
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+    <div className="cb-page-content animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
       {/* 상단 헤더 */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4 min-w-0">
           <button
             onClick={() => router.back()}
             className="flex items-center justify-center size-9 rounded-xl border border-border/60 bg-card text-muted-foreground hover:text-foreground hover:border-border transition-all"
@@ -181,7 +194,7 @@ export default function NewServerPage() {
           <div>
             <h1 className="text-3xl font-black tracking-tighter italic uppercase leading-none">New Server Project</h1>
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50 mt-0.5">
-              관리자 승인 후 자동으로 배포됩니다
+              저장하면 승인 없이 자동 배포를 시작합니다
             </p>
           </div>
         </div>
@@ -199,11 +212,12 @@ export default function NewServerPage() {
             onClick={handleSubmit}
             disabled={submitting}
           >
-            {submitting ? '신청 중…' : '신청하기'}
+            {submitting ? '생성 중…' : '배포 시작'}
           </Button>
         </div>
       </div>
 
+<BackendPresets onSelect={preset=>setForm(current=>({...current,deployType:preset.runtime?'git':'docker',...(preset.runtime?{runtime:preset.runtime,runCommand:preset.command||''}:{}),containerPort:preset.port,memoryLimit:preset.memory}))}/>
       {/* 메인 그리드 */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
 
@@ -223,6 +237,7 @@ export default function NewServerPage() {
                   className="h-10"
                 />
               </div>
+              <div><label className={labelCls} htmlFor="server-domain-name">Public Domain</label><Input id="server-domain-name" placeholder="my-server" value={domainName} onChange={e=>setDomainName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,''))}/><p className="text-xs text-muted-foreground mt-2 break-all">{domainName||'자동 발급 이름'}.server.cbgpu.com · Public 선택 후 배포되면 연결됩니다.</p></div>
               <div>
                 <label className={labelCls}>Description</label>
                 <textarea
@@ -241,14 +256,15 @@ export default function NewServerPage() {
             <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">배포 방식</h2>
 
             {/* Deploy type 선택 카드 */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {([
                 { value: 'docker', label: 'Docker Image', icon: <Container className="size-5" />, desc: 'Docker Hub 이미지로 바로 실행' },
                 { value: 'git',    label: 'Git Repo',     icon: <GitBranch  className="size-5" />, desc: 'Git 저장소 클론 후 실행' },
+                { value:'compose',label:'Docker Compose',icon:<Layers className="size-5"/>,desc:'DB·Storage와 여러 서비스를 함께 배포' },
               ] as const).map(opt => (
                 <button
                   key={opt.value}
-                  onClick={() => set('deployType', opt.value)}
+                  onClick={()=>setForm(current=>({...current,deployType:opt.value,...(opt.value==='compose'?{containerPort:'8000',cpuLimit:'3',memoryLimit:'4g',accessScope:'public'}:{})}))}
                   className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
                     form.deployType === opt.value
                       ? 'border-primary bg-primary/5 text-foreground'
@@ -264,6 +280,7 @@ export default function NewServerPage() {
               ))}
             </div>
 
+            {form.deployType==='compose'&&<div className="rounded-2xl bg-muted/30 border p-4 space-y-4"><p className="text-sm font-semibold">docker compose up -d</p><p className="text-xs text-muted-foreground leading-relaxed">저장소 폴더와 Compose 파일을 지정하세요. DB·Storage 데이터는 코드와 분리된 프로젝트 전용 영구 볼륨에 보존됩니다. 다른 프로젝트나 호스트 파일, Docker 제어 소켓에 접근하는 설정은 허용되지 않습니다.</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><label className="text-xs font-medium">Compose File<Input aria-label="Compose 파일" value={form.composeFile} onChange={e=>set('composeFile',e.target.value)} placeholder="compose.yaml / docker-compose.yml 자동 감지"/></label><label className="text-xs font-medium">HTTPS Gateway Service<Input aria-label="Compose 게이트웨이 서비스" value={form.gatewayService} onChange={e=>set('gatewayService',e.target.value)} placeholder="api-gw"/></label></div><label className="block text-xs font-medium">영구 스토리지 (GB)<Input type="number" min="40" max="200" value={form.storageGB} onChange={e=>set('storageGB',e.target.value)}/></label><p className="text-xs text-muted-foreground">컨테이너 포트는 게이트웨이 서비스의 포트(예: 8000)를 입력하세요. 기존 데이터 복원은 별도로 진행해야 합니다.</p></div>}
             {/* Docker 필드 */}
             {form.deployType === 'docker' && (
               <div>
@@ -279,7 +296,7 @@ export default function NewServerPage() {
             )}
 
             {/* Git 필드 */}
-            {form.deployType === 'git' && (
+            {form.deployType !== 'docker' && (
               <div className="space-y-4">
                 <div>
                   <label className={labelCls}>Git Repository URL *</label>
@@ -290,7 +307,7 @@ export default function NewServerPage() {
                     className="h-10 font-mono"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className={labelCls}>Branch</label>
                     <Input
@@ -300,7 +317,7 @@ export default function NewServerPage() {
                       className="h-10"
                     />
                   </div>
-                  <div>
+                  <div className={form.deployType==='compose'?'hidden':''}>
                     <label className={labelCls}>Runtime *</label>
                     <Select value={form.runtime} onValueChange={v => set('runtime', v as Runtime)}>
                       <SelectTrigger className="h-10">
@@ -312,7 +329,8 @@ export default function NewServerPage() {
                     </Select>
                   </div>
                 </div>
-                <div>
+<div><label className={labelCls} htmlFor="server-root-directory">Root Directory</label><Input id="server-root-directory" value={form.rootDirectory} onChange={e=>set('rootDirectory',e.target.value)} placeholder="services/api"/><p className="text-xs text-muted-foreground mt-2">저장소 안의 폴더를 지정하세요. 이 폴더에서 의존성을 설치하고 실행합니다.</p></div>
+                <div className={form.deployType==='compose'?'hidden':''}>
                   <label className={labelCls}>Run Command</label>
                   <Input
                     placeholder="npm start  /  python app.py"
@@ -333,6 +351,7 @@ export default function NewServerPage() {
                 <Plus className="size-3" /> Add
               </Button>
             </div>
+            <details className="border rounded-xl p-4"><summary className="text-xs cursor-pointer">.env 여러 항목 한 번에 붙여넣기</summary><label className="sr-only" htmlFor="server-env-bulk">서버 환경변수 .env</label><textarea id="server-env-bulk" className="mt-3 w-full min-h-40 rounded-xl border bg-background p-3 font-mono text-sm" value={bulkEnv} onChange={e=>setBulkEnv(e.target.value)} placeholder={'POSTGRES_PASSWORD=...\nJWT_SECRET=...\nSUPABASE_PUBLIC_URL=https://my-api.server.cbgpu.com'}/><p className="mt-2 text-xs text-muted-foreground">저장소의 .env.example과 README에 필요한 항목을 확인하세요. 비밀 값은 프로젝트 소유자·편집자만 관리할 수 있습니다.</p></details>
             {form.envVars.length === 0 ? (
               <div
                 onClick={addEnvVar}
@@ -383,10 +402,10 @@ export default function NewServerPage() {
             <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Port Mapping</h2>
             <div className="flex items-end gap-3">
               <div className="flex-1">
-                <label className={labelCls}>Host Port *</label>
+                <label className={labelCls}>Host Port (자동 할당 가능)</label>
                 <Input
                   type="number"
-                  placeholder="9000"
+                  placeholder="비워두면 자동 할당"
                   value={form.hostPort}
                   onChange={e => set('hostPort', e.target.value)}
                   className="h-10"
@@ -481,7 +500,7 @@ export default function NewServerPage() {
               취소
             </Button>
             <Button className="flex-1 font-black text-[10px] uppercase tracking-widest h-11" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? '신청 중…' : '신청하기'}
+              {submitting ? '생성 중…' : '배포 시작'}
             </Button>
           </div>
         </div>

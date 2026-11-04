@@ -35,6 +35,8 @@ export interface StoredAlarm {
 export interface NativeBridge {
   readonly isNative: true;
   readonly platform: string;
+  /** Official school login, available in Android 1.0.7+. Never exposes the CBGPU bridge to EduSet. */
+  loginEduset?(opts?:{forceSignOut?:boolean}):Promise<{accessToken?:string;cancelled?:boolean}>;
   scheduleAlarm(opts: ScheduleAlarmOptions): Promise<{ ok: true }>;
   cancelAlarm(id: string): Promise<{ ok: true }>;
   cancelAllAlarms(): Promise<{ ok: true }>;

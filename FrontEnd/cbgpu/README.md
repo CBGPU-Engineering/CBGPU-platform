@@ -1,8 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CBGPU web
+
+서비스 주소, 현재 화면 캡처, 전체 구조와 설치 안내는 [루트 README](../../README.md)를 참고하세요.
+
+Next.js 16 / React 19 기반의 사용자 웹, 모바일 웹, Docs, arXiv와 API입니다. 호스트에 따라 워크스페이스를 선택하며, 운영자 화면은 별도의 인증 게이트웨이를 사용합니다.
+
+```bash
+npm ci
+cp .env.example .env.local
+# 개발 환경 변수 입력
+npm run dev
+```
+
+`npm run build`는 문서 기능 누락 검사와 프로덕션 빌드를 실행합니다. 환경 파일, `.next-*` 릴리스와 실제 운영 비밀키는 Git에 포함하지 않습니다.
+
+## 현재 운영 방식
+
+자체 호스팅 백엔드는 `/backend`로 연결하고 자료 공유는 `/api/files`를 통해 프록시합니다. 프로덕션의 실제 빌드 경로는 systemd 프론트엔드 서비스의 `NEXT_BUILD_DIR`로 지정합니다. Vercel 배포는 현재 기본 호스팅 방식이 아닙니다.
+
 
 ## 기존 기능의 AI 보조 설정
 
-기존 화면 안에서 AI가 동작합니다. 홈의 오늘 브리핑, 학교·기술 뉴스 제목 흐름, 시간표의 복습 힌트, 연구노트와 스터디 모집글의 추천 태그, 투표 결과의 한 줄 경향을 제공합니다. 기존 화면은 AI 응답을 기다리지 않습니다. 홈·뉴스·시간표 결과는 브라우저에 24시간 캐시됩니다. 서버 환경변수 `NVIDIA_API_KEY`에 NVIDIA NIM API 키를 설정해야 작동합니다. 브라우저에 노출되는 `NEXT_PUBLIC_` 접두어를 붙이지 마세요. 배포 시 Vercel 프로젝트의 Environment Variables에도 키를 등록해야 합니다.
+기존 화면 안에서 AI가 동작합니다. 홈의 오늘 브리핑, 학교·기술 뉴스 제목 흐름, 시간표의 복습 힌트, 연구노트와 스터디 모집글의 추천 태그, 투표 결과의 한 줄 경향을 제공합니다. 기존 화면은 AI 응답을 기다리지 않습니다. 홈·뉴스·시간표 결과는 브라우저에 24시간 캐시됩니다. 서버 환경변수 `NVIDIA_API_KEY`에 NVIDIA NIM API 키를 설정해야 작동합니다. 브라우저에 노출되는 `NEXT_PUBLIC_` 접두어를 붙이지 마세요. 배포 시 프론트엔드 서버의 비공개 환경 설정에도 키를 등록해야 합니다.
 
 기본 모델은 병렬 토큰 생성에 최적화된 `google/diffusiongemma-26b-a4b-it`이며 출력을 128토큰으로 제한합니다. NVIDIA 무료 추론 서비스의 지연은 일정하지 않으므로 AI는 항상 비동기로 표시되며 실패하면 기본 화면만 남습니다. 한국어 품질과 실제 응답 속도는 배포 환경에서 확인해야 합니다.
 

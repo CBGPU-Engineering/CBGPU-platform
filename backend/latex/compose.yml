@@ -1,0 +1,55 @@
+name: cbgpu-latex
+services:
+  mongo:
+    image: mongo@sha256:b9924c330a8bbc5800fe9c69f04a84e221eca7b28fd049a0354147d9908fa142
+    environment: {GLIBC_TUNABLES: "glibc.pthread.rseq=1"}
+    container_name: cbgpu-latex-mongo
+    command: ["mongod", "--replSet", "cbgpu-latex", "--bind_ip_all"]
+    restart: unless-stopped
+    volumes: ["../private/latex/mongo:/data/db"]
+    networks: [latex]
+    mem_limit: 2g
+    cpus: 2
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ping:1}).ok' | grep 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  redis:
+    image: redis@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    container_name: cbgpu-latex-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+    volumes: ["../private/latex/redis:/data"]
+    networks: [latex]
+    mem_limit: 768m
+    cpus: 1
+  overleaf:
+    image: sharelatex/sharelatex@sha256:ada39211c54a1e748065834ec44d3a49094cc475c28d8b803a251901592a94b2
+    container_name: cbgpu-latex-overleaf
+    restart: unless-stopped
+    depends_on:
+      mongo: {condition: service_healthy}
+      redis: {condition: service_started}
+    ports: ["127.0.0.1:3521:80", "127.0.0.1:3523:3523"]
+    env_file: ../private/latex/overleaf.env
+    volumes:
+      - ../private/latex/overleaf:/var/lib/overleaf
+      - ../private/latex/run:/cbgpu/run
+      - ../private/latex/imports:/cbgpu/imports
+      - ../private/latex/bridge-key:/cbgpu/bridge-key:ro
+      - ./LocalCommandRunner.js:/overleaf/services/clsi/app/js/LocalCommandRunner.js:ro
+      - ./upload-limits.sh:/etc/my_init.d/210_cbgpu_upload_limits.sh:ro
+      - ./ArchiveManager.mjs:/overleaf/services/web/app/src/Features/Uploads/ArchiveManager.mjs:ro
+      - ./bridge.mjs:/overleaf/services/web/cbgpu-bridge.mjs:ro
+      - ./bridge-run:/etc/service/cbgpu-bridge/run:ro
+    networks: [latex, edge]
+    mem_limit: 5g
+    cpus: 4
+    shm_size: 256m
+networks:
+  edge:
+    name: cbgpu-latex-edge
+  latex:
+    name: cbgpu-latex-private
+    internal: true

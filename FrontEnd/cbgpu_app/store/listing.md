@@ -54,7 +54,7 @@ GPU 상태, 3D 프린터, 시간표, 급식 위젯을 홈 화면에 바로 올�
 Play는 휴대폰 스크린샷 최소 2장, 각 변 320~3840px 요구.
 
 ## 개인정보처리방침 URL (필수)
-`https://cbgpu.vercel.app/privacy` — 이번에 같이 만들었습니다 (`src/app/privacy/page.tsx`). 배포 후 이 URL이 살아있어야 등록 가능.
+`https://cbgpu.com/privacy` — 이번에 같이 만들었습니다 (`src/app/privacy/page.tsx`). 배포 후 이 URL이 살아있어야 등록 가능.
 
 ## 연락처 이메일
 **TODO — 직접 채워주세요.** 동아리 대표 이메일이나 문의받을 계정을 쓰시는 게 좋을 것 같아서 제가 임의로 채우지 않았습니다.
@@ -73,3 +73,5 @@ Play Console에서 직접 설문 진행해야 함(자동화 불가). 폭력/성�
 3. `앱 콘텐츠` 탭: 개인정보처리방침 URL, 광고 여부(없음), 콘텐츠 등급 설문, 대상 연령층, 데이터 보안 양식(수집 항목: 이름·학번·이메일·기기 토큰 등 — `privacy/page.tsx` 내용과 맞추면 됨).
 4. `프로덕션` → `새 버전 만들기` → `build/app/outputs/bundle/release/app-release.aab` 업로드.
 5. 비공개 테스트(최소 14일, 테스터 12명 이상) 먼저 거쳐야 프로덕션 공개 가능 — 신규 개발자 계정 정책.
+
+Android 1.0.4: app.cbgpu.com mobile workspace, Student/Researcher/Developer modes, existing account and native integration, and a connection-error retry screen.

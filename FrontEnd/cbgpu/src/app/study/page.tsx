@@ -1,14 +1,15 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, ExternalLink, RefreshCw, AlertTriangle, ChevronRight, User, Puzzle } from 'lucide-react';
+import { Search, ExternalLink, RefreshCw, AlertTriangle, ChevronRight, User, Puzzle, X } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import SelfStudyReminderSettings from '@/components/study/SelfStudyReminderSettings';
 import SupervisorCard from '@/components/study/SupervisorCard';
+import StudyRequestPanel,{type StudyPrefill} from '@/components/study/StudyRequestPanel';
 import {
   getRooms, getRoomComposition, getSeatOccupations, getStudent, getStudents,
   getSelfStudyPolicy, getPeriodCountForDate, localDateStr, searchSelfStudy,
@@ -85,7 +86,7 @@ function PeriodSelector({ periods, selectedPeriod, onSelect, className = '' }: {
   );
 }
 
-function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod, failed, onRetry }: {
+function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod, failed, onRetry, onChoose }: {
   room: Room;
   seats: Seat[];
   obstacles: Obstacle[];
@@ -93,10 +94,13 @@ function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod, fail
   selectedPeriod: number;
   failed?: boolean;
   onRetry: () => void;
+  onChoose: (seat: Seat) => void;
 }) {
   const [view, setView] = useState('map');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [seatQuery, setSeatQuery] = useState('');
+  const columns = Math.max(1, room.width, ...seats.map(s => s.x + 1), ...obstacles.map(o => o.x + o.w));
+  const rowCount = Math.max(1, room.height, ...seats.map(s => s.y + 1), ...obstacles.map(o => o.y + o.h));
   const cellSize = 104;
   const rows = seats.map(seat => {
     const occupants = occupantsBySeat.get(seat.id)?.filter(o => o.period === selectedPeriod) ?? [];
@@ -128,21 +132,21 @@ function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod, fail
 
       {view === 'map' ? (
         <>
-          <p className="text-sm text-muted-foreground">좌우·위아래로 스크롤해 배치를 확인하세요. 좌석을 누르면 전체 이름이 표시됩니다.</p>
+          <p className="text-xs text-muted-foreground">배치도 안에서 좌우·위아래로 스크롤하세요. 좌석을 누르면 학번과 이름을 확인할 수 있어요.</p>
           <div aria-live="polite" className="rounded-lg border border-border bg-card p-3 text-sm">
             {selected ? (
               <><p className="font-semibold">{selected.seat.name}번 좌석 · {selected.status}</p>
                 <p className="mt-1 break-words text-muted-foreground">{selected.occupants.length
                   ? selected.occupants.map(o => `${o.label}${o.status === 'PENDING' ? ' (승인 대기)' : ''}`).join(' · ')
-                  : '이 교시에 조회된 신청자가 없습니다.'}</p></>
+                  : '이 교시에 조회된 신청자가 없습니다.'}</p><Button type="button" variant="outline" size="sm" className="mt-2 min-h-11" disabled={selected.occupants.length>0} onClick={()=>onChoose(selected.seat)}>이 자리 신청하기</Button></>
             ) : <p className="text-muted-foreground">확인할 좌석을 선택하세요.</p>}
           </div>
           <div role="region" aria-label={`${selectedPeriod}교시 좌석 배치도, 스크롤 가능`} tabIndex={0}
-            className="max-h-[50dvh] overflow-auto rounded-xl border border-border bg-muted p-3 focus-visible:outline-2 focus-visible:outline-ring">
-            <div className="relative" style={{ width: room.width * cellSize, height: room.height * cellSize }}>
+            className="h-[min(38dvh,360px)] min-w-0 w-full overflow-auto rounded-xl border border-border bg-muted p-2 focus-visible:outline-2 focus-visible:outline-ring">
+            <div className="relative" data-seat-canvas style={{ width: columns * cellSize, height: rowCount * cellSize, margin: '0' }}>
               {obstacles.map(ob => (
                 <div key={`ob-${ob.id}`} className="absolute flex items-center justify-center overflow-hidden rounded border border-border bg-card px-1 text-center text-sm font-medium text-muted-foreground"
-                  style={{ left: ob.x * cellSize, top: ob.y * cellSize, width: ob.w * cellSize, height: ob.h * cellSize }}
+                  style={{ left: ob.x * cellSize, top: ob.y * cellSize, width: ob.w * cellSize, height: ob.h * cellSize, fontSize: Math.min(12, cellSize * 0.3) }}
                   title={ob.name}>{ob.name}</div>
               ))}
               {rows.map(({ seat, occupants, pending, status }) => (
@@ -180,7 +184,7 @@ function SeatMap({ room, seats, obstacles, occupantsBySeat, selectedPeriod, fail
           </div>
         </>
       )}
-      <p className="text-xs text-muted-foreground">조회 시점의 현황입니다. 신청·변경은 공식 사이트에서 진행하세요.</p>
+      <p className="text-xs text-muted-foreground">조회 시점의 현황입니다. 신청 결과와 승인 여부는 내 자습 신청에서 확인하세요.</p>
     </div>
   );
 }
@@ -224,7 +228,26 @@ function CapacityList({ occupancy, selectedPeriod, failed, onRetry }: {
   );
 }
 
+/** Follow the visible screen even when the browser zooms or its keyboard opens. */
+function useStudyDialogViewport() {
+  const [viewport, setViewport] = useState({ width: 0, height: 0, left: 0, top: 0 });
+  useEffect(() => {
+    const update = () => {
+      const visual = window.visualViewport;
+      setViewport({ width: visual?.width ?? window.innerWidth, height: visual?.height ?? window.innerHeight, left: visual?.offsetLeft ?? 0, top: visual?.offsetTop ?? 0 });
+    };
+    update();window.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
+    return () => { window.removeEventListener('resize', update);window.visualViewport?.removeEventListener('resize', update);window.visualViewport?.removeEventListener('scroll', update); };
+  }, []);
+  return viewport;
+}
+
 export default function StudyPage() {
+  const dialogViewport = useStudyDialogViewport();
+  const [requestPrefill,setRequestPrefill]=useState<StudyPrefill|null>(null);
+  const consumePrefill=useCallback(()=>setRequestPrefill(null),[]);
   const [roomData, setRoomData] = useState<RoomData[]>([]);
   const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [periodCount, setPeriodCount] = useState(0);
@@ -449,11 +472,11 @@ export default function StudyPage() {
   };
 
   return (
-    <section aria-labelledby="study-heading" className="py-2 space-y-6 max-w-5xl mx-auto">
+    <section aria-labelledby="study-heading" className="cb-page-content py-2 space-y-6 max-w-5xl mx-auto">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 id="study-heading" className="text-3xl font-semibold tracking-tight">자습신청</h1>
-          <p className="mt-2 text-sm text-muted-foreground">여기서 현황을 확인하고, 신청·변경은 공식 사이트에서 진행하세요.</p>
+          <p className="mt-2 text-sm text-muted-foreground">공식 EduSet 현황 확인과 본인 자습 신청을 한곳에서 진행하세요.</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <button
@@ -466,11 +489,12 @@ export default function StudyPage() {
           </button>
           <Button onClick={openOfficialSite} className="min-h-11 gap-2">
             <ExternalLink className="size-4" />
-            <span>신청·변경하기</span><span className="sr-only"> (공식 사이트, 새 탭)</span>
+            <span>공식 사이트 열기</span><span className="sr-only"> (공식 사이트, 새 탭)</span>
           </Button>
         </div>
       </div>
 
+      <StudyRequestPanel prefill={requestPrefill} onPrefillConsumed={consumePrefill} onChanged={()=>void loadData(true)} />
       <SupervisorCard />
 
       <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{loading ? (roomData.length ? '현황 업데이트 중 · 이전 결과를 표시합니다.' : '자습 현황을 불러오는 중…') : updatedAt ? `최근 조회 ${updatedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}${error ? ' · 업데이트 실패, 이전 결과입니다.' : ''}` : '아직 조회된 현황이 없습니다.'}</p>
@@ -625,15 +649,26 @@ export default function StudyPage() {
       </details>
 
       <Dialog open={openRoomId != null} onOpenChange={(open) => !open && setOpenRoomId(null)}>
-        <DialogContent className="sm:max-w-3xl max-h-[90dvh] overflow-y-auto">
+        <DialogContent data-study-room-dialog showCloseButton={false}
+          className="flex min-h-0 min-w-0 flex-col gap-0 p-0"
+          style={{
+            width: dialogViewport.width ? Math.min(768, Math.max(0, dialogViewport.width - 24)) : 'min(48rem, calc(100vw - 24px))',
+            maxWidth: 'none',
+            maxHeight: dialogViewport.height ? Math.max(0, dialogViewport.height - 24) : 'calc(100dvh - 24px)',
+            left: dialogViewport.width ? dialogViewport.left + (dialogViewport.width - Math.min(768, Math.max(0, dialogViewport.width - 24))) / 2 : 12,
+            top: dialogViewport.top + 12,
+            translate: 'none', transform: 'none', animation: 'none', overflow: 'hidden',
+          }}>
           {openRoomData && (
             <>
-              <DialogHeader>
-                <DialogTitle>{openRoomData.room.name} {openRoomData.room.hasSeats ? '좌석 배치' : '신청자 명단'}</DialogTitle>
-                <DialogDescription>
-                  {openRoomData.room.hasSeats ? '좌석 번호 옆에 학번/이름이 표시됩니다.' : '정원제 자습실이라 좌석 없이 신청자만 표시됩니다.'}
-                </DialogDescription>
+              <DialogHeader className="shrink-0 flex-row items-start gap-3 border-b p-3 text-left sm:p-4">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <DialogTitle className="break-words leading-snug">{openRoomData.room.name} {openRoomData.room.hasSeats ? '좌석 배치' : '신청자 명단'}</DialogTitle>
+                  <DialogDescription>{openRoomData.room.hasSeats ? '좌석 번호 옆에 학번/이름이 표시됩니다.' : '정원제 자습실이라 좌석 없이 신청자만 표시됩니다.'}</DialogDescription>
+                </div>
+                <DialogClose asChild><Button type="button" variant="ghost" size="icon" aria-label="자습실 창 닫기" className="size-11 shrink-0"><X className="size-5" /></Button></DialogClose>
               </DialogHeader>
+              <div className="min-h-0 min-w-0 overflow-y-auto overscroll-contain p-3 sm:p-4 space-y-3">
               <PeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} />
               {openRoomData.room.hasSeats ? (
                 <SeatMap
@@ -645,6 +680,7 @@ export default function StudyPage() {
                   selectedPeriod={selectedPeriod}
                   failed={openRoomData.failed}
                   onRetry={() => loadData(true)}
+                  onChoose={seat=>{setOpenRoomId(null);setRequestPrefill({roomId:openRoomData.room.id,seatId:seat.id,period:selectedPeriod})}}
                 />
               ) : (
                 <CapacityList
@@ -654,6 +690,7 @@ export default function StudyPage() {
                   onRetry={() => loadData(true)}
                 />
               )}
+              </div>
             </>
           )}
         </DialogContent>

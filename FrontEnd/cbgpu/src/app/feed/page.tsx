@@ -18,7 +18,7 @@ export default function FeedPage() {
   const [tab, setTab] = useState<TabId>('school');
 
   return (
-    <main className="min-h-screen px-4 py-10 flex flex-col items-center gap-8">
+    <section className="cb-page-content min-h-screen px-4 py-10 flex flex-col items-center gap-8">
       <div className="text-center space-y-1">
         <h1 className="text-3xl font-black uppercase tracking-tighter italic">Feed</h1>
         <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">AI 학습 대기 중 읽을거리</p>
@@ -43,6 +43,6 @@ export default function FeedPage() {
         {tab === 'news'      && <TechNews />}
         {tab === 'graveyard' && <Graveyard />}
       </div>
-    </main>
+    </section>
   );
 }

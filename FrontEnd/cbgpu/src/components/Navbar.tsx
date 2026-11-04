@@ -7,14 +7,17 @@ import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
 import { signOutEverywhere } from '@/lib/signOutEverywhere';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
+import type {WorkspaceId} from '@/lib/workspaces';
 import SiteSearch from './SiteSearch';
 import { useAlert } from '@/lib/alert';
 import { useAuth } from '@/lib/useAuth';
 import {
   Menu, X, ChevronDown, Home, UserCircle2, Search, LayoutGrid,
-  BookOpen, CalendarDays, UtensilsCrossed,
+  BookOpen, CalendarDays, UtensilsCrossed, Smartphone,
 } from 'lucide-react';
-import { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react';
+
+import {serviceGroups} from '@/lib/serviceNavigation';
 
 interface NavLink { href: string; label: string; }
 interface NavGroup { label: string; links: NavLink[]; }
@@ -27,31 +30,7 @@ const PRIMARY_LINKS: NavLink[] = [
   { href: '/dashboard', label: 'GPU' },
 ];
 
-const GROUPS: NavGroup[] = [
-  { label: '학교 자원', links: [
-    { href: '/dashboard', label: 'GPU 대여' },
-    { href: '/server', label: '서버 배포' },
-    { href: '/manufacturing', label: '제작' },
-    { href: '/services', label: '전체 서비스' },
-  ] },
-  { label: '학교생활', links: [
-    { href: '/study', label: '자습신청' },
-    { href: '/timetable', label: '시간표' },
-    { href: '/meal', label: '급식' },
-    { href: '/match', label: '스터디' },
-    { href: '/wakeup', label: '기상송' },
-  ] },
-  { label: '도구', links: [
-    { href: '/notes', label: '노트' },
-    { href: '/materials', label: '자료 공유' },
-    { href: '/tools', label: '도구' },
-    { href: '/games', label: 'Arcade' },
-  ] },
-  { label: '정보', links: [
-    { href: '/polls', label: '투표' },
-    { href: '/feed', label: 'Feed' },
-  ] },
-];
+const GROUPS: NavGroup[] = serviceGroups.map(group=>({label:group.title,links:group.services.map(({href,label})=>({href,label}))}));
 
 const PILL = 'relative z-10 inline-flex min-h-11 items-center shrink-0 text-sm font-semibold px-3 py-2 transition-colors focus-visible:outline-2 focus-visible:outline-ring';
 const isActivePath = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
@@ -64,11 +43,13 @@ const BOTTOM_LINKS = [
   { href: '/services', label: '전체', Icon: LayoutGrid },
 ];
 
-export default function Navbar() {
-  const { user, profile, isAdmin, isWakeupManager, isLoading } = useAuth();
+export default function Navbar({brandSuffix,navigationLinks,hideBottomNav=false,searchAudience}:{brandSuffix?:ReactNode;navigationLinks?:NavLink[];hideBottomNav?:boolean;searchAudience?:WorkspaceId}={}) {
+  const primaryLinks=navigationLinks||PRIMARY_LINKS;
+  const { user, profile, isLoading } = useAuth();
   const { showError, showSuccess } = useAlert();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(()=>{const open=()=>setSearchOpen(true);window.addEventListener('cbgpu:open-search',open);return()=>window.removeEventListener('cbgpu:open-search',open)},[]);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -84,7 +65,7 @@ export default function Navbar() {
   }, [isMenuOpen]);
 
   const activeGroupLink = !PRIMARY_LINKS.some(l => isActivePath(pathname, l.href)) && GROUPS.some(g => g.links.some(l => isActivePath(pathname, l.href)));
-  const activePrimaryLink = PRIMARY_LINKS.find(l => isActivePath(pathname, l.href));
+  const activePrimaryLink = primaryLinks.find(l => isActivePath(pathname, l.href));
   const activeKey = activePrimaryLink?.href ?? (activeGroupLink ? 'menu' : null);
 
   // 활성 항목 뒤에서 슬라이드하는 인디케이터 위치 계산
@@ -129,6 +110,7 @@ export default function Navbar() {
           </span>
         </Link>
 
+        {brandSuffix}
         {user && !isLoading && (
           <div ref={railRef} className="hidden xl:flex items-center gap-1 relative">
             {indicator && (
@@ -137,7 +119,7 @@ export default function Navbar() {
                 style={{ left: indicator.left, width: indicator.width }}
               />
             )}
-            {PRIMARY_LINKS.map(l => (
+            {primaryLinks.map(l => (
               <Link
                 key={l.href}
                 href={l.href}
@@ -154,6 +136,10 @@ export default function Navbar() {
       </div>
 
       <div className="flex gap-2 md:gap-4 items-center">
+        <Link href="/download" aria-label="앱 다운로드" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+          <Smartphone className="size-4" aria-hidden="true" />
+          <span className="hidden sm:inline">앱 다운로드</span>
+        </Link>
         <button
           type="button"
           onClick={() => { setIsMenuOpen(false); setSearchOpen(true); }}
@@ -200,20 +186,6 @@ export default function Navbar() {
                         Profile
                       </Link>
                     </DropdownMenuPrimitive.Item>
-                    {isAdmin && (
-                      <DropdownMenuPrimitive.Item asChild>
-                        <Link href="/admin" className="block px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors outline-none">
-                          Admin
-                        </Link>
-                      </DropdownMenuPrimitive.Item>
-                    )}
-                    {isWakeupManager && (
-                      <DropdownMenuPrimitive.Item asChild>
-                        <Link href="/admin/wakeup" className="block px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors outline-none">
-                          기상송 관리
-                        </Link>
-                      </DropdownMenuPrimitive.Item>
-                    )}
                     <DropdownMenuPrimitive.Item asChild>
                       <button onClick={handleLogout} className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors outline-none">
                         Sign Out
@@ -268,7 +240,7 @@ export default function Navbar() {
                 </Button>
               </div>
 
-              {PRIMARY_LINKS.map(link => <Link key={link.href} href={link.href} onClick={() => setIsMenuOpen(false)} aria-current={isActivePath(pathname, link.href) ? 'page' : undefined} className={`min-h-11 py-3 text-sm font-semibold ${isActivePath(pathname, link.href) ? 'text-primary' : 'text-foreground'}`}>{link.label}</Link>)}
+              {primaryLinks.map(link => <Link key={link.href} href={link.href} onClick={() => setIsMenuOpen(false)} aria-current={isActivePath(pathname, link.href) ? 'page' : undefined} className={`min-h-11 py-3 text-sm font-semibold ${isActivePath(pathname, link.href) ? 'text-primary' : 'text-foreground'}`}>{link.label}</Link>)}
 
               {GROUPS.map(group => (
                 <div key={group.label} className="mt-3">
@@ -290,16 +262,6 @@ export default function Navbar() {
                 <Link href="/privacy" onClick={() => setIsMenuOpen(false)} className={`text-sm font-medium py-3 ${pathname === '/privacy' ? 'text-primary' : 'text-muted-foreground'}`}>
                   개인정보처리방침
                 </Link>
-                {isAdmin && (
-                  <Link href="/admin" onClick={() => setIsMenuOpen(false)} className={`text-sm font-semibold py-2 ${pathname === '/admin' ? 'text-primary' : 'text-foreground'}`}>
-                    Admin Panel
-                  </Link>
-                )}
-                {isWakeupManager && (
-                  <Link href="/admin/wakeup" onClick={() => setIsMenuOpen(false)} className={`text-sm font-semibold py-2 ${pathname === '/admin/wakeup' ? 'text-primary' : 'text-foreground'}`}>
-                    기상송 관리
-                  </Link>
-                )}
               </div>
             </>
           ) : (
@@ -315,11 +277,14 @@ export default function Navbar() {
               </Link>
             </div>
           )}
+          <Link href="/download" onClick={() => setIsMenuOpen(false)} className="mt-3 flex min-h-11 items-center gap-2 border-t border-border/50 py-3 text-sm font-semibold text-foreground">
+            <Smartphone className="size-4" aria-hidden="true" /> 앱 다운로드
+          </Link>
         </div>
       )}
     </nav>
 
-    {user && !isLoading && (
+    {!hideBottomNav && user && !isLoading && (
       <nav aria-label="주요 서비스" className="xl:hidden fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-border bg-card px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
         {BOTTOM_LINKS.map(({ href, label, Icon }) => {
           const active = href === '/' ? pathname === '/' : isActivePath(pathname, href);
@@ -329,7 +294,7 @@ export default function Navbar() {
         })}
       </nav>
     )}
-    <SiteSearch open={searchOpen} onOpenChange={setSearchOpen} />
+    <SiteSearch audience={searchAudience} open={searchOpen} onOpenChange={setSearchOpen} />
     </>
   );
 }

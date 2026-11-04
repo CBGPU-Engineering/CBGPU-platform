@@ -55,7 +55,7 @@ export default function ForgotPassword() {
           <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Email</label>
           <Input
             type="email"
-            placeholder="your@email.com"
+            placeholder="이메일 주소를 입력하세요"
             className="bg-background border-input text-foreground font-bold"
             value={email}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}

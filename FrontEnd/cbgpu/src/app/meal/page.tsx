@@ -156,7 +156,7 @@ export default function MealPage() {
   }
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+    <section className="cb-page-content max-w-2xl mx-auto px-4 py-8 space-y-8">
       <div className="space-y-1">
         <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">충북과학고 학교급식</p>
         <h1 className="text-3xl font-black tracking-tight">오늘 뭐 나와요?</h1>
@@ -259,7 +259,7 @@ export default function MealPage() {
           })}
         </div>
       )}
-    </main>
+    </section>
   );
 }
 

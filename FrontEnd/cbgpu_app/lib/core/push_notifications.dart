@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../firebase_options.dart';
+import 'alarm_service.dart';
 
 /// FCM on both Android and iOS (Web has no native shell to register a
 /// device token for — see [WebViewShellScreen], the whole app is a WebView
@@ -50,6 +51,19 @@ Future<void> registerDeviceForPushNotifications() async {
       }
     }
 
+    _foregroundSubscription ??= FirebaseMessaging.onMessage.listen((message) {
+      final notification = message.notification;
+      if (notification == null) return;
+      unawaited(
+        AlarmService.instance.showPushNotification(
+          id:
+              message.messageId ??
+              DateTime.now().microsecondsSinceEpoch.toString(),
+          title: notification.title ?? 'CBGPU',
+          body: notification.body ?? '',
+        ),
+      );
+    });
     final token = await messaging.getToken();
     if (token != null) {
       await _upsertToken(token);
@@ -70,6 +84,7 @@ Future<void> registerDeviceForPushNotifications() async {
 }
 
 StreamSubscription<String>? _tokenRefreshSubscription;
+StreamSubscription<RemoteMessage>? _foregroundSubscription;
 
 Future<void> _upsertToken(String token) async {
   final user = Supabase.instance.client.auth.currentUser;
