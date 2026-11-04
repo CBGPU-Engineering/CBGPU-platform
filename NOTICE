@@ -1,0 +1,11 @@
+CBGPU
+Copyright 2026 CBGPU contributors
+
+CBGPU's original code is licensed under the Apache License, Version 2.0,
+except where a component carries a separate license.
+
+The LaTeX integration under backend/latex/ retains its GNU Affero General
+Public License, Version 3.0; see backend/latex/LICENSE and backend/latex/README.md.
+Overleaf Community Edition and other third-party components retain their
+respective licenses and copyright notices. Terminal library license notices
+are provided in backend/developer/static/vendor/.
