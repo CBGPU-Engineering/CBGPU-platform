@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
+    if(process.env.CBGPU_DEMO==='1')return []; 
     // Only public Supabase APIs are routed; Studio and Postgres stay private.
     return [{source:'/api/files/:path*',destination:'http://127.0.0.1:8421/:path*'}, { source: '/backend/functions/v1/contact', destination: '/api/contact' }, ...['auth', 'rest', 'storage', 'realtime', 'functions'].map(service => ({
       source: `/backend/${service}/v1/:path*`,

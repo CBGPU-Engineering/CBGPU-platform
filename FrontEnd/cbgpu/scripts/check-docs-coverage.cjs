@@ -5,7 +5,8 @@ function load(relative){const source=fs.readFileSync(path.join(root,relative),'u
 const {guides,docCategories}=load('src/components/publications/docs.ts'),{serviceGroups}=load('src/lib/serviceNavigation.ts');
 const issues=[],slugs=new Set(),categories=new Set(docCategories.map(category=>category.id)),covered=new Set(guides.flatMap(guide=>guide.features));
 function routes(directory,prefix=''){return fs.readdirSync(directory,{withFileTypes:true}).flatMap(entry=>{if(entry.isDirectory()&&!entry.name.startsWith('['))return routes(path.join(directory,entry.name),prefix+'/'+entry.name);return entry.isFile()&&entry.name==='page.tsx'?[prefix||'/']:[]})}
-const pages=routes(path.join(root,'src/app'));
+// /demo is the contributor sandbox, documented in docs/DEVELOPMENT.md.
+const pages=routes(path.join(root,'src/app')).filter(page=>page!=='/demo');
 const services=serviceGroups.flatMap(group=>group.services);
 for(const href of new Set([...services.map(service=>service.href),...pages,'https://admin.cbgpu.com','https://developers.cbgpu.com','https://print.cbgpu.com','https://laser.cbgpu.com','https://manufacturing.cbgpu.com','https://app.cbgpu.com']))if(!covered.has(href))issues.push('Missing guide for '+href);
 for(const guide of guides){if(slugs.has(guide.slug))issues.push('Duplicate slug '+guide.slug);slugs.add(guide.slug);if(!categories.has(guide.category))issues.push('Unknown category '+guide.slug);if(!guide.description||guide.sections.length<3)issues.push('Incomplete guide '+guide.slug);for(const section of guide.sections){if(!section.title||!section.body.trim())issues.push('Empty section '+guide.slug);for(const link of section.links||[]){try{const url=new URL(link.href);if(url.protocol!=='https:'||url.username||url.password)throw Error()}catch{issues.push('Invalid link in '+guide.slug)}}}}

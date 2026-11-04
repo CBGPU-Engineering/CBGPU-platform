@@ -1,0 +1,7 @@
+{
+  "schoolName": "Example Science School",
+  "domain": "schoolgpu.example.org",
+  "edusetHost": "school.example.org",
+  "contactEmail": "maintainer@example.org",
+  "installRoot": "/srv/schoolgpu"
+}

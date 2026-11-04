@@ -1,4 +1,5 @@
 'use client';
+import DemoSchoolAccountLink from './DemoSchoolAccountLink';
 import {useEffect,useRef,useState} from 'react';
 import {Button} from '@/components/ui/button';
 import {supabase} from '@/lib/supabase';
@@ -34,6 +35,7 @@ export default function SchoolAccountLink({onConnected}:{onConnected:(token:stri
   }catch(e){const value=e as {message?:string;error?:string};setError(value.message||value.error||'학교 로그인을 완료하지 못했습니다. 다시 시도해 주세요.')}finally{setBusy(false)}
  }
  async function confirmAccount(){if(!candidate||busy)return;setBusy(true);setError('');try{await onConnected(candidate.token);setCandidate(null)}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+ if(process.env.NEXT_PUBLIC_CBGPU_DEMO==='1')return <DemoSchoolAccountLink onConnected={onConnected}/>;
  return <div className="space-y-4">
   {bridge?.loginEduset?<>
    {candidate?<div className="space-y-3 rounded-xl border p-4"><p className="font-semibold">{candidate.student.grade}학년 {candidate.student.classNo}반 {candidate.student.number}번 {candidate.student.name}</p><p className="text-sm text-muted-foreground">본인 계정이 맞으면 연결하세요. 다음부터는 CBGPU에서 바로 신청할 수 있어요.</p><Button className="w-full min-h-11" disabled={busy} onClick={()=>void confirmAccount()}>{busy?'연결 저장 중…':'이 계정으로 연결'}</Button><Button variant="ghost" className="w-full" disabled={busy} onClick={()=>void login(true)}>다른 EduSet 계정으로 로그인</Button></div>:<><p className="text-sm text-muted-foreground">공식 EduSet 로그인 창이 열려요. 로그인 후 CBGPU로 자동 돌아옵니다.</p><Button className="w-full min-h-12" disabled={busy} onClick={()=>void login()}>{busy?'학교 로그인 진행 중…':'EduSet 로그인'}</Button></>}

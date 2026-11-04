@@ -1,0 +1,80 @@
+name: Signed Android release
+on:
+  push:
+    tags: ['android-v*.*.*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    if: startsWith(github.ref, 'refs/tags/android-v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check signing availability
+        id: signing
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [[ -n "$KEYSTORE" && -n "$STORE_PASS" && -n "$KEY_PASS" && -n "$KEY_ALIAS" ]]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo 'Signed release skipped: configure Android signing secrets. No debug-signed APK will be published.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        if: steps.signing.outputs.ready == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        if: steps.signing.outputs.ready == 'true'
+        with:
+          flutter-version: 3.47.8
+          channel: stable
+      - name: Build signed APK
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF_NAME" =~ ^android-v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          cd FrontEnd/cbgpu_app
+          test "$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)" = "${GITHUB_REF_NAME#android-v}"
+          umask 077
+          printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/cbgpu-release.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$RUNNER_TEMP/cbgpu-release.jks" "$STORE_PASS" "$KEY_ALIAS" "$KEY_PASS" > android/key.properties
+          flutter pub get
+          flutter test test/app_navigation_test.dart test/eduset_login_policy_test.dart
+          flutter build apk --release
+          mkdir -p ../../release-artifacts
+          cp build/app/outputs/flutter-apk/app-release.apk ../../release-artifacts/cbgpu.apk
+          cd ../..
+          node scripts/checksums.mjs release-artifacts
+      - name: Publish signed Android assets
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --verify-tag --title "CBGPU Android ${GITHUB_REF_NAME#android-v}" --notes 'Signed Android release. See CHANGELOG.md and README.md for verification scope.'
+          fi
+          gh release upload "$GITHUB_REF_NAME" release-artifacts/* --clobber
+      - name: Clean signing material
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          Path(os.environ['RUNNER_TEMP'], 'cbgpu-release.jks').unlink(missing_ok=True)
+          Path('FrontEnd/cbgpu_app/android/key.properties').unlink(missing_ok=True)
+          PY
