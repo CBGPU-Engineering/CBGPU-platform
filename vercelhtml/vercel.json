@@ -2,7 +2,7 @@
   "redirects": [
     {
       "source": "/:path*",
-      "destination": "https://just-grassy.vercel.app",
+      "destination": "https://cbgpu.com",
       "statusCode": 308
     }
   ]
