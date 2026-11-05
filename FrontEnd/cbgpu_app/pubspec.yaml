@@ -47,7 +47,7 @@ dependencies:
   share_plus: ^13.3.0
   path_provider: ^2.1.6
   file_picker: ^12.1.2
-  home_widget: ^0.9.3
+  home_widget: ^0.10.0
   workmanager: ^0.10.9
   archive: ^4.2.0
   path_parsing: ^1.1.0
